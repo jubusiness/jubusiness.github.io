@@ -241,8 +241,8 @@
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس' };
-  const NAV_OF = { org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات' };
+  const NAV_OF = { matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
     const st = S.settings; applyTheme(st.theme);
@@ -287,7 +287,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -697,7 +697,7 @@
         ${canAddFac() ? `<button class="btn sm" onclick="C.facImport()">استيراد من Excel</button><button class="btn pri sm" onclick="C.facEdit()">إضافة عضو</button>` : ''}
       </div>
       ${isAdmin() ? `<div class="row noprint" style="margin-bottom:12px;gap:8px;align-items:center"><b class="small">التكليفات (مصدر صلاحيات الجهات وبرامجها):</b>
-        <button class="btn sm" onclick="C.asExport()">${icon('upload')}تصدير التكليفات</button><button class="btn sm pri" onclick="C.asImport()">${icon('list')}استيراد التكليفات من Excel</button>
+        <button class="btn sm pri" onclick="C.go('matrix')">${icon('list')}مصفوفة التكليفات والصلاحيات</button><button class="btn sm" onclick="C.asExport()">${icon('upload')}تصدير التكليفات</button><button class="btn sm" onclick="C.asImport()">${icon('list')}استيراد التكليفات من Excel</button>
         <span class="small muted">${S.faculty.filter((f) => f.profile_app_id).length} من ${S.faculty.length} عضوًا مرتبطون بحساب دخول؛ يُربط الحساب تلقائيًا بالبريد عند أول دخول.</span></div>` : ''}
       <p class="small muted">${list.length} من ${S.faculty.length} عضو. هذه القاعدة هي المصدر الوحيد لبيانات الأعضاء في كل الوحدات واللجان والجداول.</p>
       ${list.length ? `<div class="tw"><table><tr><th>الاسم</th><th>الرتبة</th><th>التخصص</th><th>القسم</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
@@ -821,8 +821,8 @@
   const AS_MAP = { 'الرقم الوظيفي': 'emp', 'employee_no': 'emp', 'البريد الجامعي': 'email', 'البريد': 'email', 'email': 'email', 'اسم العضو': 'name', 'الاسم': 'name', 'الاسم بالعربية': 'name',
     'الجهة': 'unit', 'unit': 'unit', 'الصفة': 'pos', 'المنصب': 'pos', 'position': 'pos', 'المسمى': 'title', 'title': 'title', 'بداية التكليف': 'start', 'البداية': 'start', 'start_date': 'start',
     'نهاية التكليف': 'end', 'النهاية': 'end', 'end_date': 'end' };
-  const POS_OUT = { head: 'رئيس', deputy: 'نائب', secretary: 'مقرر', member: 'عضو' };
-  const POS_IN = { 'رئيس': 'head', 'مسؤول': 'head', 'رئيس / مسؤول': 'head', 'head': 'head', 'نائب': 'deputy', 'deputy': 'deputy', 'مقرر': 'secretary', 'أمين': 'secretary', 'secretary': 'secretary', 'عضو': 'member', 'member': 'member' };
+  const POS_OUT = { head: 'رئيس', deputy: 'نائب', secretary: 'مقرر', member: 'عضو', viewer: 'مطّلع' };
+  const POS_IN = { 'رئيس': 'head', 'مسؤول': 'head', 'رئيس / مسؤول': 'head', 'head': 'head', 'نائب': 'deputy', 'deputy': 'deputy', 'مقرر': 'secretary', 'أمين': 'secretary', 'secretary': 'secretary', 'عضو': 'member', 'member': 'member', 'مطلع': 'viewer', 'مطّلع': 'viewer', 'viewer': 'viewer' };
   const normAr = (s) => String(s || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
   /* التاريخ: 2026-08-16 أو 2026/8/16 أو 16/8/2026، أو رقم Excel التسلسلي، أو m/d/yy كما يكتبه Excel الإنجليزي */
   const asDate = (v) => { const s = String(v == null ? '' : v).trim(); if (!s) return ''; const p2 = (x) => String(x).padStart(2, '0'); let m;
@@ -1448,6 +1448,7 @@
       ${H('org', 'sitemap', 'الهيكل التنظيمي', 'الجهات وتبعيتها ومسؤولوها وأعضاؤها')}
       ${H('faculty', 'user', 'أعضاء هيئة التدريس', 'القاعدة المركزية والاستيراد من Excel')}
       ${H('courses', 'book', 'المقررات والجداول', 'الفصول والمقررات واستيراد الجداول واعتمادها')}
+      ${H('matrix', 'list', 'مصفوفة التكليفات والصلاحيات', 'كل الأعضاء أمام كل الجهات والبرامج في جدول واحد، مع تصدير واستيراد Excel', isAdmin())}
       ${H('accounts', 'key', 'الحسابات والصلاحيات', 'حسابات الزملاء، وصلاحيات كل عضو في كل جهة وبرنامج', isAdmin())}
       ${H('identity', 'palette', 'الهوية والواجهة', 'الشعار وصورة الواجهة واسم الكلية والشعار النصي', isAdmin())}
       ${H('general', 'list', 'القوائم العامة', 'الرتب وحالات الأعضاء والبرامج الأكاديمية', isAdmin())}
@@ -1725,7 +1726,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
      ===================================================================== */
   const BK = [['org_roles', 'key'], ['org_settings', 'id'], ['org_units', 'id'], ['faculty', 'id'], ['faculty_private', 'faculty_id'], ['org_members', 'id'], ['org_grants', 'id'],
     ['org_exclusions', 'grant_id,unit_id'], ['org_changes', 'id'], ['terms', 'id'], ['courses', 'id'], ['sched_versions', 'id'], ['offerings', 'id'], ['sections', 'id'], ['teaching', 'id'],
-    ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key']];
+    ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key'], ['org_app_fac', 'app_id,faculty_id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {
@@ -2096,6 +2097,114 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     [S.members, S.grants, S.profiles] = await Promise.all([D.select('org_members'), D.select('org_grants').catch(() => []), D.select('profiles', { cols: 'app_id,username,name,email,is_admin,college_role,active' })]);
     if (p) notify([p.app_id], 'حُدّثت صلاحياتك في نظام إدارة الكلية.');
     refresh(); toast(changes.length ? 'حُفظت ' + changes.length + ' تغييرات.' : 'لا توجد تغييرات.');
+  });
+
+  /* =====================================================================
+     مصفوفة التكليفات والصلاحيات: كل الأعضاء × كل الجهات والبرامج في جدول واحد.
+     الصفة في الجهة تُحفظ تكليفًا (org_members)، وصلاحية البرنامج على سجل العضو (org_app_fac، الملف 10)،
+     فكلاهما مرتبط بالعضو لا بحساب الدخول وينتقل مع النقل لخادم الجامعة. وتُصدَّر المصفوفة وتُستورد بملف Excel،
+     والاستيراد يملأ الجدول بالتغييرات (مظللة) لتراجعها ثم تحفظها.
+     ===================================================================== */
+  const MX_POS = [['', '—'], ['viewer', 'مطّلع'], ['member', 'عضو'], ['secretary', 'مقرر'], ['deputy', 'نائب'], ['head', 'رئيس']];
+  const MX_LV = [['inherit', 'تلقائي'], ['none', 'لا يدخل'], ['view', 'اطلاع'], ['use', 'استخدام'], ['manage', 'إدارة']];
+  const MX_GRP = [['all', 'كل الأعمدة'], ['department', 'الأقسام العلمية'], ['unit', 'الوحدات'], ['committee', 'اللجان'], ['lead', 'الوكالات والإدارات'], ['apps', 'البرامج']];
+  const MX = { q: '', dept: '', grp: 'all', fac: {}, pend: {}, noFac: false };
+  const mxCols = (grp) => { const us = flatUnits().map((x) => x.u).filter((u) => u.status !== 'archived'), g = grp || MX.grp;
+    const ofK = (k) => us.filter((u) => k === 'lead' ? !['department', 'unit', 'committee'].includes(u.kind) : u.kind === k).map((u) => ({ t: 'u', id: u.id, name: u.name, sub: KIND[u.kind] || '' }));
+    const apps = S.apps.filter((a) => a.active).map((a) => ({ t: 'a', id: a.id, name: a.name, sub: 'برنامج · ' + uName(a.unit_id) }));
+    return g === 'apps' ? apps : g === 'all' ? ofK('department').concat(ofK('unit'), ofK('committee'), ofK('lead'), apps) : ofK(g); };
+  const mxRows = () => { const q = normAr(MX.q).toLowerCase();
+    return S.faculty.filter((f) => f.status !== 'غير نشط' && (!MX.dept || f.department_id === MX.dept) && (!q || normAr(f.name_ar).toLowerCase().includes(q) || String(f.employee_no || '').includes(q) || (f.email || '').toLowerCase().includes(q)))
+      .sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar')); };
+  const mxKey = (c, f) => c.t + ':' + c.id + '|' + f.id;
+  const mxCur = (c, f) => { if (c.t === 'u') { const m = S.members.find((x) => x.unit_id === c.id && x.faculty_id === f.id && activeM(x)); return m ? m.position : ''; } return MX.fac[c.id + '|' + f.id] || 'inherit'; };
+  const mxVal = (c, f) => { const k = mxKey(c, f); return k in MX.pend ? MX.pend[k] : mxCur(c, f); };
+  async function pgMatrix() {
+    if (!isAdmin()) return '<div class="panel">المصفوفة لمدير النظام.</div>';
+    const rows = await D.select('org_app_fac').catch(() => null);
+    MX.noFac = rows === null; if (rows) MX.fac = Object.fromEntries(rows.map((r) => [r.app_id + '|' + r.faculty_id, r.level]));
+    const cols = mxCols(), fs = mxRows();
+    const cell = (c, f) => { const k = mxKey(c, f), o = mxCur(c, f), v = mxVal(c, f), list = c.t === 'u' ? MX_POS : MX_LV;
+      return `<td class="${v !== o ? 'chg' : ''}${v && v !== 'inherit' ? ' set' : ''}"><select data-k="${k}" data-o="${o}"${c.t === 'a' && MX.noFac ? ' disabled' : ''} aria-label="${attr(f.name_ar + ' — ' + c.name)}">${list.map(([x, l]) => `<option value="${x}"${x === v ? ' selected' : ''}>${l}</option>`).join('')}</select></td>`; };
+    VIEW.after = () => { const t = $('#mxT'); if (t) t.addEventListener('change', (e) => { const s = e.target; if (s.tagName !== 'SELECT') return; const k = s.dataset.k;
+      if (s.value === s.dataset.o) delete MX.pend[k]; else MX.pend[k] = s.value;
+      s.parentElement.classList.toggle('chg', s.value !== s.dataset.o); s.parentElement.classList.toggle('set', !!s.value && s.value !== 'inherit'); mxCount(); }); mxCount(); };
+    return `<div class="panel" style="margin-bottom:12px"><p class="small" style="margin:0 0 10px">اختر أمام كل عضو صفته في كل جهة (عضو، مقرر، نائب، رئيس، مطّلع)، وصلاحيته في كل برنامج. «تلقائي» في البرنامج = حسب صفته في جهة البرنامج.
+        التغييرات تُظلَّل بالأصفر، ولا تُحفظ إلا بزر «حفظ التغييرات». تغيير الصفة يُنهي التكليف السابق ويبقى في السجل.</p>
+      ${MX.noFac ? '<p class="small bad" style="margin:0 0 10px">أعمدة البرامج مقفلة حتى يُنفَّذ الملف database/10_app_access_by_faculty.sql في Supabase.</p>' : ''}
+      <div class="row noprint" style="gap:8px;align-items:center">
+        <input class="inp" id="mxQ" placeholder="ابحث بالاسم أو الرقم الوظيفي…" value="${attr(MX.q)}" onchange="C.mxF('q',this.value)" style="width:230px" aria-label="بحث">
+        <select class="inp" onchange="C.mxF('dept',this.value)" aria-label="القسم"><option value="">كل الأقسام</option>${deptUnits().map((d) => opt(d.id, d.name, MX.dept)).join('')}</select>
+        <select class="inp" onchange="C.mxF('grp',this.value)" aria-label="الأعمدة">${MX_GRP.map(([k, l]) => opt(k, l, MX.grp)).join('')}</select>
+        <span class="grow"></span>
+        <button class="btn sm" onclick="C.mxExport()">${icon('upload')}تصدير المصفوفة (Excel)</button><button class="btn sm" onclick="C.mxImport()">${icon('list')}استيراد المصفوفة</button>
+        <button class="btn sm" onclick="C.mxReset()">إلغاء التغييرات</button><button class="btn pri sm" id="mxSave" onclick="C.mxSave(this)">حفظ التغييرات</button></div></div>
+      <p class="small muted">${fs.length} عضوًا × ${cols.length} عمودًا.</p>
+      <div class="mxwrap"><table class="mxt" id="mxT"><thead><tr><th class="nm">العضو</th>${cols.map((c) => `<th title="${attr(c.name + ' — ' + c.sub)}">${esc(c.name)}<small>${esc(c.sub)}</small></th>`).join('')}</tr></thead>
+        <tbody>${fs.map((f) => `<tr><th class="nm"><b>${esc(f.name_ar)}</b><small>${esc([f.rank, uName(f.department_id) === '—' ? '' : uName(f.department_id)].filter(Boolean).join(' · '))}</small></th>${cols.map((c) => cell(c, f)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  const mxCount = () => { const n = Object.keys(MX.pend).length, b = $('#mxSave'); if (b) b.textContent = n ? `حفظ التغييرات (${n})` : 'حفظ التغييرات'; };
+  C.mxF = (k, v) => { MX[k] = v; refresh(); };
+  C.mxReset = () => { MX.pend = {}; refresh(); };
+  C.mxSave = (btn) => busy(btn, async () => {
+    const ent = Object.entries(MX.pend); if (!ent.length) return toast('لا توجد تغييرات.');
+    const heads = {}; for (const [k, v] of ent) if (v === 'head') { const [tid] = k.split('|'); if (heads[tid]) throw new Error('اخترت أكثر من رئيس لـ ' + uName(tid.slice(2)) + '.'); heads[tid] = 1; }
+    const repl = Object.keys(heads).map((tid) => S.members.find((m) => m.unit_id === tid.slice(2) && m.position === 'head' && activeM(m))).filter((m) => m && !MX.pend['u:' + m.unit_id + '|' + m.faculty_id]);
+    if (!(await confirmBox('حفظ التغييرات', `<p>سيُحفظ <b>${ent.length}</b> تغييرًا.</p>${repl.length ? `<p>الرئيس الجديد يحل محل: ${repl.map((m) => esc(fName(m.faculty_id) + ' في ' + uName(m.unit_id))).join('، ')}.</p>` : ''}`, 'حفظ'))) return;
+    const yesterday = () => { const x = new Date(); x.setDate(x.getDate() - 1); return x.toISOString().slice(0, 10); };
+    let ok = 0; const fails = [], told = {};
+    for (const [k, nv] of ent) {
+      const [tid, fid] = k.split('|'), t = tid[0], id = tid.slice(2);
+      try {
+        if (t === 'u') {
+          const cur = S.members.find((m) => m.unit_id === id && m.faculty_id === fid && activeM(m)), ov = cur ? cur.position : '';
+          if (nv === ov) continue;
+          if (ov === 'head') await D.rpc('org_set_head', { p_unit: id, p_faculty: null, p_start: today(), p_end: null });
+          else if (ov && cur.start_date >= today()) await D.remove('org_members', { eq: { id: cur.id } });
+          else if (ov) await D.update('org_members', { end_date: yesterday() }, { eq: { id: cur.id } });
+          if (nv === 'head') await D.rpc('org_set_head', { p_unit: id, p_faculty: fid, p_start: today(), p_end: null });
+          else if (nv) await D.insert('org_members', { unit_id: id, faculty_id: fid, position: nv, start_date: today() });
+          if (nv) (told[fid] = told[fid] || []).push(POS_OUT[nv] + ' في ' + uName(id));
+        } else if (nv === 'inherit') await D.remove('org_app_fac', { eq: { app_id: id, faculty_id: fid } });
+        else await D.upsertMany('org_app_fac', [{ app_id: id, faculty_id: fid, level: nv }], 'app_id,faculty_id', false);
+        delete MX.pend[k]; ok++;
+      } catch (e) { fails.push(fName(fid) + ' — ' + (t === 'u' ? uName(id) : (S.apps.find((a) => a.id === id) || {}).name) + ': ' + pgErr(e)); }
+    }
+    Object.keys(told).forEach((fid) => { const f = fac(fid); if (f && f.profile_app_id) notify([f.profile_app_id], 'حُدّثت تكليفاتك: ' + told[fid].join('، ')); });
+    S.members = await D.select('org_members'); refresh();
+    if (fails.length) modal('تعذّر حفظ بعض التغييرات', `<p>حُفظ ${ok}. التالية بقيت مظللة في الجدول:</p><ul>${fails.map((f) => `<li class="small bad">${esc(f)}</li>`).join('')}</ul>`);
+    else toast('حُفظ ' + ok + ' تغييرًا.');
+  });
+  /* Excel: صف لكل عضو، وعمود لكل جهة وبرنامج؛ الخلية: عضو/مقرر/نائب/رئيس/مطّلع، أو للبرنامج: اطلاع/استخدام/إدارة/لا يدخل */
+  const MX_IN_POS = { '': '', '—': '', '-': '', 'مطلع': 'viewer', 'مطّلع': 'viewer', 'عضو': 'member', 'مقرر': 'secretary', 'أمين': 'secretary', 'نائب': 'deputy', 'رئيس': 'head', 'مسؤول': 'head' };
+  const MX_IN_LV = { '': 'inherit', '—': 'inherit', '-': 'inherit', 'تلقائي': 'inherit', 'لا يدخل': 'none', 'لا': 'none', 'اطلاع': 'view', 'مطلع': 'view', 'استخدام': 'use', 'عضو': 'use', 'ادارة': 'manage', 'إدارة': 'manage', 'مدير': 'manage' };
+  C.mxExport = () => { const cols = mxCols('all'), lab = (c, v) => ((c.t === 'u' ? MX_POS : MX_LV).find((x) => x[0] === v) || ['', ''])[1].replace(/^—$|^تلقائي$/, '');
+    xlsxOut('مصفوفة التكليفات ' + today() + '.xlsx', [{ name: 'المصفوفة', head: ['الرقم الوظيفي', 'البريد الجامعي', 'اسم العضو', 'القسم'].concat(cols.map((c) => (c.t === 'a' ? 'برنامج: ' : '') + c.name)),
+      rows: S.faculty.filter((f) => f.status !== 'غير نشط').sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar')).map((f) => [f.employee_no || '', f.email || '', f.name_ar, uName(f.department_id) === '—' ? '' : uName(f.department_id)].concat(cols.map((c) => lab(c, mxVal(c, f))))) },
+      { name: 'طريقة التعبئة', head: ['النوع', 'القيم المقبولة'], rows: [['الجهات', 'عضو، مقرر، نائب، رئيس، مطّلع، أو فارغ = لا تكليف'], ['البرامج (العمود يبدأ بـ «برنامج:»)', 'استخدام، اطلاع، إدارة، لا يدخل، أو فارغ = تلقائي حسب صفته في جهة البرنامج'],
+        ['العضو', 'يُطابق بالرقم الوظيفي ثم البريد ثم الاسم'], ['ملاحظة', 'الاستيراد يملأ الجدول بالتغييرات لتراجعها، ولا يُحفظ شيء إلا بزر «حفظ التغييرات»']] }]); };
+  C.mxImport = () => modal('استيراد المصفوفة من Excel', `<p>صدّر المصفوفة أولًا، وعدّل الخلايا، ثم استوردها هنا. تظهر التغييرات مظللة في الجدول، ولا يُحفظ شيء قبل «حفظ التغييرات».</p>
+    <label class="f">ملف Excel<input type="file" accept=".xlsx,.xls,.csv" onchange="C.mxParse(this)"></label><div id="mxOut"></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true);
+  C.mxParse = (input) => busy(null, async () => {
+    const raw = await xlsxIn(input.files[0]); if (!raw.length) throw new Error('الملف فارغ.');
+    const cols = mxCols('all'), heads = Object.keys(raw[0]), err = [], colOf = {};
+    heads.forEach((h) => { const n = String(h).trim(); if (['الرقم الوظيفي', 'البريد الجامعي', 'اسم العضو', 'القسم'].includes(n)) return;
+      const isA = /^برنامج\s*[:：]/.test(n), nm = normAr(n.replace(/^برنامج\s*[:：]\s*/, ''));
+      const c = cols.find((x) => (x.t === 'a') === isA && normAr(x.name) === nm) || cols.find((x) => normAr(x.name) === nm);
+      if (c) colOf[h] = c; else err.push('عمود غير معروف (تُرك): ' + n); });
+    let n = 0, rowsOk = 0;
+    raw.forEach((r, i) => { const emp = String(r['الرقم الوظيفي'] || '').trim(), em = String(r['البريد الجامعي'] || '').trim().toLowerCase(), nm = String(r['اسم العضو'] || '').trim();
+      if (!emp && !em && !nm) return;
+      const f = (emp && S.faculty.find((x) => x.employee_no === emp)) || (em && S.faculty.find((x) => (x.email || '').toLowerCase() === em)) || (nm && S.faculty.filter((x) => normAr(x.name_ar) === normAr(nm)).length === 1 && S.faculty.find((x) => normAr(x.name_ar) === normAr(nm)));
+      if (!f) return err.push('الصف ' + (i + 2) + ': العضو غير موجود: ' + (emp || em || nm));
+      rowsOk++;
+      Object.keys(colOf).forEach((h) => { const c = colOf[h], raw2 = String(r[h] == null ? '' : r[h]).trim(), map = c.t === 'u' ? MX_IN_POS : MX_IN_LV, key = raw2 in map ? raw2 : normAr(raw2);
+        const v = key in map ? map[key] : undefined; if (v === undefined) return err.push('الصف ' + (i + 2) + ' — ' + c.name + ': قيمة غير معروفة «' + raw2 + '»');
+        if (c.t === 'a' && MX.noFac) return; const k = mxKey(c, f);
+        if (v === mxCur(c, f)) delete MX.pend[k]; else { MX.pend[k] = v; n++; } }); });
+    $('#mxOut').innerHTML = `<div class="stats" style="margin-top:12px"><div><b>${rowsOk}</b><span>عضوًا</span></div><div><b>${n}</b><span>تغييرًا مظللًا</span></div><div><b class="${err.length ? 'bad' : ''}">${err.length}</b><span>ملاحظات</span></div></div>
+      ${err.length ? `<ul>${err.slice(0, 80).map((e) => `<li class="small bad">${esc(e)}</li>`).join('')}</ul>` : ''}<p class="small">أغلق النافذة وراجع الخلايا المظللة، ثم «حفظ التغييرات».</p>`;
+    MX.grp = 'all'; MX.q = ''; MX.dept = ''; refresh();
   });
 
   /* =====================================================================

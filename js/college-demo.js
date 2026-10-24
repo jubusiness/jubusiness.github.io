@@ -77,7 +77,7 @@
     org_members: [], org_grants: [], org_exclusions: [], org_changes: [], audit_log: [], notifs: [],
     org_settings: [{ id: 1, data: { ranks: ['أستاذ', 'أستاذ مشارك', 'أستاذ مساعد', 'محاضر', 'معيد'], statuses: ['نشط', 'غير نشط', 'إجازة', 'إعارة', 'ابتعاث'], university: 'جامعة الجوف', universityEn: 'Jouf University', slogan: 'معًا .. نحو مستقبل أكثر إبداعًا', footer: 'رؤية . تطوير . تميز', programs: ['بكالوريوس المحاسبة', 'بكالوريوس التمويل', 'بكالوريوس إدارة الأعمال'], maxFileMB: 10 } }],
     terms: [{ id: '1447-2', year: '1447', term: 'الثاني', name: 'الفصل الثاني 1447هـ', is_current: false }, { id: '1448-1', year: '1448', term: 'الأول', name: 'الفصل الأول 1448هـ', is_current: true }],
-    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: []
+    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: []
   };
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
@@ -110,7 +110,7 @@
   const FILES = {};
   const audit = (table, row_id, action, before, after) => T.audit_log.unshift({ id: T.audit_log.length + 1, at: nowISO(), actor_app_id: ME, table_name: table, row_id: String(row_id || ''), action, before: before ? clone(before) : null, after: after ? clone(after) : null });
   const PK = { org_roles: 'key', org_settings: 'id', faculty_private: 'faculty_id', profiles: 'app_id' };
-  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'] };
+  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'] };
   const pk = (t) => PK[t] || 'id';
   const matches = (r, q) => {
     if (!q) return true;
@@ -196,7 +196,7 @@
   R.org_my_access = () => { const p = prof(ME); const f = T.faculty.find((x) => x.profile_app_id === ME);
     const units = Object.fromEntries(T.org_units.map((u) => [u.id, capsFor(ME, u.id)]));
     return { me: { app_id: ME, name: p.name, is_admin: p.is_admin, college_role: p.college_role, faculty_id: f ? f.id : null }, units,
-      apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME); const c = units[a.unit_id] || {};
+      apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
         return [a.id, p.is_admin ? 'manage' : o ? o.level : c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none']; })),
       global: globalFor(ME) }; };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
