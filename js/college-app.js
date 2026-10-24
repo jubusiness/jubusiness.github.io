@@ -1008,7 +1008,8 @@
      --------------------------------------------------------------------- */
   const BR_DAY = { 1: 'أحد', 2: 'اثنين', 3: 'ثلاثاء', 4: 'أربعاء', 5: 'خميس', 6: 'جمعة', 7: 'سبت' };
   const BR_DEPT = { ACCT: 'المحاسبة', FIN: 'التمويل', BUS: 'إدارة الأعمال' };
-  const isOracle = (buf) => { const h = new TextDecoder('latin1').decode(buf.slice(0, 3000)); return /<html/i.test(h) && /Oracle Reports|urn:schemas-microsoft-com:office:excel/i.test(h); };
+  /* ملف HTML بامتداد xls (كما ينزل البرش من النظام الأكاديمي) */
+  const isOracle = (buf) => { const h = new TextDecoder('latin1').decode(buf.slice(0, 6000)); return /<html|<table/i.test(h); };
   /* مفتاح الاسم: دون اللقب (د. أ. أ.د.)، و«بن/بنت» محذوفة، و«أبو زيد/عبد الله» ملتصقة، وهمزات موحدة */
   const nameKey = (s) => { const w = normAr(String(s || '').replace(/^\s*(أ\.?\s*د|ا\.?\s*د|د|أ|م)\s*\.\s*/, '')).split(' ').filter((x) => x && !['بن', 'بنت'].includes(x));
     const out = []; for (let i = 0; i < w.length; i++) { if (['ابو', 'عبد', 'ابن'].includes(w[i]) && w[i + 1]) { out.push(w[i] + w[i + 1]); i++; } else out.push(w[i]); } return out; };
@@ -1021,8 +1022,9 @@
     const ks = [...new Set(k)]; if (ks.length < 2) return null;
     const rv = S.faculty.filter((f) => { const t = nameKey(f.name_ar); return t[0] === k[0] && ks.every((w) => t.includes(w)); });
     return rv.length === 1 ? rv[0] : null; };
-  function parseBarsh(buf) {
-    const doc = new DOMParser().parseFromString(new TextDecoder('windows-1256').decode(buf), 'text/html');
+  /* المصدر: ملف البرش الأصلي (ArrayBuffer)، أو مستند HTML من ورقة Excel إن فتحه أحد في Excel وحفظه xlsx */
+  function parseBarsh(src) {
+    const doc = src instanceof Document ? src : new DOMParser().parseFromString(new TextDecoder(/charset\s*=\s*["']?utf-?8/i.test(new TextDecoder('latin1').decode(src.slice(0, 3000))) ? 'utf-8' : 'windows-1256').decode(src), 'text/html');
     const isTime = (s) => /^\d{1,2}:\d{2}$/.test(s);
     const isName = (s) => /^[؀-ۿ]+( [؀-ۿ]+){2,}$/.test(s) && !/قاعة|كلية|لم تحدد|مقرر|محاضرة/.test(s);
     const secs = [], byKey = new Map(), warn = []; let ctx = { campus: '', degree: '' }, cur = null, pend = null;
@@ -1062,7 +1064,14 @@
   C.schedParse = (input) => busy(null, async () => {
     const file = input.files[0]; const buf = await file.arrayBuffer(); let rows, warn = [];
     if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
-    else { const raw = await xlsxIn(file); rows = raw.map((r) => mapRow(r, SCH_MAP)).filter((r) => Object.values(r).some(Boolean)); }
+    else {
+      if (!window.XLSX) throw new Error('مكتبة Excel لم تُحمَّل. تحقق من الاتصال بالإنترنت.');
+      const wb = XLSX.read(buf, { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false }).map((r) => mapRow(r, SCH_MAP)).filter((r) => Object.values(r).some(Boolean));
+      /* برش فُتح في Excel وحُفظ بصيغة أخرى: تخطيطه نفسه، فيُقرأ بطريقة البرش */
+      if (!rows.some((r) => r.course_code)) { const html = XLSX.utils.sheet_to_html(ws);
+        if (/اسم المقرر/.test(html) && /الشعبة/.test(html)) { const b = parseBarsh(new DOMParser().parseFromString(html, 'text/html')); if (b.rows.length) { rows = b.rows; warn = b.warn; } } }
+    }
     if (!rows.length) throw new Error('الملف فارغ أو عناوين أعمدته لا تطابق القالب.');
     if (!rows.some((r) => r.course_code)) throw new Error('لم يُعثر على عمود «رمز المقرر». استخدم القالب.');
     const courses = await D.select('courses', { cols: 'id,code,name_ar' }); const known = new Set(courses.map((c) => c.code));
