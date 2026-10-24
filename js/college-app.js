@@ -714,12 +714,16 @@
   const dayKey = (d) => String(d || '').trim().replace(/^ال/, '').replace(/^إثنين$/, 'اثنين');
   const DAYS_ORDER = ['سبت', 'أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة'];
   const todayKey = () => DAYS_ORDER[(new Date().getDay() + 1) % 7];
+  /* مواعيد الشعبة: «أحد ثلاثاء» بوقت الشعبة، أو «أحد 08:00-08:50، ثلاثاء 08:00-09:50» لكل يوم وقته */
+  const meetsOf = (c) => String(c.days || '').split(/[،,]/).map((p) => p.trim()).filter(Boolean).flatMap((p) => {
+    const t = p.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/), ds = p.replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/, '').split(/\s+/).filter(Boolean).map(dayKey);
+    return ds.map((d) => ({ d, from: t ? t[1] : c.from, to: t ? t[2] : c.to })); });
   async function pgMySchedule() {
     const mf = myFac(), t = curTerm();
     if (!mf) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا يظهر جدولك. يربطه مدير النظام.</div>';
     const cs = t ? await D.rpc('faculty_courses', { p_faculty: mf, p_term: t.id }).catch(() => []) : [];
     const hours = cs.reduce((s, c) => s + (+c.hours || 0), 0);
-    const byDay = {}; cs.forEach((c) => String(c.days || '').split(/[،,\s]+/).filter(Boolean).map(dayKey).forEach((d) => (byDay[d] = byDay[d] || []).push(c)));
+    const byDay = {}; cs.forEach((c) => meetsOf(c).forEach((m) => (byDay[m.d] = byDay[m.d] || []).push(Object.assign({}, c, { from: m.from, to: m.to }))));
     const days = Object.keys(byDay).sort((a, b) => DAYS_ORDER.indexOf(a) - DAYS_ORDER.indexOf(b));
     return `<p class="small muted">${esc(t ? t.name : 'لا يوجد فصل حالي')} · من الجدول المعتمد · ${cs.length} شعبة · ${hours} ساعة معتمدة</p>
       ${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>البرنامج</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)} ${esc(c.gender || '')}</td><td class="small">${esc(c.program || '')}</td><td>${esc(c.days)}</td><td class="num">${esc(c.from)}–${esc(c.to)}</td><td>${esc(c.room || '')}</td></tr>`).join('')}</table></div>
@@ -996,9 +1000,69 @@
     if (r.faculty_name) { const l = S.faculty.filter((f) => f.name_ar === r.faculty_name); return l.length === 1 ? l[0] : l.length > 1 ? 'dup' : null; }
     return undefined;
   };
+  /* ---------------------------------------------------------------------
+     «البرش» من النظام الأكاديمي (Oracle Reports): ملف .xls هو HTML بترميز windows-1256.
+     صفوف السياق «المقر :» و«الدرجة العلمية :»، وصف لكل شعبة (الشعبة = الرقم المرجعي، المقرر، الاسم، س، النوع، النشاط،
+     التسلسل، الحد، المسجلون، اليوم، من، إلى، القاعة، المحاضر…)، وصفوف إضافية لمواعيد أخرى للشعبة نفسها،
+     وعند فاصل الصفحة قد يسبق صفُّ الموعد صفَّ شعبته. الأيام بالأرقام: 1 الأحد … 5 الخميس.
+     --------------------------------------------------------------------- */
+  const BR_DAY = { 1: 'أحد', 2: 'اثنين', 3: 'ثلاثاء', 4: 'أربعاء', 5: 'خميس', 6: 'جمعة', 7: 'سبت' };
+  const BR_DEPT = { ACCT: 'المحاسبة', FIN: 'التمويل', BUS: 'إدارة الأعمال' };
+  const isOracle = (buf) => { const h = new TextDecoder('latin1').decode(buf.slice(0, 3000)); return /<html/i.test(h) && /Oracle Reports|urn:schemas-microsoft-com:office:excel/i.test(h); };
+  /* مفتاح الاسم: دون اللقب (د. أ. أ.د.)، و«بن/بنت» محذوفة، و«أبو زيد/عبد الله» ملتصقة، وهمزات موحدة */
+  const nameKey = (s) => { const w = normAr(String(s || '').replace(/^\s*(أ\.?\s*د|ا\.?\s*د|د|أ|م)\s*\.\s*/, '')).split(' ').filter((x) => x && !['بن', 'بنت'].includes(x));
+    const out = []; for (let i = 0; i < w.length; i++) { if (['ابو', 'عبد', 'ابن'].includes(w[i]) && w[i + 1]) { out.push(w[i] + w[i + 1]); i++; } else out.push(w[i]); } return out; };
+  /* المحاضر في البرش باسمه الرباعي دون لقب؛ يُطابق بالاسم كاملًا، أو بأن يكون كل اسم السجل (الأول أولًا) ضمن اسم البرش إن لم يتكرر */
+  const matchLect = (name) => { const k = nameKey(name); if (k.length < 2) return null;
+    const full = S.faculty.filter((f) => nameKey(f.name_ar).join(' ') === k.join(' ')); if (full.length === 1) return full[0];
+    const fl = S.faculty.filter((f) => { const t = nameKey(f.name_ar); return t.length >= 2 && t[0] === k[0] && t.slice(1).every((w) => k.includes(w)); });
+    if (fl.length === 1) return fl[0];
+    /* والعكس: اسم البرش ناقص («مختار معزوز معزوز» = «مختار عبدالله معزوز») */
+    const ks = [...new Set(k)]; if (ks.length < 2) return null;
+    const rv = S.faculty.filter((f) => { const t = nameKey(f.name_ar); return t[0] === k[0] && ks.every((w) => t.includes(w)); });
+    return rv.length === 1 ? rv[0] : null; };
+  function parseBarsh(buf) {
+    const doc = new DOMParser().parseFromString(new TextDecoder('windows-1256').decode(buf), 'text/html');
+    const isTime = (s) => /^\d{1,2}:\d{2}$/.test(s);
+    const isName = (s) => /^[؀-ۿ]+( [؀-ۿ]+){2,}$/.test(s) && !/قاعة|كلية|لم تحدد|مقرر|محاضرة/.test(s);
+    const secs = [], byKey = new Map(), warn = []; let ctx = { campus: '', degree: '' }, cur = null, pend = null;
+    const meet = (sec, m) => { if (!sec || !/^[1-7]$/.test(m[0]) || sec.meet.some((x) => x.day === m[0] && x.from === m[1] && x.to === m[2])) return;
+      sec.meet.push({ day: m[0], from: m[1], to: m[2], room: /لم تحدد/.test(m[3] || '') ? '' : (m[3] || '') }); sec.meet.sort((a, b) => a.day - b.day || String(a.from).localeCompare(String(b.from))); };
+    doc.querySelectorAll('tr').forEach((tr) => {
+      const L = [...tr.children].map((td) => td.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean); if (!L.length) return;
+      const ci = L.indexOf('المقر :'); if (ci >= 0) { const di = L.indexOf('الدرجة العلمية :'); ctx = { campus: L[ci + 1] || '', degree: di >= 0 ? (L[di + 1] || '') : '' }; return; }
+      if (L[0] === 'الشعبة' || L[0] === 'الأيام') return;
+      const ti = L.findIndex(isTime);
+      if (/^\d+$/.test(L[0]) && /^[A-Z]{2,6}\s?\d{3,4}[A-Z]?$/i.test(L[1] || '')) {
+        const key = L[0] + '|' + norm(L[1]);
+        cur = byKey.get(key) || { crn: L[0], code: L[1], name: L[2] || '', hours: L[3] || '', act: L[5] || '', campus: ctx.campus, degree: ctx.degree, meet: [], lect: '' };
+        if (!byKey.has(key)) { byKey.set(key, cur); secs.push(cur); }
+        if (ti > 0) { meet(cur, [L[ti - 1], L[ti], L[ti + 1], L[ti + 2]]); cur.lect = cur.lect || L.slice(ti + 3).find(isName) || ''; if (pend) { warn.push('موعد في بداية صفحة لم يُعرف لأي شعبة هو: ' + pend.slice(0, 3).join(' ')); pend = null; } }
+        else { cur.lect = cur.lect || L.slice(7).find(isName) || ''; if (pend) { meet(cur, pend); pend = null; } }
+        return;
+      }
+      if (ti >= 1) { const m = [L[ti - 1], L[ti], L[ti + 1], L[ti + 2]];
+        if (ti >= 2 || L.includes('نعم') || L.includes('لا')) pend = m; else meet(cur, m); }
+    });
+    const rows = secs.map((s) => {
+      const city = (s.campus.match(/ب(\S+)$/) || [])[1] || '', girls = /الطالبات/.test(s.campus);
+      /* الأيام: «أحد ثلاثاء» إن اتحدت الأوقات، وإلا لكل يوم وقته: «أحد 08:00-08:50، ثلاثاء 08:00-09:50» */
+      const m0 = s.meet[0] || {}, sameT = new Set(s.meet.map((m) => m.from + m.to)).size <= 1;
+      const days = sameT ? [...new Set(s.meet.map((m) => BR_DAY[m.day]))].join(' ') : s.meet.map((m) => `${BR_DAY[m.day]} ${m.from}-${m.to}`).join('، ');
+      const pre = (norm(s.code).match(/^[A-Z]+/) || [''])[0], dn = BR_DEPT[pre], dep = dn && deptUnits().find((d) => d.name.includes(dn));
+      const f = s.lect ? matchLect(s.lect) : null;
+      if (s.lect && !f) warn.push(`${s.code} شعبة ${s.crn}: المحاضر «${s.lect}» غير موجود في قاعدة الأعضاء؛ تُستورد الشعبة دون محاضر.`);
+      return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: s.degree, department: dep ? dep.name : '', section: s.crn,
+        gender: (girls ? 'طالبات' : 'طلاب') + (city && city !== 'سكاكا' ? ' - ' + city : ''), days, time_from: m0.from || '', time_to: m0.to || '', room: m0.room || '',
+        faculty_email: f && f.email ? f.email : '', faculty_empno: f && !f.email ? (f.employee_no || '') : '', faculty_name: f && !f.email && !f.employee_no ? f.name_ar : '',
+        teaching_kind: s.act === 'عملي' ? 'عملي' : 'رئيسي' };
+    });
+    return { rows, warn };
+  }
   C.schedParse = (input) => busy(null, async () => {
-    const file = input.files[0]; const raw = await xlsxIn(file);
-    const rows = raw.map((r) => mapRow(r, SCH_MAP)).filter((r) => Object.values(r).some(Boolean));
+    const file = input.files[0]; const buf = await file.arrayBuffer(); let rows, warn = [];
+    if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
+    else { const raw = await xlsxIn(file); rows = raw.map((r) => mapRow(r, SCH_MAP)).filter((r) => Object.values(r).some(Boolean)); }
     if (!rows.length) throw new Error('الملف فارغ أو عناوين أعمدته لا تطابق القالب.');
     if (!rows.some((r) => r.course_code)) throw new Error('لم يُعثر على عمود «رمز المقرر». استخدم القالب.');
     const courses = await D.select('courses', { cols: 'id,code,name_ar' }); const known = new Set(courses.map((c) => c.code));
@@ -1025,15 +1089,16 @@
       if (e.fac.slice().sort().join() !== p.fac.slice().sort().join()) d.push('عضو هيئة التدريس');
       (d.length ? changed : same).push(Object.assign({ diff: d, prev: p }, e)); });
     const removed = prev.filter((p) => !keyed.has(p.code + '|' + p.program + '|' + p.section));
-    IMP = { rows, file: file.name, errs, added, changed, same, removed, prevNo: v ? v.version_no : null, tab: errs.length ? 'err' : 'add' };
+    IMP = { rows, file: file.name, errs, warn, added, changed, same, removed, prevNo: v ? v.version_no : null, tab: errs.length ? 'err' : 'add' };
     refresh();
   });
   function impPreview() {
     const I = IMP;
     if (I.vid) return impFinal();
-    const T = { err: ['الأخطاء', I.errs.length], add: ['شعب جديدة', I.added.length], chg: ['شعب معدلة', I.changed.length], rem: ['غير موجودة في الملف', I.removed.length], same: ['دون تغيير', I.same.length] };
+    const T = Object.assign({ err: ['الأخطاء', I.errs.length] }, (I.warn || []).length ? { warn: ['تنبيهات', I.warn.length] } : {}, { add: ['شعب جديدة', I.added.length] }, { chg: ['شعب معدلة', I.changed.length], rem: ['غير موجودة في الملف', I.removed.length], same: ['دون تغيير', I.same.length] });
     const tbl = (list, f) => list.length ? `<div class="tw"><table>${f(list.slice(0, 300))}</table></div>${list.length > 300 ? '<p class="small muted">يُعرض أول 300 صف.</p>' : ''}` : '<div class="empty">لا شيء.</div>';
     const body = I.tab === 'err' ? tbl(I.errs, (l) => '<tr><th>صف الملف</th><th>المشكلة</th></tr>' + l.map((e) => `<tr><td>${e[0]}</td><td>${esc(e[1])}</td></tr>`).join(''))
+      : I.tab === 'warn' ? `<p class="small muted">لا تمنع الاستيراد؛ راجعها. المحاضر غير الموجود في قاعدة الأعضاء (مثل أعضاء الكليات الأخرى) تُستورد شعبته دون محاضر.</p>` + tbl(I.warn, (l) => '<tr><th>التنبيه</th></tr>' + l.map((w) => `<tr><td class="small">${esc(w)}</td></tr>`).join(''))
       : I.tab === 'add' ? tbl(I.added, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>الأيام والوقت</th><th>القاعة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name || '')}</td><td>${esc(e.section)}</td><td>${esc(e.days)} ${esc(e.from)}</td><td>${esc(e.room)}</td><td>${e.fac.map(fName).join('، ') || '—'}</td></tr>`).join(''))
       : I.tab === 'chg' ? tbl(I.changed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>ما تغير</th><th>قبل</th><th>بعد</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)}</td><td>${esc(e.section)}</td><td>${esc(e.diff.join('، '))}</td><td class="small">${esc(e.prev.days)} ${esc(e.prev.from)} ${esc(e.prev.room)} · ${e.prev.fac.map(fName).join('، ')}</td><td class="small"><b>${esc(e.days)} ${esc(e.from)} ${esc(e.room)} · ${e.fac.map(fName).join('، ')}</b></td></tr>`).join(''))
       : I.tab === 'rem' ? `<p class="small muted">هذه الشعب في الإصدار المعتمد الحالي وليست في الملف. لن تُحذف من الإصدار السابق، لكنها لن تظهر في الإصدار الجديد بعد اعتماده.</p>` + tbl(I.removed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name)}</td><td>${esc(e.section)}</td><td>${e.fac.map(fName).join('، ')}</td></tr>`).join(''))
@@ -2383,7 +2448,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     S._today = null;
     if (role === 'staff' && myFac() && curTerm()) { const dn = todayKey();
       const cs = await D.rpc('faculty_courses', { p_faculty: myFac(), p_term: curTerm().id }).catch(() => []);
-      S._today = cs.filter((c) => String(c.days || '').split(/[،,\s]+/).map(dayKey).includes(dn)).sort((a, b) => String(a.from).localeCompare(String(b.from))); }
+      S._today = cs.flatMap((c) => meetsOf(c).filter((m) => m.d === dn).map((m) => Object.assign({}, c, { from: m.from, to: m.to }))).sort((a, b) => String(a.from).localeCompare(String(b.from))); }
     if (role === 'staff') return `<div class="homebody">${banner}${staffHtml(reqs)}
       <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
         ${q('C.myTasks()', 'clipboard', 'كل مهامي')}${q("C.go('myschedule')", 'calendar', 'جدولي الدراسي')}${q("C.go('apps')", 'app', 'برامجي')}
