@@ -197,7 +197,8 @@
     const units = Object.fromEntries(T.org_units.map((u) => [u.id, capsFor(ME, u.id)]));
     return { me: { app_id: ME, name: p.name, is_admin: p.is_admin, college_role: p.college_role, faculty_id: f ? f.id : null }, units,
       apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
-        return [a.id, p.is_admin ? 'manage' : o ? o.level : c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none']; })),
+        const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none', ev = (f && a.everyone) || 'none';
+        return [a.id, p.is_admin ? 'manage' : o ? o.level : ev !== 'none' && (base === 'none' || (base === 'view' && ev === 'use')) ? ev : base]; })),
       global: globalFor(ME) }; };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
   /* معلومات عامة تجريبية للزوار (عدد الطلاب، التقويم، الفعاليات) بتواريخ قريبة من اليوم */

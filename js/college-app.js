@@ -1645,7 +1645,7 @@
       <div class="row noprint" style="margin-bottom:12px"><select class="inp" onchange="C.go('apps',{unit:this.value})"><option value="">كل الجهات</option>${unitOptions(f)}</select><span class="grow"></span>
         ${manageAny() ? `<button class="btn pri sm" onclick="C.appNew('${attr(f)}')">${icon('upload')}إضافة برنامج</button>` : ''}</div>
       ${list.length ? `<div class="tw"><table><tr><th>البرنامج</th><th>الجهة</th><th>النوع</th><th>الإصدار الحالي</th><th>آخر رفع</th><th></th></tr>${list.map((a) => { const v = VERS[a.current_version], m = appLv(a) === 'manage';
-        return `<tr><td><b>${esc(a.name)}</b>${a.active ? '' : ' ' + chip('موقوف', 'wait')}<div class="tiny muted">${esc(a.description || '')}</div></td><td>${esc(uName(a.unit_id))}</td><td class="small">${AK[a.kind]}${a.kind !== 'html' ? `<div class="tiny muted" dir="ltr">${esc(a.target)}</div>` : ''}</td>
+        return `<tr><td><b>${esc(a.name)}</b>${a.active ? '' : ' ' + chip('موقوف', 'wait')}${a.everyone && a.everyone !== 'none' ? ' ' + chip('لكل الأعضاء: ' + LV[a.everyone], 'ok') : ''}<div class="tiny muted">${esc(a.description || '')}</div></td><td>${esc(uName(a.unit_id))}</td><td class="small">${AK[a.kind]}${a.kind !== 'html' ? `<div class="tiny muted" dir="ltr">${esc(a.target)}</div>` : ''}</td>
         <td>${v ? esc(v.version || '—') : '—'}</td><td class="small">${v ? fmtDT(v.uploaded_at) + '<br>' + esc(pName(v.uploaded_by)) : '—'}</td>
         <td class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح</button>${a.kind === 'html' && m ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button><button class="btn sm" onclick="C.appVers('${a.id}')">الإصدارات</button>` : ''}${m ? `<button class="btn sm" onclick="C.appEdit('${a.id}')">تعديل</button>` : ''}</td></tr>`; }).join('')}</table></div>` : '<div class="empty">لا توجد برامج. أضف أول برنامج لجهتك من الزر أعلاه.</div>'}`;
   }
@@ -1702,9 +1702,11 @@
     const a = S.apps.find((x) => x.id === id); const units = S.units.filter((u) => cap(u.id, 'manage'));
     modal('تعديل ' + a.name, `<div class="formgrid"><label class="f">الاسم<input id="aeN" value="${attr(a.name)}"></label><label class="f">الجهة<select id="aeU">${units.map((u) => opt(u.id, u.name, a.unit_id)).join('')}</select></label>
       <label class="f full">الوصف<input id="aeD" value="${attr(a.description)}"></label>${a.kind !== 'html' ? `<label class="f full">المفتاح أو الرابط<input id="aeT" value="${attr(a.target)}" dir="ltr"></label>` : ''}
-      <label class="f">الترتيب<input id="aeS" type="number" value="${attr(a.sort)}"></label><label class="f">الحالة<select id="aeA">${opt('1', 'متاح', a.active ? '1' : '0')}${opt('0', 'موقوف', a.active ? '1' : '0')}</select></label></div><div class="err"></div>`,
+      <label class="f">الترتيب<input id="aeS" type="number" value="${attr(a.sort)}"></label><label class="f">الحالة<select id="aeA">${opt('1', 'متاح', a.active ? '1' : '0')}${opt('0', 'موقوف', a.active ? '1' : '0')}</select></label>
+      ${isAdmin() ? `<label class="f full">لكل أعضاء هيئة التدريس<select id="aeE">${opt('none', 'لا — حسب الجهة والمصفوفة فقط', a.everyone || 'none')}${opt('view', 'اطلاع لكل عضو', a.everyone)}${opt('use', 'استخدام لكل عضو (مثل قياس المخرجات: كلٌّ بمقرراته)', a.everyone)}</select></label>` : ''}</div><div class="err"></div>`,
       `<button class="btn pri" id="aeOk">حفظ</button>${isAdmin() ? '<button class="btn danger" id="aeDel">حذف البرنامج</button>' : ''}<button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#aeOk').onclick = (ev) => busy(ev.target, async () => { const r = { name: val('aeN'), unit_id: val('aeU'), description: val('aeD'), sort: Number(val('aeS')) || 100, active: val('aeA') === '1' }; if ($('#aeT')) r.target = val('aeT');
+      if ($('#aeE') && val('aeE') !== (a.everyone || 'none')) r.everyone = val('aeE');
       await D.update('org_apps', r, { eq: { id } }); S.apps = await D.select('org_apps'); C.close(); refresh(); toast('حُفظ البرنامج.'); });
     if ($('#aeDel')) $('#aeDel').onclick = async () => { if (!(await confirmBox('حذف البرنامج', '<p>يُحذف البرنامج وإصداراته وبياناته المحفوظة لهذه الجهة نهائيًا. نزّل نسخة شاملة قبل الحذف. هل تحذف؟</p>', 'حذف نهائي', true))) return;
       await busy(null, async () => { await D.remove('org_apps', { eq: { id } }); S.apps = await D.select('org_apps'); refresh(); toast('حُذف البرنامج.'); }); };
@@ -1746,12 +1748,22 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     return R;
   }
   window.addEventListener('beforeunload', (e) => { const R = window.__CAPP; if (R && R.busy()) { R.flush(); e.preventDefault(); e.returnValue = 'لم يكتمل الحفظ.'; return e.returnValue; } });
+  /* الجدول المعتمد للبرامج (مثل قياس المخرجات): window.parent.CS.sched
+     { term: {id, name}, mine: شعب المستخدم في الفصل الحالي, all(): كل الشعب ومحاضروها {id, name_ar, email} } */
+  async function loadSched() {
+    const t = curTerm(); S.sched = null; if (!t) return;
+    const mine = myFac() ? await D.rpc('faculty_courses', { p_faculty: myFac(), p_term: t.id }).catch(() => []) : [];
+    S.sched = { term: { id: t.id, name: t.name }, mine: mine || [],
+      all: async () => { const v = await approvedOf(t.id); if (!v) return [];
+        return (await versionRows(v.id)).map((r) => Object.assign({}, r, { fac: r.fac.map((id) => { const f = fac(id); return f ? { id: f.id, name_ar: f.name_ar, email: f.email || '' } : null; }).filter(Boolean) })); } };
+  }
   async function pgApp() {
     const a = S.apps.find((x) => x.id === VIEW.id); if (!a) return '<div class="panel" style="margin:20px">البرنامج غير موجود.</div>';
     await loadVers(); const v = VERS[a.current_version]; if (!v) return '<div class="panel" style="margin:20px">لم يُرفع ملف لهذا البرنامج.</div>';
     const [blob, rows] = await Promise.all([D.downloadApp(v.path), D.select('org_app_data', { eq: { app_id: a.id }, cols: 'key,value' })]);
     const html = await blob.text(); const data = {}; rows.forEach((r) => { data[r.key] = r.value; });
     const ro = !['use', 'manage'].includes(appLv(a));
+    await loadSched();
     window.__CAPP = makeRuntime(a.id, ro);
     VIEW.after = () => { $('#appFrame').srcdoc = injectShim(html, data); setSync(ro ? 'ro' : 'ok'); };
     const m = appLv(a) === 'manage'; await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
