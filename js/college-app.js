@@ -808,9 +808,14 @@
   C.facTemplate = () => xlsxOut('قالب أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD, rows: [['د. مثال الاسم الكامل', 'Example Name', '40000', 'name@ju.edu.sa', 'أستاذ مساعد', 'محاسبة مالية', (deptUnits()[0] || {}).name || 'قسم المحاسبة', 'نشط', '05xxxxxxxx']] },
     { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['الاسم بالعربية', 'إلزامي'], ['الرقم الوظيفي أو البريد الجامعي', 'يُستخدم للمطابقة مع الموجود؛ يُفضل تعبئة أحدهما على الأقل'], ['القسم', 'اسم القسم كما هو في الهيكل التنظيمي: ' + deptUnits().map((d) => d.name).join('، ')], ['الرتبة', ranks().join('، ')], ['الحالة', statuses().join('، ') + ' (الافتراضي: نشط)'], ['الجوال', 'اختياري؛ يُحفظ في جدول مقيد الاطلاع (يحتاج صلاحية مدير النظام)']] }]);
   let FI = null;
-  C.facParse = (input) => busy(null, async () => {
+  /* مطابقة اسم القسم بمرونة: دون «قسم» والهمزات، أو جزء من الاسم إن دلّ على قسم واحد («التمويل والاستثمار» = «قسم التمويل») */
+  const deptKey = (s) => normAr(s).replace(/^قسم\s+/, '').replace(/^ال(?=\S)/, '');
+  const deptMatch = (name) => { const k = deptKey(name); if (!k) return null; const ds = deptUnits();
+    const eq = ds.filter((d) => deptKey(d.name) === k); if (eq.length === 1) return eq[0];
+    const part = ds.filter((d) => { const dk = deptKey(d.name); return dk && (dk.includes(k) || k.includes(dk)); }); return part.length === 1 ? part[0] : null; };
+  C.facParse =(input) => busy(null, async () => {
     const raw = await xlsxIn(input.files[0]); const rows = raw.map((r) => mapRow(r, FAC_MAP));
-    const out = { add: [], upd: [], err: [] }; const seenE = new Set(), seenN = new Set();
+    const out = { add: [], upd: [], err: [], unk: {} }; const seenE = new Set(), seenN = new Set();
     rows.forEach((r, i) => {
       const n = i + 2;
       if (!r.name_ar) { if (Object.values(r).some(Boolean)) out.err.push([n, 'الاسم بالعربية فارغ']); return; }
@@ -819,22 +824,26 @@
       if (email && seenE.has(email)) return out.err.push([n, 'بريد مكرر في الملف: ' + email]);
       if (r.employee_no && seenN.has(r.employee_no)) return out.err.push([n, 'رقم وظيفي مكرر في الملف: ' + r.employee_no]);
       if (email) seenE.add(email); if (r.employee_no) seenN.add(r.employee_no);
-      let dep = null;
-      if (r.department) { const d = deptUnits().find((x) => x.name === r.department || x.name === 'قسم ' + r.department); if (!d) return out.err.push([n, 'القسم غير موجود في الهيكل: ' + r.department]); dep = d.id; }
+      let dep = null, unk = '';
+      if (r.department) { const d = deptMatch(r.department); if (d) dep = d.id; else { unk = r.department.trim(); out.unk[unk] = (out.unk[unk] || 0) + 1; } }
       if (dep && !isAdmin() && !cap(dep, 'manage')) return out.err.push([n, 'لا تملك صلاحية على ' + uName(dep)]);
       const ex = (r.employee_no && S.faculty.find((f) => f.employee_no === r.employee_no)) || (email && S.faculty.find((f) => (f.email || '').toLowerCase() === email));
       if (ex && email && ex.email && ex.email.toLowerCase() !== email && S.faculty.some((f) => f.id !== ex.id && (f.email || '').toLowerCase() === email)) return out.err.push([n, 'البريد مسجل لعضو آخر: ' + email]);
       const row = { name_ar: r.name_ar, name_en: r.name_en || '', employee_no: r.employee_no || null, email: email || null, rank: r.rank || '', specialty: r.specialty || '', department_id: dep, status: r.status || 'نشط' };
-      if (ex) { const ch = Object.keys(row).filter((k) => (row[k] || '') !== (ex[k] || '') && !(k === 'department_id' && !row[k])); if (ch.length || (r.mobile && r.mobile !== S.privates[ex.id])) out.upd.push({ n, id: ex.id, row, ch, mobile: r.mobile }); }
-      else out.add.push({ n, row, mobile: r.mobile });
+      if (ex) { const ch = Object.keys(row).filter((k) => (row[k] || '') !== (ex[k] || '') && !(k === 'department_id' && !row[k])); if (unk && !ch.includes('department_id')) ch.push('department_id'); if (ch.length || (r.mobile && r.mobile !== S.privates[ex.id])) out.upd.push({ n, id: ex.id, row, ch, mobile: r.mobile, unk }); }
+      else out.add.push({ n, row, mobile: r.mobile, unk });
     });
-    FI = out;
+    FI = out; const unks = Object.keys(out.unk);
     $('#fiOut').innerHTML = `<div class="stats" style="margin-top:14px"><div><b>${out.add.length}</b><span>جديد</span></div><div><b>${out.upd.length}</b><span>تحديث</span></div><div><b class="${out.err.length ? 'bad' : ''}">${out.err.length}</b><span>أخطاء (لن تُستورد)</span></div></div>
+      ${unks.length ? `<h3 style="margin-top:12px">أقسام لم تُعرف في الهيكل</h3><p class="small">اختر القسم المقصود بكل اسم، أو «بلا قسم». يُطبَّق الاختيار على كل الصفوف التي فيها هذا الاسم.</p>
+        <div class="tw"><table><tr><th>الاسم في الملف</th><th>عدد الصفوف</th><th>القسم في الهيكل</th></tr>${unks.map((u, i) => `<tr><td>${esc(u)}</td><td>${out.unk[u]}</td><td><select id="fiU${i}"><option value="">بلا قسم</option>${deptUnits().filter((d) => isAdmin() || cap(d.id, 'manage')).map((d) => opt(d.id, d.name, '')).join('')}</select></td></tr>`).join('')}</table></div>` : ''}
       ${out.err.length ? `<h3>الأخطاء</h3><div class="tw"><table><tr><th>الصف</th><th>المشكلة</th></tr>${out.err.slice(0, 100).map((e) => `<tr><td>${e[0]}</td><td>${esc(e[1])}</td></tr>`).join('')}</table></div>` : ''}
       ${out.add.length ? `<h3 style="margin-top:12px">الجديد</h3><div class="tw"><table><tr><th>الصف</th><th>الاسم</th><th>البريد</th><th>القسم</th></tr>${out.add.slice(0, 100).map((a) => `<tr><td>${a.n}</td><td>${esc(a.row.name_ar)}</td><td dir="ltr">${esc(a.row.email || '')}</td><td>${esc(uName(a.row.department_id))}</td></tr>`).join('')}</table></div>` : ''}
       ${out.upd.length ? `<h3 style="margin-top:12px">التحديث</h3><div class="tw"><table><tr><th>الصف</th><th>الاسم</th><th>الحقول المتغيرة</th></tr>${out.upd.slice(0, 100).map((a) => `<tr><td>${a.n}</td><td>${esc(a.row.name_ar)}</td><td class="small">${esc(a.ch.join('، ') || 'الجوال')}</td></tr>`).join('')}</table></div>` : ''}`;
     $('#fiOk').disabled = !(out.add.length || out.upd.length);
     $('#fiOk').onclick = (ev) => busy(ev.target, async () => {
+      const map = Object.fromEntries(unks.map((u, i) => [u, val('fiU' + i) || null]));
+      FI.add.concat(FI.upd).forEach((a) => { if (a.unk) a.row.department_id = map[a.unk]; });
       let ok = 0; const fails = [];
       for (const a of FI.add) { try { const r = (await D.insert('faculty', a.row))[0]; if (a.mobile && isAdmin()) await D.upsert('faculty_private', { faculty_id: r.id, mobile: a.mobile }); ok++; } catch (e) { fails.push('صف ' + a.n + ': ' + pgErr(e)); } }
       for (const a of FI.upd) { try { const row = Object.assign({}, a.row); if (!row.department_id) delete row.department_id; await D.update('faculty', row, { eq: { id: a.id } }); if (a.mobile && isAdmin()) await D.upsert('faculty_private', { faculty_id: a.id, mobile: a.mobile }); ok++; } catch (e) { fails.push('صف ' + a.n + ': ' + pgErr(e)); } }
