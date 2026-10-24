@@ -1380,6 +1380,12 @@
       <label class="f full">نبذة الكلية (رؤيتها ورسالتها) في صفحة «الكلية»<textarea id="iA">${esc(s.about || '')}</textarea></label>
       <div class="f">شعار الجامعة (PNG بخلفية شفافة)<div class="row">${s.logo ? `<img src="${attr(s.logo)}" alt="" style="height:48px;background:#fff;border-radius:6px;padding:3px">` : '<span class="small muted">الشعار الافتراضي</span>'}
         <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div></div>
+      ${(() => { const pi = s.publicInfo || {}; const lines = (l) => (l || []).map((x) => [x.d, x.t, x.p].filter(Boolean).join(' | ')).join('\n');
+        return `<h3 style="margin:18px 0 8px">معلومات عامة للزوار (الصفحة الأولى قبل الدخول)</h3>
+        <div class="formgrid"><label class="f">عدد الطلاب والطالبات (اختياري)<input id="iStu" type="number" min="0" value="${attr(pi.students || '')}"></label>
+          <label class="f full">التقويم الدراسي: سطر لكل موعد بالصيغة «التاريخ | الموعد»<textarea id="iCal" dir="rtl" placeholder="2026-12-14 | بداية الاختبارات النهائية">${esc(lines(pi.calendar))}</textarea></label>
+          <label class="f full">الفعاليات: سطر لكل فعالية بالصيغة «التاريخ | العنوان | المكان»<textarea id="iEv" dir="rtl" placeholder="2026-11-20 | ملتقى ريادة الأعمال | قاعة المؤتمرات">${esc(lines(pi.events))}</textarea></label></div>
+        <p class="small muted">يظهر للزوار القادم فقط، الأقرب أولًا (خمسة لكل قائمة).</p>`; })()}
       ${(() => { const t = Object.assign({}, THEME_DEF, s.theme || {}); const ci = (k, l) => `<label class="f">${l}<span class="row"><input type="color" id="th_${k}" value="${attr(t[k])}" oninput="C.thPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(t[k])}</code></span></label>`;
         return `<h3 style="margin:18px 0 8px">الألوان</h3><p class="small muted">الافتراضي بنفسجي شعار جامعة الجوف. يظهر التغيير فورًا للمعاينة، ولا يُعتمد إلا بعد «حفظ الهوية».</p>
         <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'رأس بطاقة الدخول — بداية التدرج')}${ci('frame2', 'رأس بطاقة الدخول — نهاية التدرج')}</div>
@@ -1388,7 +1394,10 @@
       <div class="row" style="margin-top:12px"><button class="btn pri" onclick="C.idSave(this)">حفظ الهوية</button></div></div>`;
   }
   const thRead = () => { const g = (k) => document.getElementById('th_' + k); if (!g('primary')) return null; const t = {}; ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { t[k] = g(k).value; }); return t; };
-  const idKeep = () => { ['iU:university', 'iUe:universityEn', 'iC:collegeShort', 'iCf:collegeName', 'iS:slogan', 'iF:footer', 'iA:about'].forEach((p) => { const [i, k] = p.split(':'); const e = document.getElementById(i); if (e) IDN[k] = e.value.trim(); }); const t = thRead(); if (t) IDN.theme = Object.assign({}, (S.settings.theme || {}), t); };
+  const idKeep = () => { ['iU:university', 'iUe:universityEn', 'iC:collegeShort', 'iCf:collegeName', 'iS:slogan', 'iF:footer', 'iA:about'].forEach((p) => { const [i, k] = p.split(':'); const e = document.getElementById(i); if (e) IDN[k] = e.value.trim(); }); const t = thRead(); if (t) IDN.theme = Object.assign({}, (S.settings.theme || {}), t);
+    if ($('#iCal')) { const rd = (id) => val(id).split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((x) => x[1])
+        .map(([d, tt, p]) => { const m = String(d).replace(/\//g, '-').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); return m ? { d: `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`, t: tt, p: p || '' } : null; }).filter(Boolean);
+      IDN.publicInfo = { students: Number(val('iStu')) || null, calendar: rd('iCal'), events: rd('iEv') }; } };
   C.thPrev = () => { const t = thRead(); if (!t) return; applyTheme(t); ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { const c = document.getElementById('th_' + k).nextElementSibling; if (c) c.textContent = t[k]; }); };
   C.thReset = () => { ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { document.getElementById('th_' + k).value = THEME_DEF[k]; }); C.thPrev(); toast('أُعيدت ألوان الجامعة. اضغط «حفظ الهوية» لاعتمادها.'); };
   C.idImg = (k, input) => busy(null, async () => { idKeep(); IDN[k] = await imgToData(input.files[0], k === 'logo' ? 256 : 1800, k === 'logo' ? 'image/png' : 'image/jpeg', 0.82); refresh(); });
@@ -2022,25 +2031,49 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
      الطالب لا يحتاج حسابًا: تظهر له خدمات الطلاب فقط (لا تُحفظ بيانات طلاب في النظام). */
   let GTAB = 'admin', GMSG = '';
   const GTABS = { admin: ['الإدارة', 'bank'], faculty: ['عضو هيئة التدريس', 'user'], student: ['الطالب', 'book'] };
+  /* التقويم والفعاليات (من الإعدادات ← الهوية): القادم فقط، الأقرب أولًا */
+  const upcoming = (list) => (Array.isArray(list) ? list : []).filter((x) => x && x.d && x.t && x.d >= today()).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 5);
+  const dayTxt = (d) => { const n = Math.round((new Date(d) - new Date(today())) / 86400000);
+    return d.replace(/-/g, '/') + (n === 0 ? ' · اليوم' : n === 1 ? ' · غدًا' : n > 1 && n <= 30 ? ` · بعد ${n} يومًا` : ''); };
   async function renderGuest(msg) {
     GMSG = msg || '';
     const b = await loadBrand(); BRAND = BRAND || b; applyTheme(b.theme);
     $('#brand').innerHTML = brandHtml(b);
     renderDock(b.assist || {}, false);
-    const st = b.stats || {}, anns = (b.announcements || []).slice(0, 3);
+    const st = b.stats || {}, info = b.info || {}, anns = (b.announcements || []).slice(0, 4);
     S._anns = anns.map((a, i) => Object.assign({ id: 'pa' + i }, a));
-    const stat = (n, t) => `<div><b>${n == null ? '—' : n}</b><span>${esc(t)}</span></div>`;
-    $('#view').innerHTML = `<div class="gate">
-      <section class="gcard" aria-labelledby="gTitle">
-        <header><img src="${attr(b.logo || LOGO_IMG)}" alt="" onerror="this.remove()"><div><h1 id="gTitle">نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')}</h1><span>${esc(b.university || 'جامعة الجوف')}</span></div></header>
-        <div class="gtabs" role="tablist" aria-label="نوع الحساب">${Object.keys(GTABS).map((k) => `<button role="tab" id="gt-${k}" aria-selected="${GTAB === k}" class="${GTAB === k ? 'on' : ''}" onclick="C.gTab('${k}')">${icon(GTABS[k][1])}${GTABS[k][0]}</button>`).join('')}</div>
-        <div class="gbody" id="gBody" role="tabpanel"></div>
+    const c = b.assist || {}, sup = c.support || {};
+    const hasChat = c.chatSrc && c.chatSrc !== 'none' && c.public, hasSup = sup.whatsapp || sup.email;
+    /* الأرقام: تُخفى البطاقة التي لا قيمة لها بعد (مثل المقررات قبل استيراد الجدول) */
+    const stat = (ic, n, t) => n ? `<div>${icon(ic)}<b>${n}</b><span>${esc(t)}</span></div>` : '';
+    const dl = (list, empty) => list.length ? `<ul class="glist">${list.map((x) => `<li><time>${esc(dayTxt(x.d))}</time><div><b>${esc(x.t)}</b>${x.p ? `<span>${esc(x.p)}</span>` : ''}</div></li>`).join('')}</ul>` : `<div class="empty">${empty}</div>`;
+    const svc = (fn, ic, t, d) => `<button onclick="${fn}">${icon(ic)}<b>${esc(t)}</b><span>${esc(d)}</span></button>`;
+    $('#view').innerHTML = `<div class="gate2">
+      <section class="ghero">
+        <div class="gintro"><img src="${attr(b.logo || LOGO_IMG)}" alt="" onerror="this.remove()">
+          <h1 id="gTitle">نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')}</h1><p class="gsub">${esc(b.university || 'جامعة الجوف')}</p>
+          <p class="gslog">${esc(b.slogan || 'معًا .. نحو مستقبل أكثر إبداعًا')}</p>
+          <p class="gdesc">منصة موحدة لمتابعة الأقسام والوحدات واللجان، والمهام والتكليفات، وبرامج الاختبارات والجودة والتدريب.</p></div>
+        <section class="gcard" aria-labelledby="gTitle">
+          <div class="gtabs" role="tablist" aria-label="نوع الحساب">${Object.keys(GTABS).map((k) => `<button role="tab" id="gt-${k}" aria-selected="${GTAB === k}" class="${GTAB === k ? 'on' : ''}" onclick="C.gTab('${k}')">${icon(GTABS[k][1])}${GTABS[k][0]}</button>`).join('')}</div>
+          <div class="gbody" id="gBody" role="tabpanel"></div>
+        </section>
       </section>
-      <section class="gpub" aria-label="معلومات عامة">
-        <div class="gstats">${stat(st.departments, 'أقسام علمية')}${stat(st.units, 'وحدات')}${stat(st.committees, 'لجان')}${stat(st.faculty, 'عضو هيئة تدريس')}${stat(st.courses, 'مقررًا')}</div>
-        <div class="box gann"><h2>${icon('mega')}أحدث الإعلانات</h2><div class="ann">${S._anns.length ? S._anns.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div></div>
-      </section>
-      <footer class="gfoot">${esc(b.footer || 'رؤية . تطوير . تميز')} · ${esc(b.university || 'جامعة الجوف')} - ${esc(b.collegeShort || 'كلية الأعمال')}</footer></div>`;
+      <div class="gwrap">
+        <div class="gstats">${stat('book', info.students, 'طالب وطالبة')}${stat('user', st.faculty, 'عضو هيئة تدريس')}${stat('sitemap', st.departments, 'أقسام علمية')}${stat('cubes', st.units, 'وحدات')}${stat('users', st.committees, 'لجان')}${stat('file', st.courses, 'مقررًا دراسيًا')}</div>
+        <div class="ginfo">
+          <div class="box"><h2>${icon('mega')}أحدث الإعلانات</h2><div class="ann">${S._anns.length ? S._anns.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div></div>
+          <div class="box"><h2>${icon('bolt')}الفعاليات القادمة</h2>${dl(upcoming(info.events), 'لا توجد فعاليات قادمة.')}</div>
+          <div class="box"><h2>${icon('calendar')}التقويم الدراسي</h2>${dl(upcoming(info.calendar), 'يُنشر التقويم الدراسي قريبًا.')}</div>
+        </div>
+        <div class="gquick"><h2>${icon('bolt')}الوصول السريع</h2><div>
+          ${hasChat ? svc("C.dock('chat')", 'chat', c.chatName || 'المرشد الأكاديمي', 'للطلاب: الخطط والتسجيل والأنظمة') : ''}
+          ${hasSup ? svc("C.dock('sup')", 'headset', 'الدعم الفني', 'تواصل مع الكلية') : ''}
+          ${svc("C.gTab('faculty');C.needLogin()", 'user', 'دخول أعضاء هيئة التدريس', 'مهامك وبرامجك')}
+          ${svc('C.guide()', 'guide', 'دليل الاستخدام', 'كيف يعمل النظام')}
+          ${svc("window.open('https://www.ju.edu.sa','_blank','noopener')", 'college', 'موقع جامعة الجوف', 'ju.edu.sa')}</div></div>
+        <footer class="gfoot">${esc(b.footer || 'رؤية . تطوير . تميز')} · ${esc(b.university || 'جامعة الجوف')} - ${esc(b.collegeShort || 'كلية الأعمال')}</footer>
+      </div></div>`;
     gBody();
   }
   function gBody() {

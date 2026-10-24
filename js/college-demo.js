@@ -200,8 +200,12 @@
         return [a.id, p.is_admin ? 'manage' : o ? o.level : c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none']; })),
       global: globalFor(ME) }; };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
+  /* معلومات عامة تجريبية للزوار (عدد الطلاب، التقويم، الفعاليات) بتواريخ قريبة من اليوم */
+  const demoInfo = () => { const at = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    return { students: 2140, calendar: [{ d: at(3), t: 'آخر موعد للحذف والإضافة' }, { d: at(12), t: 'بداية الاختبارات الفصلية الثانية' }, { d: at(45), t: 'بداية الاختبارات النهائية' }, { d: at(60), t: 'إجازة نهاية الفصل' }],
+      events: [{ d: at(1), t: 'لقاء الإرشاد الأكاديمي للطلاب المستجدين', p: 'القاعة 12' }, { d: at(9), t: 'ملتقى ريادة الأعمال', p: 'قاعة المؤتمرات' }, { d: at(20), t: 'ورشة: التقويم في التعليم الإلكتروني', p: 'عن بعد' }] }; };
   DEMO.publicBrand = async () => { const st = T.org_settings[0].data; const act = (u) => u.status === 'active';
-    return { collegeShort: st.collegeShort, university: st.university, universityEn: st.universityEn, slogan: st.slogan, footer: st.footer, logo: st.logo, hero: st.hero, theme: st.theme, assist: st.assist,
+    return { collegeShort: st.collegeShort, university: st.university, universityEn: st.universityEn, slogan: st.slogan, footer: st.footer, logo: st.logo, theme: st.theme, assist: st.assist, info: st.publicInfo || demoInfo(),
       announcements: T.org_announcements.filter((a) => !a.unit_id || true).filter((a) => a.published_at <= today()).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 4).map((a) => ({ title: a.title, body: a.body, published_at: a.published_at, pinned: a.pinned })),
       stats: { units: T.org_units.filter((u) => act(u) && u.kind === 'unit').length, committees: T.org_units.filter((u) => act(u) && u.kind === 'committee').length, departments: T.org_units.filter((u) => act(u) && u.kind === 'department').length,
         vices: T.org_units.filter((u) => act(u) && u.kind === 'leadership' && u.parent_id).length, faculty: T.faculty.filter((f) => f.status === 'نشط').length, courses: T.courses.length } }; };
