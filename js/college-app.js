@@ -32,7 +32,7 @@
     if (/faculty_empno_uq/i.test(m)) return 'الرقم الوظيفي مسجل لعضو آخر.';
     if (/duplicate key/i.test(m)) return 'السجل موجود من قبل.';
     if (/violates foreign key.*restrict|still referenced/i.test(m)) return 'لا يمكن الحذف لوجود سجلات مرتبطة. استخدم التعطيل أو الأرشفة.';
-    if (/Could not find the function|does not exist/i.test(m)) return 'قاعدة البيانات غير مكتملة: نفّذ ملفات 2_database بالترتيب (1 ثم 2 ثم 3) في Supabase.';
+    if (/Could not find the function|does not exist/i.test(m)) return 'قاعدة البيانات غير مكتملة: نفّذ ملفات مجلد database بالترتيب في Supabase.';
     return m;
   };
   const chk = (r) => { if (r.error) throw new Error(pgErr(r.error)); return r.data; };
@@ -65,8 +65,8 @@
     async rpc(n, a) { if (DEMO) { try { return await DM().rpc[n](a || {}); } catch (e) { throw new Error(pgErr(e)); } } return chk(await sb.rpc(n, a || {})); },
     async fn(body) {
       if (DEMO) return DM().fn('users', body);
-      const s = (await sb.auth.getSession()).data.session;
-      const r = await sb.functions.invoke(CFG.usersFunction || 'admin-users', { body, headers: s ? { Authorization: 'Bearer ' + s.access_token } : {} });
+      const tk = await D.auth.token();
+      const r = await sb.functions.invoke(CFG.usersFunction || 'admin-users', { body, headers: tk ? { Authorization: 'Bearer ' + tk } : {} });
       if (r.error) { let m = r.error.message; try { const j = await r.error.context.json(); m = j.error || m; } catch (e) {} return { error: m }; }
       return r.data;
     },
@@ -79,7 +79,16 @@
     async downloadTpl(path) { if (DEMO) return DM().download('tpl/' + path); return chk(await sb.storage.from('org-templates').download(path)); },
     async downloadPublic(path) { if (DEMO) return DM().download('public/' + path); return chk(await sb.storage.from('org-public').download(path)); },
     async uploadPublic(path, blob) { if (DEMO) return DM().upload('public/' + path, blob); return chk(await sb.storage.from('org-public').upload(path, blob, { upsert: true, contentType: 'text/html' })); },
-    async removeFile(path) { if (DEMO) return DM().removeFile(path); return chk(await sb.storage.from('org-files').remove([path])); }
+    async removeFile(path) { if (DEMO) return DM().removeFile(path); return chk(await sb.storage.from('org-files').remove([path])); },
+    /* الدخول والخروج: المكان الوحيد الذي يتعامل مع نظام الحسابات. عند النقل إلى الدخول الموحد للجامعة يُعدَّل هنا فقط */
+    auth: {
+      live: () => CAN_LIVE,
+      async session() { return sb ? (await sb.auth.getSession()).data.session : null; },
+      async token() { const s = await D.auth.session(); return s ? s.access_token : null; },
+      async signIn(email, password) { const r = await sb.auth.signInWithPassword({ email, password }); if (r.error) throw new Error(/invalid/i.test(r.error.message) ? 'البريد أو كلمة المرور غير صحيحة.' : r.error.message); },
+      async signOut() { if (sb && !DEMO) await sb.auth.signOut(); },
+      async setPassword(password) { const r = await sb.auth.updateUser({ password }); if (r.error) throw new Error(r.error.message); }
+    }
   };
 
   /* ---------------- الحالة ---------------- */
@@ -180,14 +189,14 @@
 
   const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png', BG_IMG = 'img/login-bg.jpg';
     let BRAND = null;
-  C.logout = async () => { if (!DEMO && sb) await sb.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null;
+  C.logout = async () => { await D.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null;
     /* لا تنتقل الصفحة المفتوحة ولا مرشحات المهام إلى من يدخل بعده على الجهاز نفسه */
     Object.assign(TQ, { tab: 'tasks', st: 'open', unit: '', mine: false }); history.replaceState(null, '', location.pathname + location.search); showLogin(); };
 
   async function boot() {
     try {
       let a = await D.rpc('org_my_access');
-      if (!a || !a.me) { if (sb && !DEMO) await sb.auth.signOut(); return showLogin('الحساب غير نشط. تواصل مع مدير النظام.'); }
+      if (!a || !a.me) { await D.auth.signOut(); return showLogin('الحساب غير نشط. تواصل مع مدير النظام.'); }
       /* أول دخول: يُربط الحساب بسجل العضو الذي بريده هو بريد الدخول، فتعمل صلاحيات تكليفاته فورًا (الملف 9) */
       if (!a.me.faculty_id) { const fid = await D.rpc('org_link_me').catch(() => null); if (fid) { a = await D.rpc('org_my_access'); toast('رُبط حسابك بسجلك في قاعدة أعضاء هيئة التدريس.'); } }
       S.me = a.me; S.acc = a.units || {}; S.glob = a.global || {}; S.appLv = a.apps || {};
@@ -212,7 +221,7 @@
         const a = val('np1'), b = val('np2');
         if (a.length < 10 || !/\d/.test(a) || !/[^\d]/.test(a)) throw new Error('كلمة المرور 10 أحرف على الأقل، وتجمع حروفًا وأرقامًا.');
         if (a !== b) throw new Error('كلمتا المرور غير متطابقتين.');
-        const r = await sb.auth.updateUser({ password: a }); if (r.error) throw new Error(r.error.message);
+        await D.auth.setPassword(a);
         await D.update('profiles', { must_change: false }, { eq: { app_id: S.me.app_id } });
         $('#mclose').classList.remove('hidden'); C.close(); toast('حُفظت كلمة المرور الجديدة.');
       });
@@ -1830,7 +1839,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     modal('تغيير كلمة المرور', `<div class="formgrid"><label class="f">كلمة المرور الجديدة<input type="password" id="cp1" dir="ltr" autocomplete="new-password"></label><label class="f">تأكيدها<input type="password" id="cp2" dir="ltr" autocomplete="new-password"></label></div><div class="err"></div>`,
       `<button class="btn pri" id="cpOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#cpOk').onclick = (ev) => busy(ev.target, async () => { const a = val('cp1'); if (a.length < 10 || !/\d/.test(a) || !/[^\d]/.test(a)) throw new Error('10 أحرف على الأقل، تجمع حروفًا وأرقامًا.'); if (a !== val('cp2')) throw new Error('كلمتا المرور غير متطابقتين.');
-      const r = await sb.auth.updateUser({ password: a }); if (r.error) throw new Error(r.error.message); C.close(); toast('حُفظت كلمة المرور.'); });
+      await D.auth.setPassword(a); C.close(); toast('حُفظت كلمة المرور.'); });
   };
 
   /* =====================================================================
@@ -2356,9 +2365,9 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   let FAILS = 0, LOCK_UNTIL = 0;
   async function loadBrand() {
     if (DEMO) return DM().publicBrand();
-    if (!CAN_LIVE) return {};
+    if (!D.auth.live()) return {};
     if (BRAND) return BRAND;
-    try { const r = await sb.rpc('public_brand'); BRAND = r.data || {}; } catch (e) { BRAND = {}; }
+    try { BRAND = (await D.rpc('public_brand')) || {}; } catch (e) { BRAND = {}; }
     return BRAND;
   }
   const brandHtml = (b) => `<img src="${attr(b.logo || LOGO_IMG)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="emb" style="display:none">${emblem()}</span><div><b>${esc(b.university || 'جامعة الجوف')}</b><span dir="ltr">${esc(b.universityEn || 'Jouf University')}</span></div>`;
@@ -2456,10 +2465,9 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     try {
       if (DEMO) { if (!DM().login(u, p)) throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة.'); }
       else {
-        if (!CAN_LIVE) throw new Error('لم يُضبط الاتصال بقاعدة البيانات في config.js.');
+        if (!D.auth.live()) throw new Error('لم يُضبط الاتصال بقاعدة البيانات في config.js.');
         if (!u.includes('@')) u = u.toLowerCase() + '@' + (CFG.emailDomain || 'ju.edu.sa');
-        const r = await sb.auth.signInWithPassword({ email: u, password: p });
-        if (r.error) throw new Error(/invalid/i.test(r.error.message) ? 'البريد أو كلمة المرور غير صحيحة.' : r.error.message);
+        await D.auth.signIn(u, p);
       }
       FAILS = 0; $('#lgPass').value = ''; boot();
     } catch (err) { FAILS++; if (FAILS >= 5) { LOCK_UNTIL = Date.now() + 60000; FAILS = 0; } toast(err.message, true); $('#lgPass').select(); }
@@ -2577,11 +2585,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   }
   /* ---------------- التشغيل ---------------- */
   (async function init() {
-    if (FORCE_DEMO || !CAN_LIVE) {
+    if (FORCE_DEMO || !D.auth.live()) {
       if (FORCE_DEMO) { DEMO = true; return showLogin(); }
       return showLogin('لم يُضبط الاتصال بقاعدة البيانات في config.js.');
     }
-    const s = (await sb.auth.getSession()).data.session;
-    if (s) boot(); else showLogin();
+    if (await D.auth.session()) boot(); else showLogin();
   })();
 })();
