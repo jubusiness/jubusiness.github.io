@@ -81,7 +81,7 @@
     programs: [{ id: 'acct', name: 'بكالوريوس المحاسبة', department_id: 'dept-acct', degree: '', prefixes: ['ACCT'], coordinator_id: null, active: true, sort: 1 },
       { id: 'fin', name: 'بكالوريوس التمويل والاستثمار', department_id: 'dept-fin', degree: '', prefixes: ['FIN'], coordinator_id: null, active: true, sort: 2 },
       { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 }],
-    course_coords: [], faculty_aliases: [], org_app_duties: []
+    course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: []
   };
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
@@ -205,11 +205,20 @@
         if (p.is_admin) return [a.id, 'manage']; if (o) return [a.id, o.level]; if (base === 'manage' || base === 'use') return [a.id, base];
         /* الملف 14: «لكل الأعضاء»، والدور العام على البرنامج، والدور في مقرر لبرنامج مربوط بأزرار «مقرراتي» */
         let extra = (f && a.everyone && a.everyone !== 'none') ? a.everyone : 'none';
-        if (f && (T.org_app_duties.some((d) => d.app_id === a.id && d.faculty_id === f.id) || (courseButtonApp(a.id) && myCourseRole(f.id)))) extra = 'use';
+        if (f && T.org_app_duties.some((d) => d.app_id === a.id && d.faculty_id === f.id)) extra = 'use';
+        /* الملف 15: الدور في المقرر = «استخدام» لبرنامج ملف المقرر، و«اطلاع» لبرنامجي الاختبارات والبلاك بورد */
+        const cb = courseButtonLevel(a.id); if (f && cb && extra !== 'use' && myCourseRole(f.id)) extra = cb === 'use' ? 'use' : 'view';
         return [a.id, extra === 'use' ? 'use' : (extra === 'view' || base === 'view') ? 'view' : 'none']; })),
       duties: f ? T.org_app_duties.filter((d) => d.faculty_id === f.id).reduce((m, d) => { (m[d.app_id] = m[d.app_id] || []).push({ duty: d.duty, program_id: d.program_id || null }); return m; }, {}) : {},
       global: globalFor(ME) }; };
-  const courseButtonApp = (id) => Object.values(((T.org_settings[0] || {}).data || {}).courseButtons || {}).includes(id);
+  const courseButtonLevel = (id) => { const b = ((T.org_settings[0] || {}).data || {}).courseButtons || {}; return b.file === id ? 'use' : Object.values(b).includes(id) ? 'view' : null; };
+  /* صلاحية قوية على البرنامج: من الجهة أو استثناء أو دور عام — لا من الدور في المقرر وحده */
+  const appStrong = (app) => { const p = prof(ME), f = T.faculty.find((x) => x.profile_app_id === ME), a = T.org_apps.find((x) => x.id === app); if (p.is_admin) return true;
+    const o = T.org_app_access.find((x) => x.app_id === app && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === app && x.faculty_id === f.id)); if (o && ['use', 'manage'].includes(o.level)) return true;
+    const c = (a && capsFor(ME, a.unit_id)) || {}; return !!(c.write || c.manage || (f && T.org_app_duties.some((d) => d.app_id === app && d.faculty_id === f.id))); };
+  const myCourseOn = (term, course) => { const f = (T.faculty.find((x) => x.profile_app_id === ME) || {}).id; if (!f) return false; const v = approvedV(term); const c = T.courses.find((x) => x.id === course) || {};
+    return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === f && T.sections.some((s) => s.id === t.section_id && T.offerings.some((o) => o.id === s.offering_id && o.course_id === course))))
+      || T.course_coords.some((x) => x.term_id === term && x.course_id === course && x.faculty_id === f) || T.programs.some((g) => g.coordinator_id === f && g.prefixes.includes((String(c.code).match(/^[A-Z]+/) || [''])[0]))); };
   const myCourseRole = (fid) => { const cur = (T.terms.find((t) => t.is_current) || {}).id; const v = cur && approvedV(cur);
     return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === fid)) || T.course_coords.some((c) => c.term_id === cur && c.faculty_id === fid) || T.programs.some((p) => p.active && p.coordinator_id === fid)); };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
@@ -219,7 +228,7 @@
       events: [{ d: at(1), t: 'لقاء الإرشاد الأكاديمي للطلاب المستجدين', p: 'القاعة 12' }, { d: at(9), t: 'ملتقى ريادة الأعمال', p: 'قاعة المؤتمرات' }, { d: at(20), t: 'ورشة: التقويم في التعليم الإلكتروني', p: 'عن بعد' }] }; };
   DEMO.publicBrand = async () => { const st = T.org_settings[0].data; const act = (u) => u.status === 'active';
     return { collegeShort: st.collegeShort, university: st.university, universityEn: st.universityEn, slogan: st.slogan, footer: st.footer, logo: st.logo, theme: st.theme, assist: st.assist, info: st.publicInfo || demoInfo(),
-      announcements: T.org_announcements.filter((a) => !a.unit_id || true).filter((a) => a.published_at <= today()).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 4).map((a) => ({ title: a.title, body: a.body, published_at: a.published_at, pinned: a.pinned })),
+      announcements: T.org_announcements.filter((a) => !a.course_id).filter((a) => a.published_at <= today()).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 4).map((a) => ({ title: a.title, body: a.body, published_at: a.published_at, pinned: a.pinned })),
       stats: { units: T.org_units.filter((u) => act(u) && u.kind === 'unit').length, committees: T.org_units.filter((u) => act(u) && u.kind === 'committee').length, departments: T.org_units.filter((u) => act(u) && u.kind === 'department').length,
         vices: T.org_units.filter((u) => act(u) && u.kind === 'leadership' && u.parent_id).length, faculty: T.faculty.filter((f) => f.status === 'نشط').length, courses: T.courses.length } }; };
   R.org_move_preview = ({ p_unit, p_new_parent }) => {
@@ -366,6 +375,52 @@
     T.org_requests.push({ id, unit_id: 'college-admin', kind: 'request', title: 'دعم فني: ' + p_title, body: p_body || '', status: 'new', priority: 'normal', assignee_faculty: null, due_date: null, comments: [], attachments: [], archived: false, created_by: ME, created_at: nowISO(), updated_at: nowISO() }); return id; };
   R.org_app_put = ({ p_app, p_key, p_value }) => { let r = T.org_app_data.find((x) => x.app_id === p_app && x.key === p_key);
     if (r) { r.value = p_value; r.version++; } else T.org_app_data.push(r = { app_id: p_app, key: p_key, value: p_value, version: 1 }); r.updated_at = nowISO(); r.updated_by = ME; return r.version; };
+  /* الملف 15: ملخصات البرامج، والاستفسارات، وإعلانات المقرر */
+  const appLvMe = (app) => R.org_my_access().apps[app] || 'none';
+  const appUnit = (app) => (T.org_apps.find((a) => a.id === app) || {}).unit_id || null;
+  const curTermId = () => (T.terms.find((t) => t.is_current) || {}).id || null;
+  const myFacId = () => (T.faculty.find((x) => x.profile_app_id === ME) || {}).id || null;
+  R.course_status_publish = ({ p_app, p_items }) => {
+    if (!['use', 'manage'].includes(appLvMe(p_app))) throw new Error('لا يملك المستخدم صلاحية النشر من هذا البرنامج.'); const strong = appStrong(p_app);
+    let n = 0; (p_items || []).forEach((it) => {
+      const tid = it.term || curTermId(); const c = /^[0-9a-f-]{36}$/.test(it.course || '') ? T.courses.find((x) => x.id === it.course) : T.courses.find((x) => x.code === norm(it.code || ''));
+      if (!tid || !c || !it.kind) return; if (!strong && !myCourseOn(tid, c.id)) return; const v = approvedV(tid);
+      const sid = /^[0-9a-f-]{36}$/.test(it.section || '') ? it.section : it.section_no ? ((T.sections.find((s) => v && s.version_id === v.id && String(s.section_no) === String(it.section_no).trim() && T.offerings.some((o) => o.id === s.offering_id && o.course_id === c.id))) || {}).id || null : null;
+      const fid = /^[0-9a-f-]{36}$/.test(it.faculty || '') || /^f\d+$/.test(it.faculty || '') ? it.faculty : null;
+      T.course_status = T.course_status.filter((x) => !(x.term_id === tid && x.course_id === c.id && x.source_app === p_app && x.kind === it.kind && (x.section_id || '') === (sid || '') && (x.faculty_id || '') === (fid || '')));
+      n++; if (it.delete) return;
+      T.course_status.push({ id: uuid(), term_id: tid, course_id: c.id, section_id: sid, faculty_id: fid, source_app: p_app, kind: String(it.kind).slice(0, 40), status: String(it.status || '').slice(0, 40), progress: it.progress == null || it.progress === '' ? null : Number(it.progress), details: it.details && typeof it.details === 'object' ? clone(it.details) : {}, updated_at: nowISO(), updated_by: ME }); });
+    return n; };
+  R.course_inquiry_send = ({ p_app, p_course, p_faculty, p_title, p_body, p_term }) => {
+    if (!appStrong(p_app)) throw new Error('إرسال الاستفسارات لجهة البرنامج أو أصحاب الأدوار فيه.');
+    if (!appUnit(p_app) || !p_course || !p_faculty || !String(p_title || '').trim()) throw new Error('بيانات الاستفسار ناقصة.');
+    const r = { id: uuid(), unit_id: appUnit(p_app), kind: 'inquiry', title: String(p_title).trim(), body: p_body || '', status: 'new', priority: 'normal', assignee_faculty: p_faculty, course_id: p_course, term_id: p_term || curTermId(), read_at: null, comments: [], attachments: [], archived: false, created_by: ME, created_at: nowISO(), updated_at: nowISO() };
+    T.org_requests.push(r); return r.id; };
+  R.inquiry_read = ({ p_id }) => { const r = T.org_requests.find((x) => x.id === p_id && x.kind === 'inquiry' && x.assignee_faculty === myFacId()); if (r && !r.read_at) r.read_at = nowISO(); return null; };
+  R.inquiry_reply = ({ p_id, p_text }) => { const r = T.org_requests.find((x) => x.id === p_id && x.kind === 'inquiry' && x.assignee_faculty === myFacId());
+    if (!String(p_text || '').trim()) throw new Error('اكتب الرد.'); if (!r) throw new Error('الاستفسار غير موجود أو ليس موجّهًا إليك.');
+    const p = prof(ME); r.read_at = r.read_at || nowISO(); if (r.status === 'new') r.status = 'in_progress'; r.comments.push({ by: p.name, app: ME, at: nowISO(), text: p_text, reply: true }); return null; };
+  R.course_inquiries = ({ p_app, p_term }) => !['use', 'manage'].includes(appLvMe(p_app)) ? [] : T.org_requests.filter((r) => r.kind === 'inquiry' && r.unit_id === appUnit(p_app) && (!p_term || r.term_id === p_term))
+    .map((r) => ({ id: r.id, course: r.course_id, faculty: r.assignee_faculty, title: r.title, body: r.body, status: r.status, created_at: r.created_at, read_at: r.read_at, replies: clone(r.comments) }));
+  R.course_announce = ({ p_course, p_title, p_body, p_expires }) => { const t = curTermId(), f = myFacId(), v = approvedV(t), p = prof(ME);
+    const ok = p.is_admin || (v && T.teaching.some((x) => x.version_id === v.id && x.faculty_id === f && T.offerings.some((o) => o.course_id === p_course && T.sections.some((s) => s.id === x.section_id && s.offering_id === o.id)))) || T.course_coords.some((c) => c.term_id === t && c.course_id === p_course && c.faculty_id === f);
+    if (!ok) throw new Error('الإعلان لأستاذ المقرر أو منسقه في الفصل الحالي.'); if (!String(p_title || '').trim()) throw new Error('اكتب عنوان الإعلان.');
+    const a = { id: uuid(), unit_id: null, title: String(p_title).trim(), body: p_body || '', pinned: false, published_at: today(), expires_at: p_expires || null, course_id: p_course, term_id: t, created_by: ME, created_at: nowISO() }; T.org_announcements.push(a); return a.id; };
+  R.course_announce_delete = ({ p_id }) => { const p = prof(ME); T.org_announcements = T.org_announcements.filter((a) => !(a.id === p_id && a.course_id && (p.is_admin || a.created_by === ME))); return null; };
+  R.public_course_ann = ({ p_code }) => { const c = T.courses.find((x) => x.code === norm(p_code || '')); const t = curTermId(); if (!c) return [];
+    return T.org_announcements.filter((a) => a.course_id === c.id && a.term_id === t && a.published_at <= today() && (!a.expires_at || a.expires_at >= today())).map((a) => ({ title: a.title, body: a.body, published_at: a.published_at })); };
+  /* الملف 16: لوحة المتابعة */
+  R.dept_followup = ({ p_term }) => { const p = prof(ME), v = approvedV(p_term); if (!v) return [];
+    const mine = T.org_units.filter((d) => d.kind === 'department' && (p.is_admin || p.college_role || capsFor(ME, d.id).manage));
+    const offs = T.offerings.filter((o) => o.version_id === v.id), cs = [...new Set(offs.map((o) => o.course_id))].map((id) => T.courses.find((c) => c.id === id));
+    const item = (c) => ({ id: c.id, code: c.code, name: c.name_ar, fac: [...new Set(T.teaching.filter((t) => t.version_id === v.id && T.sections.some((s) => s.id === t.section_id && offs.some((o) => o.id === s.offering_id && o.course_id === c.id))).map((t) => t.faculty_id))],
+      coord: (T.course_coords.find((x) => x.term_id === p_term && x.course_id === c.id) || {}).faculty_id || null });
+    return mine.map((d) => { const dc = cs.filter((c) => c.department_id === d.id);
+      return { dept: d.id, courses: dc.length,
+        no_file: dc.filter((c) => !T.course_status.some((x) => x.term_id === p_term && x.course_id === c.id && x.kind === 'file' && x.status === 'complete')).map(item),
+        bb_unmet: dc.filter((c) => T.course_status.some((x) => x.term_id === p_term && x.course_id === c.id && x.kind === 'bb' && x.status === 'unmet')).map(item),
+        inq: T.org_requests.filter((r) => r.kind === 'inquiry' && r.term_id === p_term && !['done', 'rejected'].includes(r.status) && dc.some((c) => c.id === r.course_id) && !(r.comments || []).some((m) => m.reply))
+          .map((r) => ({ id: r.id, course: r.course_id, code: (dc.find((c) => c.id === r.course_id) || {}).code, faculty: r.assignee_faculty, title: r.title, created_at: r.created_at })) }; }); };
   R.org_app_del = ({ p_app, p_key }) => { T.org_app_data = T.org_app_data.filter((x) => !(x.app_id === p_app && x.key === p_key)); return null; };
   /* ربط الحساب بسجل العضو بالبريد عند أول دخول (مثل الملف 9) */
   R.org_link_me = () => { const own = T.faculty.find((f) => f.profile_app_id === ME); if (own) return own.id;
