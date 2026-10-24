@@ -185,8 +185,10 @@
 
   async function boot() {
     try {
-      const a = await D.rpc('org_my_access');
+      let a = await D.rpc('org_my_access');
       if (!a || !a.me) { if (sb && !DEMO) await sb.auth.signOut(); return showLogin('الحساب غير نشط. تواصل مع مدير النظام.'); }
+      /* أول دخول: يُربط الحساب بسجل العضو الذي بريده هو بريد الدخول، فتعمل صلاحيات تكليفاته فورًا (الملف 9) */
+      if (!a.me.faculty_id) { const fid = await D.rpc('org_link_me').catch(() => null); if (fid) { a = await D.rpc('org_my_access'); toast('رُبط حسابك بسجلك في قاعدة أعضاء هيئة التدريس.'); } }
       S.me = a.me; S.acc = a.units || {}; S.glob = a.global || {}; S.appLv = a.apps || {};
       await loadAll();
       $('#app').classList.remove('hidden', 'guest');
@@ -694,6 +696,9 @@
         <button class="btn sm" onclick="C.facExport()">تصدير Excel</button>
         ${canAddFac() ? `<button class="btn sm" onclick="C.facImport()">استيراد من Excel</button><button class="btn pri sm" onclick="C.facEdit()">إضافة عضو</button>` : ''}
       </div>
+      ${isAdmin() ? `<div class="row noprint" style="margin-bottom:12px;gap:8px;align-items:center"><b class="small">التكليفات (مصدر صلاحيات الجهات وبرامجها):</b>
+        <button class="btn sm" onclick="C.asExport()">${icon('upload')}تصدير التكليفات</button><button class="btn sm pri" onclick="C.asImport()">${icon('list')}استيراد التكليفات من Excel</button>
+        <span class="small muted">${S.faculty.filter((f) => f.profile_app_id).length} من ${S.faculty.length} عضوًا مرتبطون بحساب دخول؛ يُربط الحساب تلقائيًا بالبريد عند أول دخول.</span></div>` : ''}
       <p class="small muted">${list.length} من ${S.faculty.length} عضو. هذه القاعدة هي المصدر الوحيد لبيانات الأعضاء في كل الوحدات واللجان والجداول.</p>
       ${list.length ? `<div class="tw"><table><tr><th>الاسم</th><th>الرتبة</th><th>التخصص</th><th>القسم</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
       ${list.map((f) => `<tr class="click" tabindex="0" onclick="C.facView('${f.id}')" onkeydown="if(event.key==='Enter')C.facView('${f.id}')"><td><b>${esc(f.name_ar)}</b>${f.name_en ? `<div class="tiny muted" dir="ltr" style="text-align:end">${esc(f.name_en)}</div>` : ''}</td><td>${esc(f.rank)}</td><td>${esc(f.specialty)}</td>
@@ -804,6 +809,97 @@
       await reloadFaculty();
       if (fails.length) { $('#fiOut').innerHTML = `<p>اكتمل ${ok} سجل. تعذّر:</p><ul>${fails.map((f) => `<li class="small bad">${esc(f)}</li>`).join('')}</ul>`; $('#fiOk').disabled = true; }
       else { C.close(); refresh(); toast('اكتمل الاستيراد: ' + ok + ' سجل.'); }
+    });
+  });
+
+  /* ---------------------------------------------------------------------
+     التكليفات بملف Excel: مرجع واحد يُستورد هنا، ويُستورد نفسه عند النقل لخادم الجامعة.
+     التكليف مرتبط بسجل العضو لا بحساب الدخول، ومنه تُشتق صلاحيات الجهات وبرامجها.
+     العضو يُطابق بالرقم الوظيفي ثم البريد ثم الاسم الكامل (إن لم يتكرر)، والجهة باسمها في الهيكل.
+     --------------------------------------------------------------------- */
+  const AS_HEAD = ['الرقم الوظيفي', 'البريد الجامعي', 'اسم العضو', 'الجهة', 'الصفة', 'المسمى', 'بداية التكليف', 'نهاية التكليف'];
+  const AS_MAP = { 'الرقم الوظيفي': 'emp', 'employee_no': 'emp', 'البريد الجامعي': 'email', 'البريد': 'email', 'email': 'email', 'اسم العضو': 'name', 'الاسم': 'name', 'الاسم بالعربية': 'name',
+    'الجهة': 'unit', 'unit': 'unit', 'الصفة': 'pos', 'المنصب': 'pos', 'position': 'pos', 'المسمى': 'title', 'title': 'title', 'بداية التكليف': 'start', 'البداية': 'start', 'start_date': 'start',
+    'نهاية التكليف': 'end', 'النهاية': 'end', 'end_date': 'end' };
+  const POS_OUT = { head: 'رئيس', deputy: 'نائب', secretary: 'مقرر', member: 'عضو' };
+  const POS_IN = { 'رئيس': 'head', 'مسؤول': 'head', 'رئيس / مسؤول': 'head', 'head': 'head', 'نائب': 'deputy', 'deputy': 'deputy', 'مقرر': 'secretary', 'أمين': 'secretary', 'secretary': 'secretary', 'عضو': 'member', 'member': 'member' };
+  const normAr = (s) => String(s || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
+  /* التاريخ: 2026-08-16 أو 2026/8/16 أو 16/8/2026، أو رقم Excel التسلسلي، أو m/d/yy كما يكتبه Excel الإنجليزي */
+  const asDate = (v) => { const s = String(v == null ? '' : v).trim(); if (!s) return ''; const p2 = (x) => String(x).padStart(2, '0'); let m;
+    if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return `${m[1]}-${p2(m[2])}-${p2(m[3])}`;
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return `${m[3]}-${p2(m[2])}-${p2(m[1])}`;
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/))) return `20${m[3]}-${p2(m[1])}-${p2(m[2])}`;
+    if (/^\d{5}$/.test(s)) return new Date(Math.round((+s - 25569) * 86400000)).toISOString().slice(0, 10);
+    return null; };
+  const asRows = (list) => list.map((m) => { const f = fac(m.faculty_id) || {}; return [f.employee_no || '', f.email || '', f.name_ar || '', uName(m.unit_id), POS_OUT[m.position] || m.position, m.title || '', m.start_date || '', m.end_date || '']; });
+  const asGuide = () => ({ name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['الرقم الوظيفي أو البريد الجامعي', 'لمطابقة العضو بسجله في قاعدة الأعضاء (يُفضل الرقم الوظيفي). يكفي أحدهما'],
+    ['اسم العضو', 'للقراءة فقط؛ يُطابق به إن خلا الرقم والبريد وكان الاسم غير مكرر'], ['الجهة', 'اسمها كما في الهيكل التنظيمي (انظر الورقة «الجهات»)'],
+    ['الصفة', 'رئيس، نائب، مقرر، عضو. الرئيس الجديد يُنهي تكليف الرئيس السابق للجهة'], ['المسمى', 'اختياري، مثل: منسق الجودة'],
+    ['بداية التكليف', 'اختياري بالصيغة 2026-08-16 (الافتراضي اليوم)'], ['نهاية التكليف', 'اختياري؛ فارغ = مستمر']] });
+  const asUnits = () => ({ name: 'الجهات', head: ['الجهة', 'النوع', 'تتبع'], rows: S.units.filter((u) => u.status !== 'archived').sort(sortU).map((u) => [u.name, KIND[u.kind] || u.kind, uName(u.parent_id)]) });
+  C.asExport = () => xlsxOut('التكليفات ' + today() + '.xlsx', [{ name: 'التكليفات السارية', head: AS_HEAD, rows: asRows(S.members.filter((m) => activeM(m)).sort((a, b) => uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar') || (a.position === 'head' ? -1 : 1))) },
+    { name: 'التكليفات المنتهية', head: AS_HEAD, rows: asRows(S.members.filter((m) => !activeM(m))) }, asGuide(), asUnits()]);
+  C.asTemplate = () => xlsxOut('قالب التكليفات.xlsx', [{ name: 'التكليفات', head: AS_HEAD, rows: [['40000', 'name@ju.edu.sa', 'د. مثال الاسم', (S.units.find((u) => u.kind === 'unit') || {}).name || 'وحدة الجودة', 'عضو', '', today(), '']] }, asGuide(), asUnits()]);
+  C.asImport = () => {
+    if (!isAdmin()) return toast('استيراد التكليفات لمدير النظام.', true);
+    modal('استيراد التكليفات من Excel', `<p>صف لكل تكليف: العضو (برقمه الوظيفي أو بريده)، والجهة، والصفة. من له التكليف نفسه لا يتغير، ومن تغيرت صفته يُنهى تكليفه السابق ويُسجَّل الجديد (يبقى السجل كاملًا). لا يُحذف أي تكليف غير موجود في الملف.</p>
+      <div class="row"><button class="btn sm" onclick="C.asTemplate()">تنزيل القالب</button><button class="btn sm" onclick="C.asExport()">تصدير التكليفات الحالية</button></div>
+      <label class="f" style="margin-top:12px">ملف Excel<input type="file" id="aiF" accept=".xlsx,.xls,.csv" onchange="C.asParse(this)"></label>
+      <div id="aiOut"></div><div class="err"></div>`, `<button class="btn pri" id="aiOk" disabled>اعتماد الاستيراد</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
+  };
+  let AI = null;
+  C.asParse = (input) => busy(null, async () => {
+    const raw = await xlsxIn(input.files[0]); const rows = raw.map((r) => mapRow(r, AS_MAP));
+    const units = S.units.filter((u) => u.status !== 'archived');
+    const out = { add: [], chg: [], same: 0, err: [] }, seen = new Set(), heads = {};
+    rows.forEach((r, i) => {
+      const n = i + 2, bad = (t) => out.err.push([n, t]);
+      if (!Object.values(r).some(Boolean)) return;
+      const email = (r.email || '').toLowerCase();
+      let f = (r.emp && S.faculty.find((x) => x.employee_no === r.emp)) || (email && S.faculty.find((x) => (x.email || '').toLowerCase() === email));
+      if (!f && r.name && !r.emp && !email) { const l = S.faculty.filter((x) => normAr(x.name_ar) === normAr(r.name)); if (l.length > 1) return bad('الاسم مكرر في قاعدة الأعضاء؛ اكتب الرقم الوظيفي: ' + r.name); f = l[0]; }
+      if (!f) return bad('العضو غير موجود في قاعدة الأعضاء: ' + (r.emp || email || r.name || '—'));
+      const u = units.find((x) => x.id === r.unit || normAr(x.name) === normAr(r.unit));
+      if (!u) return bad('الجهة غير موجودة في الهيكل: ' + (r.unit || '—'));
+      const pos = POS_IN[String(r.pos || 'عضو').trim()];
+      if (!pos) return bad('صفة غير معروفة: ' + r.pos + ' (رئيس، نائب، مقرر، عضو)');
+      const start = asDate(r.start) || today(), end = asDate(r.end);
+      if (start === null || asDate(r.start) === null || end === null) return bad('تاريخ غير مفهوم؛ اكتبه بالصيغة 2026-08-16');
+      if (end && end < start) return bad('نهاية التكليف قبل بدايته');
+      const key = f.id + '|' + u.id; if (seen.has(key)) return bad('التكليف مكرر في الملف: ' + f.name_ar + ' — ' + u.name); seen.add(key);
+      if (pos === 'head') { if (heads[u.id]) return bad('أكثر من رئيس للجهة نفسها في الملف: ' + u.name); heads[u.id] = f.id; }
+      const ex = S.members.find((m) => m.unit_id === u.id && m.faculty_id === f.id && activeM(m));
+      const row = { n, f, u, pos, title: r.title || '', start, end: end || null };
+      const curHead = pos === 'head' && S.members.find((m) => m.unit_id === u.id && m.position === 'head' && activeM(m) && m.faculty_id !== f.id);
+      if (curHead) row.note = 'يحل محل ' + fName(curHead.faculty_id);
+      if (ex && ex.position === pos && (!row.title || row.title === (ex.title || ''))) out.same++;
+      else if (ex) { row.ex = ex; row.note = (row.note ? row.note + '؛ ' : '') + 'كان: ' + (POS_OUT[ex.position] || ex.position); out.chg.push(row); }
+      else out.add.push(row);
+    });
+    AI = out;
+    const tbl = (l) => `<div class="tw"><table><tr><th>الصف</th><th>العضو</th><th>الجهة</th><th>الصفة</th><th>من</th><th>ملاحظة</th></tr>${l.slice(0, 150).map((a) => `<tr><td>${a.n}</td><td>${esc(a.f.name_ar)}</td><td>${esc(a.u.name)}</td><td>${esc(POS_OUT[a.pos])}${a.title ? ' · ' + esc(a.title) : ''}</td><td class="num">${esc(a.start)}</td><td class="small">${esc(a.note || '')}</td></tr>`).join('')}</table></div>`;
+    $('#aiOut').innerHTML = `<div class="stats" style="margin-top:14px"><div><b>${out.add.length}</b><span>تكليف جديد</span></div><div><b>${out.chg.length}</b><span>تغيير صفة</span></div><div><b>${out.same}</b><span>موجود دون تغيير</span></div><div><b class="${out.err.length ? 'bad' : ''}">${out.err.length}</b><span>أخطاء (لن تُستورد)</span></div></div>
+      ${out.err.length ? `<h3>الأخطاء</h3><div class="tw"><table><tr><th>الصف</th><th>المشكلة</th></tr>${out.err.slice(0, 150).map((e) => `<tr><td>${e[0]}</td><td>${esc(e[1])}</td></tr>`).join('')}</table></div>` : ''}
+      ${out.add.length ? `<h3 style="margin-top:12px">الجديد</h3>${tbl(out.add)}` : ''}${out.chg.length ? `<h3 style="margin-top:12px">تغيير الصفة</h3>${tbl(out.chg)}` : ''}`;
+    $('#aiOk').disabled = !(out.add.length || out.chg.length);
+    $('#aiOk').onclick = (ev) => busy(ev.target, async () => {
+      let ok = 0; const fails = [], told = [];
+      const yesterday = (d) => { const x = new Date(d); x.setDate(x.getDate() - 1); return x.toISOString().slice(0, 10); };
+      for (const a of AI.chg.concat(AI.add)) {
+        try {
+          if (a.ex) { if (a.ex.position === 'head') await D.rpc('org_set_head', { p_unit: a.u.id, p_faculty: null, p_start: a.start, p_end: null });
+            else await D.update('org_members', { end_date: [yesterday(a.start), a.ex.start_date].sort().pop() }, { eq: { id: a.ex.id } }); }
+          if (a.pos === 'head') { await D.rpc('org_set_head', { p_unit: a.u.id, p_faculty: a.f.id, p_start: a.start, p_end: a.end });
+            if (a.title) await D.update('org_members', { title: a.title }, { eq: { unit_id: a.u.id, faculty_id: a.f.id, position: 'head', start_date: a.start } }).catch(() => {}); }
+          else await D.insert('org_members', { unit_id: a.u.id, faculty_id: a.f.id, position: a.pos, title: a.title, start_date: a.start, end_date: a.end });
+          if (a.f.profile_app_id) told.push([a.f.profile_app_id, (a.pos === 'head' ? 'كُلّفت برئاسة ' : 'كُلّفت بعضوية ') + a.u.name]);
+          ok++;
+        } catch (e) { fails.push('صف ' + a.n + ': ' + pgErr(e)); }
+      }
+      for (const [p, t] of told) notify([p], t);
+      S.members = await D.select('org_members');
+      if (fails.length) { $('#aiOut').innerHTML = `<p>اكتمل ${ok} تكليف. تعذّر:</p><ul>${fails.map((f) => `<li class="small bad">${esc(f)}</li>`).join('')}</ul>`; $('#aiOk').disabled = true; }
+      else { C.close(); refresh(); toast('اكتمل استيراد التكليفات: ' + ok + '.'); }
     });
   });
 

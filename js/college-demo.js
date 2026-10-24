@@ -330,6 +330,10 @@
   R.org_app_put = ({ p_app, p_key, p_value }) => { let r = T.org_app_data.find((x) => x.app_id === p_app && x.key === p_key);
     if (r) { r.value = p_value; r.version++; } else T.org_app_data.push(r = { app_id: p_app, key: p_key, value: p_value, version: 1 }); r.updated_at = nowISO(); r.updated_by = ME; return r.version; };
   R.org_app_del = ({ p_app, p_key }) => { T.org_app_data = T.org_app_data.filter((x) => !(x.app_id === p_app && x.key === p_key)); return null; };
+  /* ربط الحساب بسجل العضو بالبريد عند أول دخول (مثل الملف 9) */
+  R.org_link_me = () => { const own = T.faculty.find((f) => f.profile_app_id === ME); if (own) return own.id;
+    const em = String((prof(ME) || {}).email || '').toLowerCase(); const l = T.faculty.filter((f) => em && (f.email || '').toLowerCase() === em);
+    if (l.length !== 1 || l[0].profile_app_id) return null; const b = clone(l[0]); l[0].profile_app_id = ME; audit('faculty', l[0].id, 'UPDATE', b, l[0]); return l[0].id; };
 
   DEMO.fn = async (name, body) => {
     if (body.action === 'create') {
