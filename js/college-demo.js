@@ -262,6 +262,7 @@
     if (r.faculty_name) { const l = T.faculty.filter((f) => f.name_ar === String(r.faculty_name).trim()); return l.length === 1 ? l[0] : (l.length > 1 ? 'dup' : null); }
     return undefined;
   };
+  R.org_after_restore = () => ({});
   R.sched_upload = ({ p_term, p_rows, p_source, p_note }) => {
     if (!p_rows || !p_rows.length) throw new Error('الملف لا يحتوي صفوفًا.');
     const n = Math.max(0, ...T.sched_versions.filter((v) => v.term_id === p_term).map((v) => v.version_no)) + 1;

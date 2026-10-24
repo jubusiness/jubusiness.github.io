@@ -77,6 +77,7 @@
     async downloadApp(path) { if (DEMO) return DM().download('apps/' + path); return chk(await sb.storage.from('org-apps').download(path)); },
     async uploadTpl(path, file) { if (DEMO) return DM().upload('tpl/' + path, file); return chk(await sb.storage.from('org-templates').upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' })); },
     async downloadTpl(path) { if (DEMO) return DM().download('tpl/' + path); return chk(await sb.storage.from('org-templates').download(path)); },
+    async downloadPublic(path) { if (DEMO) return DM().download('public/' + path); return chk(await sb.storage.from('org-public').download(path)); },
     async uploadPublic(path, blob) { if (DEMO) return DM().upload('public/' + path, blob); return chk(await sb.storage.from('org-public').upload(path, blob, { upsert: true, contentType: 'text/html' })); },
     async removeFile(path) { if (DEMO) return DM().removeFile(path); return chk(await sb.storage.from('org-files').remove([path])); }
   };
@@ -1835,9 +1836,11 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   /* =====================================================================
      النسخ الاحتياطي والنقل إلى قاعدة بيانات الجامعة
      ===================================================================== */
-  const BK = [['org_roles', 'key'], ['org_settings', 'id'], ['org_units', 'id'], ['faculty', 'id'], ['faculty_private', 'faculty_id'], ['org_members', 'id'], ['org_grants', 'id'],
+  /* كل جداول القاعدة بترتيب يحترم العلاقات. أي جدول جديد يُضاف هنا (قواعد النقل في CLAUDE.md). */
+  const BK = [['org_roles', 'key'], ['org_settings', 'id'], ['profiles', 'id'], ['org_units', 'id'], ['faculty', 'id'], ['faculty_private', 'faculty_id'], ['org_members', 'id'], ['org_grants', 'id'],
     ['org_exclusions', 'grant_id,unit_id'], ['org_changes', 'id'], ['terms', 'id'], ['courses', 'id'], ['sched_versions', 'id'], ['offerings', 'id'], ['sections', 'id'], ['teaching', 'id'],
-    ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key'], ['org_app_fac', 'app_id,faculty_id']];
+    ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key'], ['org_app_fac', 'app_id,faculty_id'],
+    ['org_app_access', 'app_id,profile_app_id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {
@@ -1849,30 +1852,41 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
         <label class="f">الطريقة<select id="rsM">${opt('add', 'إضافة المفقود فقط (لا يمس الموجود)')}${opt('replace', 'إضافة المفقود واستبدال المطابق')}</select></label>
         <label class="f" style="margin-top:8px">ملف النسخة (JSON)<input type="file" id="rsF" accept=".json"></label>
         <div class="row" style="margin-top:12px"><button class="btn" onclick="C.bkRestore(this)">بدء الاستعادة</button></div><div id="rsLog" class="small" style="margin-top:8px;max-height:220px;overflow:auto"></div></div>
-      <div class="panel"><h2>النقل إلى قاعدة بيانات الجامعة</h2><p class="small">بعد التجربة، يُنقل النظام كاملًا إلى خادم الجامعة. قاعدة البيانات PostgreSQL قياسية، وملفات 2_database (1 و2 و3) تنشئ الجداول نفسها هناك. ثم تُنقل البيانات بأحد الملفين:</p>
+      <div class="panel"><h2>النقل إلى قاعدة بيانات الجامعة</h2><p class="small">بعد التجربة، يُنقل النظام كاملًا إلى خادم الجامعة. قاعدة البيانات PostgreSQL قياسية، وملفات مجلد database (من 1 إلى آخر رقم) تنشئ الجداول نفسها هناك. ثم تُنقل البيانات بأحد الملفين:</p>
         <div class="row"><button class="btn" onclick="C.bkSql(this)">ملف SQL للبيانات</button><button class="btn" onclick="C.bkXlsx(this)">ملف Excel لكل الجداول</button></div>
         <p class="small muted" style="margin-top:8px">ملف SQL يحتوي أوامر إدراج آمنة لإعادة التنفيذ (on conflict do nothing) بترتيب يحترم العلاقات. الحسابات وكلمات المرور لا تُنقل؛ يُعاد ربطها بنظام الدخول الموحد للجامعة.</p></div></div>`;
   }
   async function collect(withFiles, log) {
-    const out = { format: 'jouf-college-backup', version: 1, at: new Date().toISOString(), college: S.settings.collegeName || '', tables: {}, files: {} };
-    for (const [t] of BK) { log('جارٍ قراءة ' + t + '…'); out.tables[t] = await D.select(t).catch(() => []); }
+    const out = { format: 'jouf-college-backup', version: 2, at: new Date().toISOString(), college: S.settings.collegeName || '', tables: {}, files: {}, errors: {} };
+    for (const [t] of BK) { log('جارٍ قراءة ' + t + '…'); try { out.tables[t] = await D.select(t); } catch (e) { out.tables[t] = []; out.errors[t] = pgErr(e); } }
     if (withFiles) {
-      for (const v of out.tables.org_app_versions) { try { out.files['org-apps/' + v.path] = await blobB64(await D.downloadApp(v.path)); } catch (e) {} }
-      for (const r of out.tables.org_requests) for (const a of r.attachments || []) { try { out.files['org-files/' + a.path] = await blobB64(await D.download(a.path)); } catch (e) {} }
+      const grab = async (key, fn) => { if (out.files[key]) return; try { out.files[key] = await blobB64(await fn()); } catch (e) { out.errors[key] = pgErr(e); } };
+      for (const v of out.tables.org_app_versions) await grab('org-apps/' + v.path, () => D.downloadApp(v.path));
+      for (const r of out.tables.org_requests) for (const a of r.attachments || []) await grab('org-files/' + a.path, () => D.download(a.path));
+      for (const r of out.tables.org_report_log) if (r.file_path) await grab('org-files/' + r.file_path, () => D.download(r.file_path));
+      for (const t of out.tables.org_templates) if (t.file_path) await grab('org-templates/' + t.file_path, () => D.downloadTpl(t.file_path));
+      for (const s of out.tables.org_settings) { const p = s.data && s.data.assist && s.data.assist.chatFile; if (p) await grab('org-public/' + p, () => D.downloadPublic(p)); }
     }
     return out;
   }
   const stamp = () => new Date().toISOString().slice(0, 10);
   C.bkJson = (btn) => busy(btn, async () => { const l = (m) => { $('#bkLog').textContent = m; }; const b = await collect(val('bkF'), l);
-    save('نسخة-نظام-الكلية-' + stamp() + '.json', JSON.stringify(b), 'application/json'); l('اكتملت: ' + Object.values(b.tables).reduce((a, x) => a + x.length, 0) + ' سجل و' + Object.keys(b.files).length + ' ملف.'); });
+    save('نسخة-نظام-الكلية-' + stamp() + '.json', JSON.stringify(b), 'application/json');
+    const errs = Object.keys(b.errors); l('اكتملت: ' + Object.values(b.tables).reduce((a, x) => a + x.length, 0) + ' سجل من ' + BK.length + ' جدولًا و' + Object.keys(b.files).length + ' ملف.' +
+      (errs.length ? ' تنبيه: تعذرت قراءة ' + errs.length + ' (' + errs.slice(0, 4).join('، ') + ')، والتفاصيل في الملف تحت errors.' : ''));
+    if (errs.length) toast('تعذرت قراءة بعض الجداول أو الملفات؛ انظر السطر تحت الزر.', true); });
   C.bkXlsx = (btn) => busy(btn, async () => { const b = await collect(false, () => {});
     xlsxOut('نظام-الكلية-كل-الجداول-' + stamp() + '.xlsx', BK.map(([t]) => { const rows = b.tables[t]; const cols = rows.length ? Object.keys(rows[0]) : ['—'];
       return { name: t, head: cols, rows: rows.map((r) => cols.map((c) => r[c] == null ? '' : typeof r[c] === 'object' ? JSON.stringify(r[c]) : r[c])) }; })); });
   const sqlVal = (v) => v === null || v === undefined ? 'null' : typeof v === 'boolean' ? (v ? 'true' : 'false') : typeof v === 'number' ? String(v) : typeof v === 'object' ? "'" + JSON.stringify(v).replace(/'/g, "''") + "'::jsonb" : "'" + String(v).replace(/'/g, "''") + "'";
-  C.bkSql = (btn) => busy(btn, async () => { const b = await collect(false, () => {}); let s = '-- بيانات نظام إدارة كلية الأعمال — ' + b.at + '\n-- نفّذ ملفات 2_database (1 ثم 2 ثم 3) أولًا، ثم هذا الملف.\nbegin;\nset session_replication_role = replica; -- تعطيل المشغلات أثناء النقل\n';
+  C.bkSql = (btn) => busy(btn, async () => { const b = await collect(false, () => {}); if (Object.keys(b.errors).length) throw new Error('تعذرت قراءة: ' + Object.keys(b.errors).join('، '));
+    let s = '-- بيانات نظام إدارة كلية الأعمال — ' + b.at + '\n-- نفّذ ملفات مجلد database بالترتيب (1 إلى آخر رقم) أولًا، ثم هذا الملف.\n' +
+      '-- جدول profiles مرتبط بحسابات الدخول (auth.users) ولا يحوي كلمات مرور؛ انظر دليل النقل لإعادة ربطه بحسابات الجامعة.\nbegin;\nset session_replication_role = replica; -- تعطيل المشغلات أثناء النقل\n';
     for (const [t] of BK) { let rows = b.tables[t]; if (!rows.length) continue; if (t === 'org_units') rows = sortUnits(rows);
       const cols = Object.keys(rows[0]); s += `\n-- ${t} (${rows.length})\n`;
       rows.forEach((r) => { s += `insert into public.${t} (${cols.join(', ')}) values (${cols.map((c) => sqlVal(r[c])).join(', ')}) on conflict do nothing;\n`; }); }
+    s += "\nselect setval(pg_get_serial_sequence('public.audit_log', 'id'), greatest(coalesce(max(id), 0), 1), max(id) is not null) from public.audit_log;\n" +
+      "select setval(pg_get_serial_sequence('public.org_changes', 'id'), greatest(coalesce(max(id), 0), 1), max(id) is not null) from public.org_changes;\n";
     s += '\nset session_replication_role = default;\ncommit;\n'; save('نظام-الكلية-بيانات-' + stamp() + '.sql', s, 'text/plain'); });
   const sortUnits = (rows) => { const by = new Map(rows.map((r) => [r.id, r])); const depth = (r, n = 0) => (r.parent_id && by.has(r.parent_id) && n < 60 ? depth(by.get(r.parent_id), n + 1) + 1 : 0); return rows.slice().sort((a, b) => depth(a) - depth(b)); };
   C.bkRestore = async (btn) => {
@@ -1881,17 +1895,27 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     await busy(btn, async () => {
       const log = (m, bad) => { $('#rsLog').insertAdjacentHTML('beforeend', `<div class="${bad ? 'bad' : ''}">${esc(m)}</div>`); };
       const b = JSON.parse(await f.text()); if (b.format !== 'jouf-college-backup') throw new Error('الملف ليس نسخة من نظام إدارة الكلية.');
-      const ignore = val('rsM') === 'add'; const profs = new Set(S.profiles.map((p) => p.app_id));
+      const ignore = val('rsM') === 'add'; const profs = new Set(S.profiles.map((p) => p.app_id)); const pids = new Set(S.profiles.map((p) => p.id));
       for (const [t, pk] of BK) {
         let rows = (b.tables[t] || []).map((r) => Object.assign({}, r)); if (!rows.length) continue;
+        if (t === 'profiles') {
+          /* الحسابات لا تُنشأ من النسخة (كلمات المرور لا تُصدَّر): تُحدَّث بيانات الحسابات الموجودة فقط */
+          let ok = 0; const miss = rows.filter((r) => !pids.has(r.id));
+          if (!ignore) for (const r of rows.filter((x) => pids.has(x.id))) { try { await D.update('profiles', { name: r.name, title: r.title, college_role: r.college_role, active: r.active, is_admin: r.is_admin }, { eq: { id: r.id } }); ok++; } catch (e) { log('profiles ' + r.username + ': ' + pgErr(e), true); } }
+          log('profiles: ' + (ignore ? 'الحسابات الموجودة تبقى كما هي' : ok + ' حساب حُدّث') + (miss.length ? '، و' + miss.length + ' حساب غير موجود هنا يُنشأ من «الحسابات» ثم يُربط بسجل العضو بالبريد' : ''), !!miss.length);
+          continue;
+        }
         if (t === 'org_units') rows = sortUnits(rows);
         if (t === 'faculty') rows.forEach((r) => { if (r.profile_app_id && !profs.has(r.profile_app_id)) r.profile_app_id = null; });
-        if (t === 'org_grants') rows = rows.filter((r) => profs.has(r.profile_app_id));
+        if (t === 'org_grants' || t === 'org_app_access') rows = rows.filter((r) => profs.has(r.profile_app_id));
+        if (t === 'notifs') rows = rows.filter((r) => profs.has(r.to_user));
         let ok = 0; for (let i = 0; i < rows.length; i += 200) { try { await D.upsertMany(t, rows.slice(i, i + 200), pk, ignore); ok += Math.min(200, rows.length - i); } catch (e) { log(t + ': ' + pgErr(e), true); } }
         log(t + ': ' + ok + ' سجل');
       }
+      try { await D.rpc('org_after_restore'); } catch (e) { log('ضبط العدادات: ' + pgErr(e) + ' (نفّذ ملف database/12_backup_restore.sql)', true); }
+      const UP = { 'org-apps': D.uploadApp, 'org-templates': D.uploadTpl, 'org-public': D.uploadPublic, 'org-files': D.upload };
       let nf = 0; for (const k of Object.keys(b.files || {})) { try { const blob = await (await fetch(b.files[k])).blob(); const [bucket, ...rest] = k.split('/'); const p = rest.join('/');
-        if (bucket === 'org-apps') await D.uploadApp(p, blob); else await D.upload(p, blob); nf++; } catch (e) { /* موجود من قبل */ } }
+        await (UP[bucket] || D.upload)(p, blob); nf++; } catch (e) { /* موجود من قبل */ } }
       log('الملفات: ' + nf); await loadAll(); renderShell(); log('اكتملت الاستعادة.'); toast('اكتملت الاستعادة.');
     });
   };
