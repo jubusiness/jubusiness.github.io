@@ -177,7 +177,7 @@
     try { await D.insert('notifs', to.map((a) => { const id = uid('n'); return { id, to_user: a, created_by: S.me.app_id, data: { id, to: a, text, ref: null, at, read: false, by: S.me.app_id } }; })); } catch (e) { console.warn('notify', e); }
   };
 
-  const HERO_IMG = window.COLLEGE_HERO || 'img/hero.jpg', LOGO_IMG = window.COLLEGE_LOGO || 'img/logo.png';
+  const HERO_IMG = window.COLLEGE_HERO || 'img/hero-college.jpg', EMBLEM_IMG = 'img/ju-emblem.png', LOGO_IMG = window.COLLEGE_LOGO || 'img/logo.png';
     let BRAND = null;
   C.logout = async () => { if (!DEMO && sb) await sb.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null; showLogin(); };
 
@@ -241,7 +241,7 @@
   const NAV_OF = { org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
-    const st = S.settings;
+    const st = S.settings; applyTheme(st.theme);
     $('#brand').innerHTML = `<img src="${attr(st.logo || LOGO_IMG)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="emb" style="display:none">${emblem()}</span><div><b>${esc(st.university || 'جامعة الجوف')}</b><span dir="ltr">${esc(st.universityEn || 'Jouf University')}</span></div>`;
     const roleTxt = isAdmin() ? 'مدير النظام' : S.me.college_role === 'dean' ? 'عميد الكلية' : S.me.college_role === 'vice' ? 'وكيل الكلية' : (myDirect().find((m) => m.position === 'head') ? 'رئيس ' + uName(myDirect().find((m) => m.position === 'head').unit_id) : S.me.faculty_id ? 'عضو هيئة التدريس' : 'مستخدم');
     const ini = (S.me.name || '؟').replace(/^(د|أ|م)\.\s*/, '').trim().charAt(0);
@@ -1262,7 +1262,7 @@
   };
   function icon(n) { return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || IC.app}</svg>`; }
   function emblem() {
-    return `<svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><g fill="none" stroke="#43307F" stroke-width="1.6"><ellipse cx="20" cy="20" rx="16" ry="6"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(60 20 20)"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(120 20 20)"/></g><circle cx="20" cy="20" r="3.2" fill="#B7862A"/></svg>`;
+    return `<svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><g fill="none" stroke="#7B529A" stroke-width="1.6"><ellipse cx="20" cy="20" rx="16" ry="6"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(60 20 20)"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(120 20 20)"/></g><circle cx="20" cy="20" r="3.2" fill="#B7862A"/></svg>`;
   }
   /* رسم الواجهة الافتراضي (يُستبدل بصورة الكلية من «الهوية والواجهة») */
   function heroArt(dark) {
@@ -1395,10 +1395,18 @@
         <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div>
       <div class="f">صورة واجهة الصفحة الرئيسية (مبنى الكلية، عرضها 1800 بكسل تقريبًا)<div class="row">${s.hero ? `<img src="${attr(s.hero)}" alt="" style="height:60px;border-radius:6px">` : '<span class="small muted">الرسم الافتراضي</span>'}
         <input type="file" accept="image/*" onchange="C.idImg('hero',this)">${s.hero ? `<button class="btn sm" onclick="C.idClear('hero')">إزالة</button>` : ''}</div></div></div>
+      ${(() => { const t = Object.assign({}, THEME_DEF, { tab: true }, s.theme || {}); const ci = (k, l) => `<label class="f">${l}<span class="row"><input type="color" id="th_${k}" value="${attr(t[k])}" oninput="C.thPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(t[k])}</code></span></label>`;
+        return `<h3 style="margin:18px 0 8px">الألوان</h3><p class="small muted">الافتراضي بنفسجي شعار جامعة الجوف. يظهر التغيير فورًا للمعاينة، ولا يُعتمد إلا بعد «حفظ الهوية».</p>
+        <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'إطار الصورة — بداية التدرج')}${ci('frame2', 'إطار الصورة — نهاية التدرج')}
+          <label class="f row" style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" id="th_tab" ${t.tab !== false ? 'checked' : ''} onchange="C.thPrev()">إظهار شعار الجامعة في لسان أبيض أسفل منتصف الصورة</label></div>
+        <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.thReset()">استعادة ألوان الجامعة</button></div>`; })()}
       <p class="small muted">تُضغط الصور تلقائيًا وتُحفظ مع إعدادات النظام، فتنتقل مع النسخة الشاملة عند النقل.</p>
       <div class="row" style="margin-top:12px"><button class="btn pri" onclick="C.idSave(this)">حفظ الهوية</button></div></div>`;
   }
-  const idKeep = () => { ['iU:university', 'iUe:universityEn', 'iC:collegeShort', 'iCf:collegeName', 'iS:slogan', 'iF:footer', 'iA:about'].forEach((p) => { const [i, k] = p.split(':'); const e = document.getElementById(i); if (e) IDN[k] = e.value.trim(); }); };
+  const thRead = () => { const g = (k) => document.getElementById('th_' + k); if (!g('primary')) return null; const t = {}; ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { t[k] = g(k).value; }); t.tab = g('tab').checked; return t; };
+  const idKeep = () => { ['iU:university', 'iUe:universityEn', 'iC:collegeShort', 'iCf:collegeName', 'iS:slogan', 'iF:footer', 'iA:about'].forEach((p) => { const [i, k] = p.split(':'); const e = document.getElementById(i); if (e) IDN[k] = e.value.trim(); }); const t = thRead(); if (t) IDN.theme = Object.assign({}, (S.settings.theme || {}), t); };
+  C.thPrev = () => { const t = thRead(); if (!t) return; applyTheme(t); ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { const c = document.getElementById('th_' + k).nextElementSibling; if (c) c.textContent = t[k]; }); };
+  C.thReset = () => { ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { document.getElementById('th_' + k).value = THEME_DEF[k]; }); document.getElementById('th_tab').checked = true; C.thPrev(); toast('أُعيدت ألوان الجامعة. اضغط «حفظ الهوية» لاعتمادها.'); };
   C.idImg = (k, input) => busy(null, async () => { idKeep(); IDN[k] = await imgToData(input.files[0], k === 'logo' ? 256 : 1800, k === 'logo' ? 'image/png' : 'image/jpeg', 0.82); refresh(); });
   C.idClear = (k) => { idKeep(); IDN[k] = ''; refresh(); };
   C.idSave = (btn) => busy(btn, async () => { idKeep(); const d = Object.assign({}, S.settings, IDN); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; Object.keys(IDN).forEach((k) => delete IDN[k]); renderShell(); refresh(); toast('حُفظت الهوية.'); });
@@ -2073,8 +2081,22 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     } catch (err) { FAILS++; if (FAILS >= 5) { LOCK_UNTIL = Date.now() + 60000; FAILS = 0; } toast(err.message, true); $('#lgPass').select(); }
     finally { const bt = $('#lgBtn'); if (bt) bt.disabled = false; }
   }
-  const heroHtml = (b) => `<section class="hero ${b.hero ? 'own' : ''}">${heroArt(false)}<img class="photo" src="${attr(b.hero || HERO_IMG)}" alt="مبنى كلية الأعمال" onerror="this.remove()"><div class="veil"></div>
-      <div class="txt"><h1>${esc(b.collegeShort || 'كلية الأعمال')}</h1><h2>${esc(b.university || 'جامعة الجوف')}</h2><p>${esc(b.slogan || 'معًا .. نحو مستقبل أكثر إبداعًا')}</p><hr></div></section>`;
+  const heroHtml = (b) => { applyTheme(b.theme); const t = b.theme || {};
+    return `<section class="hero3 ${t.tab === false ? 'notab' : ''}"><h1 class="sr">${esc(b.collegeShort || 'كلية الأعمال')} — ${esc(b.university || 'جامعة الجوف')}</h1><div class="in">
+      <img class="photo" src="${attr(b.hero || HERO_IMG)}" alt="مبنى ${attr(b.collegeShort || 'كلية الأعمال')}" onerror="this.src='${HERO_IMG}'">
+      <div class="tab" aria-hidden="true"><img src="${attr(t.emblem || EMBLEM_IMG)}" alt=""><b>${esc(b.university || 'جامعة الجوف')}</b><span>${esc(b.universityEn || 'Jouf University')}</span></div></div></section>`; };
+  /* الألوان: الافتراضي بنفسجي شعار جامعة الجوف، ويغيّرها مدير النظام من الهوية */
+  const THEME_DEF = { primary: '#7B529A', bar: '#7B529A', frame1: '#5A2775', frame2: '#9A4D9E' };
+  const hx = (h) => { const m = String(h || '').match(/^#?([0-9a-f]{6})$/i); return m ? [0, 2, 4].map((i) => parseInt(m[1].substr(i, 2), 16)) : null; };
+  const mix = (h, w, a) => { const c = hx(h), d = hx(w); return '#' + c.map((v, i) => Math.round(v * (1 - a) + d[i] * a).toString(16).padStart(2, '0')).join(''); };
+  function applyTheme(t) {
+    const x = Object.assign({}, THEME_DEF, t || {}); ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { if (!hx(x[k])) x[k] = THEME_DEF[k]; });
+    const css = `:root{--ledger:${x.primary};--ledger2:${mix(x.primary, '#ffffff', .15)};--ledger-soft:${mix(x.primary, '#ffffff', .9)};--t-purple:${mix(x.primary, '#ffffff', .9)};--k-leadership:${x.primary};--ju:${x.primary};
+      --bar:${x.bar};--bar2:${mix(x.bar, '#000000', .14)};--bar-on:${mix(x.bar, '#ffffff', .22)};--bar-ink:${mix(x.bar, '#ffffff', .94)};--frame1:${x.frame1};--frame2:${x.frame2};
+      --paper:${mix(x.primary, '#ffffff', .955)};--line:${mix(x.primary, '#ffffff', .82)};--line2:${mix(x.primary, '#ffffff', .9)}}
+      :root[data-theme="dark"]{--frame1:${x.frame1};--frame2:${x.frame2}}`;
+    let s = document.getElementById('themeVars'); if (!s) { s = document.createElement('style'); s.id = 'themeVars'; document.head.appendChild(s); } s.textContent = css;
+  }
   const footHtml = (b) => `<div class="homefoot"><span class="row">${icon('refresh')}${esc(b.footer || 'رؤية . تطوير . تميز')}</span><small>${esc(b.university || 'جامعة الجوف')} - ${esc(b.collegeShort || 'كلية الأعمال')}<br>نظام إدارة الكلية</small></div>`;
 
   /* الصفحة الرئيسية بعد الدخول */

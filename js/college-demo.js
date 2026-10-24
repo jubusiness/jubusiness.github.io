@@ -201,7 +201,7 @@
       global: globalFor(ME) }; };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
   DEMO.publicBrand = async () => { const st = T.org_settings[0].data; const act = (u) => u.status === 'active';
-    return { collegeShort: st.collegeShort, university: st.university, universityEn: st.universityEn, slogan: st.slogan, footer: st.footer, logo: st.logo, hero: st.hero, assist: st.assist,
+    return { collegeShort: st.collegeShort, university: st.university, universityEn: st.universityEn, slogan: st.slogan, footer: st.footer, logo: st.logo, hero: st.hero, theme: st.theme, assist: st.assist,
       announcements: T.org_announcements.filter((a) => !a.unit_id || true).filter((a) => a.published_at <= today()).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 4).map((a) => ({ title: a.title, body: a.body, published_at: a.published_at, pinned: a.pinned })),
       stats: { units: T.org_units.filter((u) => act(u) && u.kind === 'unit').length, committees: T.org_units.filter((u) => act(u) && u.kind === 'committee').length, departments: T.org_units.filter((u) => act(u) && u.kind === 'department').length,
         vices: T.org_units.filter((u) => act(u) && u.kind === 'leadership' && u.parent_id).length, faculty: T.faculty.filter((f) => f.status === 'نشط').length, courses: T.courses.length } }; };
