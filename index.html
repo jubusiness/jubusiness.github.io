@@ -119,30 +119,44 @@ main.flush{padding:0 0 40px}
 
 /* ---------- home ---------- */
 .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-/* الواجهة: صورة المبنى داخل إطار بنفسجي، وشعار الجامعة في لسان أبيض أسفل المنتصف */
-.hero3{background:linear-gradient(100deg,var(--frame1),var(--frame2));padding:16px 18px 0}
-.hero3 .in{max-width:1000px;margin:0 auto;position:relative;border-radius:32px 32px 0 0;overflow:hidden;background:var(--card);box-shadow:0 0 0 3px rgba(255,255,255,.18)}
-.hero3 img.photo{display:block;width:100%;aspect-ratio:964/396;object-fit:cover;background:#E9E0F1}
-.hero3 .tab{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:31.5%;min-width:150px;height:33.5%;background:var(--card);border-radius:28px 28px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding:8px 8px 8px;box-shadow:0 -8px 22px rgba(70,25,100,.18)}
-.hero3 .tab img{height:56%;max-height:118px;width:auto}
-.hero3 .tab b{color:var(--ju);font-size:clamp(13px,2.3vw,26px);font-weight:800;line-height:1.1}
-.hero3 .tab span{color:var(--ju);font-size:clamp(9px,1.25vw,14px);font-weight:700;letter-spacing:.4px;direction:ltr;line-height:1.1}
-.hero3.notab .tab{display:none}
-@media (max-width:700px){.hero3{padding:8px 8px 0}.hero3 .in{border-radius:18px 18px 0 0}.hero3 .tab{min-width:118px;border-radius:16px 16px 0 0;padding:5px}}
-.hero{position:relative;height:280px;overflow:hidden;background:#E1D1EC}
-.hero .art{position:absolute;inset:0;width:100%;height:100%}
-.hero::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(115deg,rgba(255,255,255,.35) 0 18%,transparent 18% 100%),linear-gradient(65deg,transparent 0 62%,rgba(255,255,255,.18) 62% 78%,transparent 78%),#E1D1EC}
-.hero img.photo{position:absolute;z-index:2;top:0;bottom:0;right:0;left:auto;width:76%;height:100%;object-fit:cover;object-position:left center}
-.hero.own img.photo{width:100%}
-.hero .veil{position:absolute;inset:0;z-index:3;background:linear-gradient(270deg,rgba(225,209,236,0) 52%,rgba(225,209,236,.85) 68%,#E1D1EC 76%)}
-.hero.own .veil{background:linear-gradient(270deg,rgba(255,255,255,0) 35%,rgba(240,235,252,.92) 72%)}
-.hero .txt{z-index:4}
-.hero .txt{position:absolute;inset-inline-end:7%;top:50%;transform:translateY(-50%);text-align:center;color:#2B1F55}
-.hero .txt h1{font-size:44px;font-weight:800;color:#2B1F55}
-.hero .txt h2{font-size:28px;margin-top:4px;color:#2B1F55}
-.hero .txt p{margin:14px 0 0;font-size:17px;color:#5B45A6}
-.hero .txt hr{width:48px;border:0;border-top:3px solid #5B45A6;margin:12px auto 0}
-@media (max-width:700px){.hero{height:210px}.hero img.photo{width:100%}.hero .txt h1{font-size:30px}.hero .txt h2{font-size:20px}.hero .txt p{font-size:14px}.hero .veil{background:rgba(240,235,252,.8)}.hero .txt{inset-inline-end:0;left:0;right:0}}
+/* الواجهة الجديدة: بطاقة الدخول محور صفحة الزائر، والرئيسية بعد الدخول بلا صور كبيرة */
+.gate{max-width:1080px;margin:0 auto;padding:36px 20px 24px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:22px;align-items:start}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(70,25,100,.10);overflow:hidden}
+.gcard header{display:flex;gap:14px;align-items:center;padding:22px 24px;background:linear-gradient(120deg,var(--frame1),var(--frame2));color:#fff}
+.gcard header img{width:58px;height:58px;object-fit:contain;background:#fff;border-radius:12px;padding:5px;flex:none}
+.gcard h1{font-size:22px;color:#fff;line-height:1.3}.gcard header span{font-size:14px;opacity:.9}
+.gtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:18px 24px 0}
+.gtabs button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border:1.5px solid var(--line);border-radius:12px;font-weight:700;font-size:15px;text-align:center;color:var(--ink2)}
+.gtabs button svg.i{width:26px;height:26px;color:var(--ledger)}
+.gtabs button:hover{border-color:var(--ledger2)}
+.gtabs button.on{border-color:var(--ledger);background:var(--ledger-soft);color:var(--ledger)}
+.gtabs button:focus-visible{outline:2px solid var(--brass)}
+.gbody{padding:16px 24px 24px}
+.ghint{margin:0 0 14px;color:var(--ink2);font-size:14px}
+.gbody form{display:flex;flex-direction:column;gap:12px}
+.gbody form input{font-size:15px;padding:11px 12px}
+.gbody form .btn.pri{justify-content:center;padding:12px;font-size:16px}
+.gsvc{display:grid;gap:10px}
+.gsvc button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.gsvc button svg.i{grid-row:1/3;width:30px;height:30px;color:var(--ledger)}
+.gsvc button b{font-size:15px}.gsvc button span{font-size:13px;color:var(--ink2)}
+.gsvc button:hover{border-color:var(--ledger2);background:var(--ledger-soft)}.gsvc button:focus-visible{outline:2px solid var(--brass)}
+.gpub{display:flex;flex-direction:column;gap:16px}
+.gstats,.hstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.gstats div,.hstrip button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.gstats b,.hstrip b{font-size:22px;font-weight:800;color:var(--ledger);line-height:1.1}
+.gstats span,.hstrip span{font-size:13px;color:var(--ink2)}
+.hstrip{margin-bottom:16px}
+.hstrip button{all:unset;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:0 10px;align-items:center}
+.hstrip button svg.i{grid-row:1/3;width:24px;height:24px;color:var(--ledger)}
+.hstrip button:hover{border-color:var(--ledger2)}.hstrip button:focus-visible{outline:2px solid var(--brass)}
+.gfoot{grid-column:1/-1;text-align:center;color:var(--mute);font-size:13px;padding-top:6px}
+@media (max-width:860px){.gate{grid-template-columns:1fr;padding:18px 12px}.gtabs{padding:14px 14px 0}.gbody{padding:14px}.gcard header{padding:16px}}
+.home2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.home2{grid-template-columns:1fr}}
+.tgroup{margin:8px 0 12px}.tgroup>b{display:block;margin-bottom:6px;font-size:14px;color:var(--ledger)}
+.trow{all:unset;cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.trow:hover{border-color:var(--ledger2);background:var(--ledger-soft)}.trow:focus-visible{outline:2px solid var(--brass)}
 .homebody{padding:20px 26px}
 @media (max-width:900px){.homebody{padding:16px 14px}}
 .cards5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:-4px}
@@ -298,15 +312,9 @@ td.row>.btn{margin:2px}
  /* الزائر: الدخول أعلى الصفحة */
 #app.guest{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"brand top" "main main"}
 #app.guest #side{display:none}
-.toplogin{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.toplogin input{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 12px;width:220px;font-size:14px}
-.toplogin input::placeholder{color:rgba(255,255,255,.72)}
-.toplogin input:focus{outline:2px solid var(--brass);background:rgba(255,255,255,.18)}
-.toplogin .btn.pri{background:#fff;color:var(--bar);border-color:#fff;font-weight:700}
-.toplogin a{color:#E7E2F7;font-size:12px}
 .welcome{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-inline-start:4px solid var(--ledger);border-radius:12px;padding:14px 18px;margin-bottom:16px;flex-wrap:wrap}
 .welcome b{display:block;font-size:17px}.welcome span{display:block;font-size:14px;color:var(--ink2)}
-@media (max-width:900px){#app.guest{grid-template-columns:1fr;grid-template-areas:"brand" "top" "main"}#app.guest #brand{display:flex}.toplogin{width:100%}.toplogin input{flex:1 1 140px;width:auto}.gttl{display:none}}
+@media (max-width:900px){#app.guest{grid-template-columns:1fr;grid-template-areas:"brand" "main"}#app.guest #brand{display:flex}#app.guest #topbar{display:none}}
 /* جهاتي وصلاحياتي */
 .minebox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(67,48,127,.06)}
 .minebox h2{font-size:20px}.minebox .mh{margin:16px 0 8px;font-size:15px;color:var(--ledger)}

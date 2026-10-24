@@ -177,9 +177,11 @@
     try { await D.insert('notifs', to.map((a) => { const id = uid('n'); return { id, to_user: a, created_by: S.me.app_id, data: { id, to: a, text, ref: null, at, read: false, by: S.me.app_id } }; })); } catch (e) { console.warn('notify', e); }
   };
 
-  const HERO_IMG = window.COLLEGE_HERO || 'img/hero-college.jpg', EMBLEM_IMG = 'img/ju-emblem.png', LOGO_IMG = window.COLLEGE_LOGO || 'img/logo.png';
+  const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png';
     let BRAND = null;
-  C.logout = async () => { if (!DEMO && sb) await sb.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null; showLogin(); };
+  C.logout = async () => { if (!DEMO && sb) await sb.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null;
+    /* لا تنتقل الصفحة المفتوحة ولا مرشحات المهام إلى من يدخل بعده على الجهاز نفسه */
+    Object.assign(TQ, { tab: 'tasks', st: 'open', unit: '', mine: false }); history.replaceState(null, '', location.pathname + location.search); showLogin(); };
 
   async function boot() {
     try {
@@ -252,8 +254,11 @@
       <button class="ib" onclick="C.go('notifs')" aria-label="الإشعارات" title="الإشعارات">${icon('bell')}<span class="badge hidden" id="bellN"></span></button>
       <button class="user" onclick="C.userMenu()" aria-label="حسابي"><span class="av">${esc(ini)}</span><span class="nm"><b>${esc(S.me.name)}</b><small>${esc(roleTxt)}</small></span>${icon('down')}</button>`;
     const KN = { vices: ['leadership', 'administration'], depts: ['department'], units: ['unit'], committees: ['committee'] };
-    const showNav = (k) => !KN[k] || fullRead() || S.units.some((u) => KN[k].includes(u.kind) && u.status !== 'archived' && u.id !== rootId() && cap(u.id, 'read'));
-    const mine = myDirect();
+    /* عضو هيئة التدريس (دون رئاسة أو وكالة أو عمادة): تظهر له مهامه وبرامجه فقط، دون قوائم الجهات */
+    const staff = viewRole() === 'staff';
+    const showNav = (k) => staff ? !['college', 'vices', 'depts', 'units', 'committees'].includes(k)
+      : !KN[k] || fullRead() || S.units.some((u) => KN[k].includes(u.kind) && u.status !== 'archived' && u.id !== rootId() && cap(u.id, 'read'));
+    const mine = staff ? [] : myDirect();
     $('#side').innerHTML = NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
@@ -1264,25 +1269,6 @@
   function emblem() {
     return `<svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><g fill="none" stroke="#7B529A" stroke-width="1.6"><ellipse cx="20" cy="20" rx="16" ry="6"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(60 20 20)"/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(120 20 20)"/></g><circle cx="20" cy="20" r="3.2" fill="#B7862A"/></svg>`;
   }
-  /* رسم الواجهة الافتراضي (يُستبدل بصورة الكلية من «الهوية والواجهة») */
-  function heroArt(dark) {
-    const W = 1400, H = 320; let win = '', palms = '';
-    for (let r = 0; r < 6; r++) for (let c = 0; c < 16; c++) win += `<rect x="${600 + c * 30}" y="${150 + r * 24}" width="16" height="13" rx="1" fill="${dark ? '#8C7BD1' : '#6E5BB8'}" opacity="${0.35 + ((r * 7 + c * 3) % 5) * 0.08}"/>`;
-    for (let r = 0; r < 9; r++) win += `<rect x="${893}" y="${70 + r * 22}" width="34" height="10" fill="${dark ? '#8C7BD1' : '#6E5BB8'}" opacity=".45"/>`;
-    const palm = (x, h, s) => { const top = H - h; let f = `<path d="M${x} ${H} C ${x - 4} ${H - h * .5}, ${x + 6} ${H - h * .8}, ${x} ${top}" stroke="${s}" stroke-width="7" fill="none"/>`;
-      [[-70, -18], [-55, 14], [-30, 30], [30, 30], [55, 14], [70, -18], [0, -34]].forEach(([dx, dy]) => { f += `<path d="M${x} ${top} q ${dx * .5} ${dy - 30} ${dx} ${dy + 10}" stroke="${s}" stroke-width="5" fill="none" stroke-linecap="round"/>`; }); return f; };
-    const s1 = dark ? '#1B1533' : '#3B2C73', s2 = dark ? '#2A1F55' : '#5B45A6';
-    palms = palm(470, 150, s2) + palm(540, 190, s1) + palm(1060, 170, s1) + palm(1150, 130, s2) + palm(1290, 200, s1) + palm(380, 110, s2);
-    return `<svg class="art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${dark ? '#2E2160' : '#F1ECFC'}"/><stop offset=".6" stop-color="${dark ? '#4C3893' : '#D4C7F2'}"/><stop offset="1" stop-color="${dark ? '#6A55B5' : '#A894E2'}"/></linearGradient></defs>
-      <rect width="${W}" height="${H}" fill="url(#sky)"/>
-      <path d="M0 0 L380 0 L120 ${H} L0 ${H}Z" fill="#fff" opacity=".18"/><path d="M1180 0 L${W} 0 L${W} 200Z" fill="#fff" opacity=".12"/>
-      <rect x="560" y="130" width="520" height="${H - 130}" fill="${dark ? '#3B2C73' : '#E4DCF6'}"/><rect x="560" y="122" width="520" height="10" fill="${dark ? '#5B45A6' : '#C9BCEB'}"/>
-      <rect x="880" y="30" width="60" height="${H - 30}" fill="${dark ? '#45348A' : '#D8CDF1'}"/><rect x="872" y="24" width="76" height="10" fill="${dark ? '#5B45A6' : '#BFB0E6'}"/>
-      <g transform="translate(910 52)" fill="none" stroke="${dark ? '#C9BCEB' : '#43307F'}" stroke-width="1.4"><ellipse rx="13" ry="5"/><ellipse rx="13" ry="5" transform="rotate(60)"/><ellipse rx="13" ry="5" transform="rotate(120)"/></g>
-      <rect x="1080" y="210" width="200" height="${H - 210}" fill="${dark ? '#34276A' : '#DDD3F3'}"/><rect x="430" y="230" width="130" height="${H - 230}" fill="${dark ? '#34276A' : '#DDD3F3'}"/>
-      ${win}${palms}<rect y="${H - 18}" width="${W}" height="18" fill="${dark ? '#1B1533' : '#C3B5EA'}"/></svg>`;
-  }
 
   /* =====================================================================
      الرئيسية (حسب التصميم المعتمد)
@@ -1349,6 +1335,7 @@
     return `<div class="tabs">${tabs.map((t) => `<button class="${TQ.tab === t[0] ? 'on' : ''}" onclick="C.tq('tab','${t[0]}')">${t[1]}</button>`).join('')}</div>${body}`;
   }
   C.tq = (k, v) => { TQ[k] = v; refresh(); };
+  C.myTasks = () => { Object.assign(TQ, { tab: 'tasks', st: 'open', unit: '', mine: true }); go('tasks'); };
 
   /* =====================================================================
      الإعدادات: لوحة مركزية (على طريقة حقيبة الطوارئ)
@@ -1392,21 +1379,18 @@
       <label class="f">عبارة التذييل<input id="iF" value="${attr(s.footer || 'رؤية . تطوير . تميز')}"></label>
       <label class="f full">نبذة الكلية (رؤيتها ورسالتها) في صفحة «الكلية»<textarea id="iA">${esc(s.about || '')}</textarea></label>
       <div class="f">شعار الجامعة (PNG بخلفية شفافة)<div class="row">${s.logo ? `<img src="${attr(s.logo)}" alt="" style="height:48px;background:#fff;border-radius:6px;padding:3px">` : '<span class="small muted">الشعار الافتراضي</span>'}
-        <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div>
-      <div class="f">صورة واجهة الصفحة الرئيسية (مبنى الكلية، عرضها 1800 بكسل تقريبًا)<div class="row">${s.hero ? `<img src="${attr(s.hero)}" alt="" style="height:60px;border-radius:6px">` : '<span class="small muted">الرسم الافتراضي</span>'}
-        <input type="file" accept="image/*" onchange="C.idImg('hero',this)">${s.hero ? `<button class="btn sm" onclick="C.idClear('hero')">إزالة</button>` : ''}</div></div></div>
-      ${(() => { const t = Object.assign({}, THEME_DEF, { tab: true }, s.theme || {}); const ci = (k, l) => `<label class="f">${l}<span class="row"><input type="color" id="th_${k}" value="${attr(t[k])}" oninput="C.thPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(t[k])}</code></span></label>`;
+        <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div></div>
+      ${(() => { const t = Object.assign({}, THEME_DEF, s.theme || {}); const ci = (k, l) => `<label class="f">${l}<span class="row"><input type="color" id="th_${k}" value="${attr(t[k])}" oninput="C.thPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(t[k])}</code></span></label>`;
         return `<h3 style="margin:18px 0 8px">الألوان</h3><p class="small muted">الافتراضي بنفسجي شعار جامعة الجوف. يظهر التغيير فورًا للمعاينة، ولا يُعتمد إلا بعد «حفظ الهوية».</p>
-        <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'إطار الصورة — بداية التدرج')}${ci('frame2', 'إطار الصورة — نهاية التدرج')}
-          <label class="f row" style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" id="th_tab" ${t.tab !== false ? 'checked' : ''} onchange="C.thPrev()">إظهار شعار الجامعة في لسان أبيض أسفل منتصف الصورة</label></div>
+        <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'رأس بطاقة الدخول — بداية التدرج')}${ci('frame2', 'رأس بطاقة الدخول — نهاية التدرج')}</div>
         <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.thReset()">استعادة ألوان الجامعة</button></div>`; })()}
       <p class="small muted">تُضغط الصور تلقائيًا وتُحفظ مع إعدادات النظام، فتنتقل مع النسخة الشاملة عند النقل.</p>
       <div class="row" style="margin-top:12px"><button class="btn pri" onclick="C.idSave(this)">حفظ الهوية</button></div></div>`;
   }
-  const thRead = () => { const g = (k) => document.getElementById('th_' + k); if (!g('primary')) return null; const t = {}; ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { t[k] = g(k).value; }); t.tab = g('tab').checked; return t; };
+  const thRead = () => { const g = (k) => document.getElementById('th_' + k); if (!g('primary')) return null; const t = {}; ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { t[k] = g(k).value; }); return t; };
   const idKeep = () => { ['iU:university', 'iUe:universityEn', 'iC:collegeShort', 'iCf:collegeName', 'iS:slogan', 'iF:footer', 'iA:about'].forEach((p) => { const [i, k] = p.split(':'); const e = document.getElementById(i); if (e) IDN[k] = e.value.trim(); }); const t = thRead(); if (t) IDN.theme = Object.assign({}, (S.settings.theme || {}), t); };
   C.thPrev = () => { const t = thRead(); if (!t) return; applyTheme(t); ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { const c = document.getElementById('th_' + k).nextElementSibling; if (c) c.textContent = t[k]; }); };
-  C.thReset = () => { ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { document.getElementById('th_' + k).value = THEME_DEF[k]; }); document.getElementById('th_tab').checked = true; C.thPrev(); toast('أُعيدت ألوان الجامعة. اضغط «حفظ الهوية» لاعتمادها.'); };
+  C.thReset = () => { ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { document.getElementById('th_' + k).value = THEME_DEF[k]; }); C.thPrev(); toast('أُعيدت ألوان الجامعة. اضغط «حفظ الهوية» لاعتمادها.'); };
   C.idImg = (k, input) => busy(null, async () => { idKeep(); IDN[k] = await imgToData(input.files[0], k === 'logo' ? 256 : 1800, k === 'logo' ? 'image/png' : 'image/jpeg', 0.82); refresh(); });
   C.idClear = (k) => { idKeep(); IDN[k] = ''; refresh(); };
   C.idSave = (btn) => busy(btn, async () => { idKeep(); const d = Object.assign({}, S.settings, IDN); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; Object.keys(IDN).forEach((k) => delete IDN[k]); renderShell(); refresh(); toast('حُفظت الهوية.'); });
@@ -2014,6 +1998,9 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const fullRead = () => isAdmin() || (S.units.length > 0 && S.units.every((u) => cap(u.id, 'read')));
   const myDirect = () => { const mf = myFac(); return mf ? S.members.filter((m) => m.faculty_id === mf && activeM(m) && unit(m.unit_id) && unit(m.unit_id).status !== 'archived')
     .sort((a, b) => (a.position === 'head' ? -1 : b.position === 'head' ? 1 : 0) || uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar')) : []; };
+  /* نوع الواجهة: dean (مدير النظام أو العميد: كل الجهات)، vice (الوكيل: جهات إشرافه)، head (رئيس جهة)، staff (عضو هيئة التدريس) */
+  const viewRole = () => isAdmin() || (S.me && S.me.college_role === 'dean') ? 'dean' : (S.me && S.me.college_role === 'vice') ? 'vice'
+    : myDirect().some((m) => m.position === 'head') ? 'head' : 'staff';
   C.listAll = (on) => go(VIEW.page, { all: !!on });
   let FAILS = 0, LOCK_UNTIL = 0;
   async function loadBrand() {
@@ -2027,41 +2014,62 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   function showLogin(msg) {
     S.me = null; const app = $('#app'); app.classList.remove('hidden'); app.classList.add('guest');
     $('#side').innerHTML = ''; $('#main').classList.add('flush');
-    $('#topbar').innerHTML = `<span class="ttl gttl">نظام إدارة الكلية</span><span class="grow"></span>
-      <form id="topLogin" class="toplogin" autocomplete="on" aria-label="تسجيل الدخول">
-        <input id="lgUser" placeholder="البريد الجامعي أو اسم المستخدم" autocomplete="username" dir="ltr" required aria-label="البريد الجامعي أو اسم المستخدم">
-        <input id="lgPass" type="password" placeholder="كلمة المرور" autocomplete="current-password" dir="ltr" required aria-label="كلمة المرور">
-        <button class="btn pri" id="lgBtn" type="submit">${icon('user')}دخول</button>
-        <a href="#" onclick="C.forgot();return false">نسيت كلمة المرور؟</a>
-      </form>`;
-    $('#topLogin').addEventListener('submit', doLogin);
+    $('#topbar').innerHTML = `<span class="ttl gttl">نظام إدارة الكلية</span><span class="grow"></span>`;
     renderGuest(msg);
   }
+  /* الزائر: بطاقة الدخول محور الصفحة (الإدارة، عضو هيئة التدريس، الطالب)، ثم عناصر عامة مختصرة.
+     الإدارة وعضو هيئة التدريس يدخلان بالحساب الجامعي نفسه، والنظام يحدد ما يظهر لكل منهما من صلاحياته.
+     الطالب لا يحتاج حسابًا: تظهر له خدمات الطلاب فقط (لا تُحفظ بيانات طلاب في النظام). */
+  let GTAB = 'admin', GMSG = '';
+  const GTABS = { admin: ['الإدارة', 'bank'], faculty: ['عضو هيئة التدريس', 'user'], student: ['الطالب', 'book'] };
   async function renderGuest(msg) {
-    const b = await loadBrand(); BRAND = BRAND || b;
+    GMSG = msg || '';
+    const b = await loadBrand(); BRAND = BRAND || b; applyTheme(b.theme);
     $('#brand').innerHTML = brandHtml(b);
     renderDock(b.assist || {}, false);
-    const st = b.stats || {}, anns = b.announcements || [];
+    const st = b.stats || {}, anns = (b.announcements || []).slice(0, 3);
     S._anns = anns.map((a, i) => Object.assign({ id: 'pa' + i }, a));
-    const need = 'C.needLogin()';
-    const card = (ic, t, d) => `<button class="ecard" onclick="${need}">${icon(ic)}<b>${esc(t)}</b><span>${esc(d)}</span><i aria-hidden="true">‹</i></button>`;
-    const q = (ic, t) => `<button onclick="${need}">${icon(ic)}${esc(t)}</button>`;
-    const qs = (cls, ic, num, t) => `<button class="${cls}" onclick="${need}"><b>${num == null ? '—' : num}</b><span>${esc(t)}</span>${icon(ic)}</button>`;
-    $('#view').innerHTML = `<div class="homewrap">${heroHtml(b)}<div class="homebody">
-      <div class="welcome"><div class="grow"><b>مرحبًا بك في نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')}</b>
-        <span>سجّل الدخول من أعلى الصفحة بحسابك الجامعي، فتظهر لك لجانك ووحداتك وما يخصك من صلاحيات وبرامج ونماذج.</span>
-        ${msg ? `<span class="bad">${esc(msg)}</span>` : ''}
-        ${DEMO ? `<span class="small">نسخة تجريبية — جرّب الحسابات: <a href="#" onclick="C.demoAs('admin');return false">admin</a> (مدير النظام)، <a href="#" onclick="C.demoAs('dean');return false">dean</a> (العميد)، <a href="#" onclick="C.demoAs('vice');return false">vice</a> (وكيلة الكلية)، <a href="#" onclick="C.demoAs('acct');return false">acct</a> (رئيسة قسم المحاسبة)، <a href="#" onclick="C.demoAs('exams');return false">exams</a> (مسؤول وحدة الاختبارات)، <a href="#" onclick="C.demoAs('member');return false">member</a> (عضو لجنة) — كلمة المرور 1234.</span>` : ''}</div>
-        <button class="btn pri" onclick="${need}">${icon('user')}تسجيل الدخول</button></div>
-      <div class="cards5">${card('college', b.collegeShort || 'كلية الأعمال', 'الملف العام للكلية')}${card('sitemap', 'الأقسام العلمية', 'إدارة الأقسام الأكاديمية')}${card('bank', 'الوكالات', 'متابعة وكالات الكلية')}${card('cubes', 'الوحدات', 'إدارة الوحدات وتنفيذ المهام')}${card('users', 'اللجان', 'إدارة اللجان ومتابعة أعمالها')}</div>
-      <div class="home3">
-        <div class="box"><h2>${icon('mega')}أحدث الإعلانات</h2><div class="ann">${S._anns.length ? S._anns.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div></div>
-        <div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">${q('book', 'المقررات الدراسية')}${q('calendar', 'جدول الدراسة')}${q('user', 'قائمة أعضاء هيئة التدريس')}${q('folder', 'الملفات والمرفقات')}${q('chart', 'التقارير')}${q('clipboard', 'إدارة المهام')}${q('guide', 'دليل المستخدم')}${q('bell', 'الإشعارات')}${q('search', 'الاستعلامات')}</div></div>
-        <div class="box"><h2>${icon('chart')}إحصائيات سريعة</h2><div class="qstats">${qs('qs-purple', 'users', st.committees, 'اللجان')}${qs('qs-purple', 'cubes', st.units, 'الوحدات')}${qs('qs-green', 'bank', st.vices, 'الوكالات')}${qs('qs-blue', 'college', st.departments, 'الأقسام العلمية')}${qs('qs-orange', 'book', st.courses, 'المقررات الدراسية')}${qs('qs-green', 'user', st.faculty, 'أعضاء هيئة التدريس')}</div></div>
-      </div>${footHtml(b)}</div></div>`;
-    if (msg) { const e = $('#lgUser'); if (e) e.focus(); }
+    const stat = (n, t) => `<div><b>${n == null ? '—' : n}</b><span>${esc(t)}</span></div>`;
+    $('#view').innerHTML = `<div class="gate">
+      <section class="gcard" aria-labelledby="gTitle">
+        <header><img src="${attr(b.logo || LOGO_IMG)}" alt="" onerror="this.remove()"><div><h1 id="gTitle">نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')}</h1><span>${esc(b.university || 'جامعة الجوف')}</span></div></header>
+        <div class="gtabs" role="tablist" aria-label="نوع الحساب">${Object.keys(GTABS).map((k) => `<button role="tab" id="gt-${k}" aria-selected="${GTAB === k}" class="${GTAB === k ? 'on' : ''}" onclick="C.gTab('${k}')">${icon(GTABS[k][1])}${GTABS[k][0]}</button>`).join('')}</div>
+        <div class="gbody" id="gBody" role="tabpanel"></div>
+      </section>
+      <section class="gpub" aria-label="معلومات عامة">
+        <div class="gstats">${stat(st.departments, 'أقسام علمية')}${stat(st.units, 'وحدات')}${stat(st.committees, 'لجان')}${stat(st.faculty, 'عضو هيئة تدريس')}${stat(st.courses, 'مقررًا')}</div>
+        <div class="box gann"><h2>${icon('mega')}أحدث الإعلانات</h2><div class="ann">${S._anns.length ? S._anns.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div></div>
+      </section>
+      <footer class="gfoot">${esc(b.footer || 'رؤية . تطوير . تميز')} · ${esc(b.university || 'جامعة الجوف')} - ${esc(b.collegeShort || 'كلية الأعمال')}</footer></div>`;
+    gBody();
   }
-  C.needLogin = () => { const e = $('#lgUser'); if (e) { e.focus(); e.scrollIntoView({ block: 'center' }); } toast('سجّل الدخول من أعلى الصفحة أولًا.'); };
+  function gBody() {
+    const el = $('#gBody'); if (!el) return;
+    const c = ASSIST.cfg || {}, sup = c.support || {};
+    const hasChat = c.chatSrc && c.chatSrc !== 'none' && c.public, hasSup = sup.whatsapp || sup.email;
+    if (GTAB === 'student') {
+      el.innerHTML = `<p class="ghint">لا يحتاج الطالب إلى حساب في هذا النظام؛ الخدمات التالية متاحة مباشرة.</p>
+        <div class="gsvc">${hasChat ? `<button onclick="C.dock('chat')">${icon('chat')}<b>${esc(c.chatName || 'المرشد الأكاديمي')}</b><span>إجابات عن الخطط والتسجيل والأنظمة</span></button>` : ''}
+          ${hasSup ? `<button onclick="C.dock('sup')">${icon('headset')}<b>الدعم الفني</b><span>تواصل مع الكلية</span></button>` : ''}
+          ${S._anns.length ? `<button onclick="C.annView('${S._anns[0].id}')">${icon('mega')}<b>الإعلانات</b><span>${esc(S._anns[0].title)}</span></button>` : ''}</div>
+        ${!hasChat && !hasSup ? '<div class="empty">لا توجد خدمات طلابية مفعّلة حاليًا. يفعّلها مدير النظام من «الإعدادات ← المرشد الأكاديمي والدعم الفني».</div>' : ''}`;
+      return;
+    }
+    const adm = GTAB === 'admin';
+    el.innerHTML = `<p class="ghint">${adm ? 'العميد والوكلاء ورؤساء الأقسام والوحدات ومدير النظام.' : 'تظهر لك بعد الدخول مهامك وبرامجك حسب تكليفك.'}</p>
+      <form id="topLogin" autocomplete="on" aria-label="تسجيل الدخول">
+        <label class="f">البريد الجامعي أو اسم المستخدم<input id="lgUser" autocomplete="username" dir="ltr" required></label>
+        <label class="f">كلمة المرور<input id="lgPass" type="password" autocomplete="current-password" dir="ltr" required></label>
+        ${GMSG ? `<div class="bad small">${esc(GMSG)}</div>` : ''}
+        <button class="btn pri" id="lgBtn" type="submit">${icon('user')}دخول</button>
+        <a class="small" href="#" onclick="C.forgot();return false">نسيت كلمة المرور؟</a>
+      </form>
+      ${DEMO ? `<p class="small muted" style="margin-top:12px">نسخة تجريبية — جرّب الحسابات: <a href="#" onclick="C.demoAs('admin');return false">admin</a> (مدير النظام)، <a href="#" onclick="C.demoAs('dean');return false">dean</a> (العميد)، <a href="#" onclick="C.demoAs('vice');return false">vice</a> (وكيلة الكلية)، <a href="#" onclick="C.demoAs('acct');return false">acct</a> (رئيسة قسم المحاسبة)، <a href="#" onclick="C.demoAs('exams');return false">exams</a> (مسؤول وحدة الاختبارات)، <a href="#" onclick="C.demoAs('member');return false">member</a> (عضو لجنة) — كلمة المرور 1234.</p>` : ''}`;
+    $('#topLogin').addEventListener('submit', doLogin);
+    if (GMSG) $('#lgUser').focus();
+  }
+  C.gTab = (k) => { GTAB = k; document.querySelectorAll('.gtabs button').forEach((b) => { const on = b.id === 'gt-' + k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); }); gBody(); };
+  C.needLogin = () => { if (GTAB === 'student') C.gTab('admin'); const e = $('#lgUser'); if (e) { e.focus(); e.scrollIntoView({ block: 'center' }); } toast('سجّل الدخول أولًا.'); };
   C.forgot = () => modal('نسيت كلمة المرور', `<p>كلمات المرور لا يطّلع عليها أحد. يُنشئ لك مدير النظام كلمة مرور مؤقتة جديدة، وتغيّرها عند أول دخول.</p><p class="small muted">تواصل معه عبر زر «الدعم الفني» أسفل الصفحة.</p>`);
   C.demoAs = (u) => { $('#lgUser').value = u; $('#lgPass').value = '1234'; $('#topLogin').requestSubmit(); };
   async function doLogin(e) {
@@ -2081,10 +2089,6 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     } catch (err) { FAILS++; if (FAILS >= 5) { LOCK_UNTIL = Date.now() + 60000; FAILS = 0; } toast(err.message, true); $('#lgPass').select(); }
     finally { const bt = $('#lgBtn'); if (bt) bt.disabled = false; }
   }
-  const heroHtml = (b) => { applyTheme(b.theme); const t = b.theme || {};
-    return `<section class="hero3 ${t.tab === false ? 'notab' : ''}"><h1 class="sr">${esc(b.collegeShort || 'كلية الأعمال')} — ${esc(b.university || 'جامعة الجوف')}</h1><div class="in">
-      <img class="photo" src="${attr(b.hero || HERO_IMG)}" alt="مبنى ${attr(b.collegeShort || 'كلية الأعمال')}" onerror="this.src='${HERO_IMG}'">
-      <div class="tab" aria-hidden="true"><img src="${attr(t.emblem || EMBLEM_IMG)}" alt=""><b>${esc(b.university || 'جامعة الجوف')}</b><span>${esc(b.universityEn || 'Jouf University')}</span></div></div></section>`; };
   /* الألوان: الافتراضي بنفسجي شعار جامعة الجوف، ويغيّرها مدير النظام من الهوية */
   const THEME_DEF = { primary: '#7B529A', bar: '#7B529A', frame1: '#5A2775', frame2: '#9A4D9E' };
   const hx = (h) => { const m = String(h || '').match(/^#?([0-9a-f]{6})$/i); return m ? [0, 2, 4].map((i) => parseInt(m[1].substr(i, 2), 16)) : null; };
@@ -2097,41 +2101,53 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       :root[data-theme="dark"]{--frame1:${x.frame1};--frame2:${x.frame2}}`;
     let s = document.getElementById('themeVars'); if (!s) { s = document.createElement('style'); s.id = 'themeVars'; document.head.appendChild(s); } s.textContent = css;
   }
-  const footHtml = (b) => `<div class="homefoot"><span class="row">${icon('refresh')}${esc(b.footer || 'رؤية . تطوير . تميز')}</span><small>${esc(b.university || 'جامعة الجوف')} - ${esc(b.collegeShort || 'كلية الأعمال')}<br>نظام إدارة الكلية</small></div>`;
-
-  /* الصفحة الرئيسية بعد الدخول */
+  /* الصفحة الرئيسية بعد الدخول: بلا صور كبيرة، وما يظهر بحسب نوع المستخدم (viewRole) */
   async function pgHome() {
-    const st = S.settings;
+    const st = S.settings, role = viewRole();
     const [anns, courses, reqs] = await Promise.all([D.select('org_announcements').catch(() => []), D.select('courses', { cols: 'id' }).catch(() => []),
-      D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,status,assignee_faculty,due_date' }).catch(() => [])]);
+      D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,priority,assignee_faculty,due_date' }).catch(() => [])]);
     await loadTpl().catch(() => {});
-    const list = anns.filter(annActive).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 4); S._anns = anns;
+    const list = anns.filter(annActive).sort((a, b) => (b.pinned - a.pinned) || b.published_at.localeCompare(a.published_at)).slice(0, 3); S._anns = anns;
+    const q = (fn, ic, t) => `<button onclick="${fn}">${icon(ic)}${esc(t)}</button>`;
+    const annBox = `<div class="box"><h2>${icon('mega')}أحدث الإعلانات</h2>
+      <div class="ann">${list.length ? list.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div>
+      <a class="small" href="#" onclick="C.go('ann');return false" style="display:inline-flex;gap:4px;align-items:center;margin-top:10px">عرض جميع الإعلانات ${icon('chev')}</a></div>`;
+    const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية. اخرج من القائمة العلوية وادخل بحساب آخر لترى ما يظهر لكل شخص.</div>' : '';
+    if (role === 'staff') return `<div class="homebody">${banner}${staffHtml(reqs)}
+      <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
+        ${q('C.myTasks()', 'clipboard', 'كل مهامي')}${q("C.go('notifs')", 'bell', 'الإشعارات')}${q("C.go('files')", 'folder', 'الملفات والمرفقات')}
+        ${q("C.go('courses',{tab:'current'})", 'calendar', 'جدول الدراسة')}${q('C.guide()', 'guide', 'دليل المستخدم')}${q("C.go('search')", 'search', 'الاستعلامات')}</div></div></div></div>`;
     const full = fullRead();
     const vis = S.units.filter((u) => u.status === 'active' && (full || cap(u.id, 'read')));
     const n = (k) => vis.filter((u) => u.kind === k).length;
     const vices = vis.filter((u) => u.kind === 'leadership' && u.parent_id).length;
-    const sub = (t) => full ? t : 'جهاتك فقط';
-    const card = (p, ic, t, d, k) => `<button class="ecard" onclick="C.go('${p}')">${icon(ic)}<b>${esc(t)}</b><span>${esc(d)}</span>${!full && k !== undefined ? `<em>${k} من جهاتك</em>` : ''}<i aria-hidden="true">‹</i></button>`;
-    const q = (fn, ic, t) => `<button onclick="${fn}">${icon(ic)}${esc(t)}</button>`;
-    const qs = (cls, ic, num, t, fn) => `<button class="${cls}" onclick="${fn}"><b>${num}</b><span>${esc(t)}</span>${icon(ic)}</button>`;
-    return `<div class="homewrap">${heroHtml(st)}<div class="homebody">
-      ${DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية. اخرج من القائمة العلوية وادخل بحساب آخر لترى ما يظهر لكل شخص.</div>' : ''}
-      ${mineHtml(reqs)}
-      <div class="cards5">${card('college', 'college', st.collegeShort || 'كلية الأعمال', 'الملف العام للكلية')}${card('depts', 'sitemap', 'الأقسام العلمية', sub('إدارة الأقسام الأكاديمية'), n('department'))}
-        ${card('vices', 'bank', 'الوكالات', sub('متابعة وكالات الكلية'), vices)}${card('units', 'cubes', 'الوحدات', sub('إدارة الوحدات وتنفيذ المهام'), n('unit'))}${card('committees', 'users', 'اللجان', sub('إدارة اللجان ومتابعة أعمالها'), n('committee'))}</div>
-      <div class="home3">
-        <div class="box"><h2>${icon('mega')}أحدث الإعلانات</h2>
-          <div class="ann">${list.length ? list.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div>
-          <a class="small" href="#" onclick="C.go('ann');return false" style="display:inline-flex;gap:4px;align-items:center;margin-top:10px">عرض جميع الإعلانات ${icon('chev')}</a></div>
-        <div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
-          ${q("C.go('courses',{tab:'courses'})", 'book', 'المقررات الدراسية')}${q("C.go('courses',{tab:'current'})", 'calendar', 'جدول الدراسة')}${q("C.go('faculty')", 'user', 'قائمة أعضاء هيئة التدريس')}
-          ${q("C.go('files')", 'folder', 'الملفات والمرفقات')}${q(gcap('reports') ? "C.go('reports')" : "C.toast('التقارير تحتاج صلاحية «التقارير».',true)", 'chart', 'التقارير')}${q("C.go('tasks')", 'clipboard', 'إدارة المهام')}
-          ${q('C.guide()', 'guide', 'دليل المستخدم')}${q("C.go('notifs')", 'bell', 'الإشعارات')}${q("C.go('search')", 'search', 'الاستعلامات')}</div></div>
-        <div class="box"><h2>${icon('chart')}إحصائيات سريعة${full ? '' : ' <span class="small muted" style="font-weight:500">لجهاتك</span>'}</h2><div class="qstats">
-          ${qs('qs-purple', 'users', n('committee'), full ? 'اللجان' : 'لجاني', "C.go('committees')")}${qs('qs-purple', 'cubes', n('unit'), full ? 'الوحدات' : 'وحداتي', "C.go('units')")}
-          ${qs('qs-green', 'bank', vices, 'الوكالات', "C.go('vices')")}${qs('qs-blue', 'college', n('department'), full ? 'الأقسام العلمية' : 'أقسامي', "C.go('depts')")}
-          ${qs('qs-orange', 'book', courses.length, 'المقررات الدراسية', "C.go('courses',{tab:'courses'})")}${qs('qs-green', 'user', S.faculty.filter((f) => f.status === 'نشط').length, 'أعضاء هيئة التدريس', "C.go('faculty')")}</div></div>
-      </div>${footHtml(st)}</div></div>`;
+    const tile = (p, ic, num, t) => `<button onclick="C.go('${p}')">${icon(ic)}<b>${num}</b><span>${esc(t)}</span></button>`;
+    return `<div class="homebody">${banner}${mineHtml(reqs)}
+      <div class="hstrip">${tile('depts', 'sitemap', n('department'), full ? 'الأقسام العلمية' : 'أقسامي')}${tile('units', 'cubes', n('unit'), full ? 'الوحدات' : 'وحداتي')}
+        ${tile('committees', 'users', n('committee'), full ? 'اللجان' : 'لجاني')}${vices ? tile('vices', 'bank', vices, 'الوكالات') : ''}
+        ${tile('courses', 'book', courses.length, 'المقررات')}${tile('faculty', 'user', S.faculty.filter((f) => f.status === 'نشط').length, 'أعضاء هيئة التدريس')}</div>
+      <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
+        ${q("C.go('tasks')", 'clipboard', 'المهام والتكليفات')}${q("C.go('college')", 'college', st.collegeShort || 'كلية الأعمال')}${q("C.go('courses',{tab:'current'})", 'calendar', 'جدول الدراسة')}
+        ${q("C.go('files')", 'folder', 'الملفات والمرفقات')}${q(gcap('reports') ? "C.go('reports')" : "C.toast('التقارير تحتاج صلاحية «التقارير».',true)", 'chart', 'التقارير')}${q('C.guide()', 'guide', 'دليل المستخدم')}</div></div></div></div>`;
+  }
+
+  /* عضو هيئة التدريس: مهامه المسندة إليه موزعة حسب المجال، وبرامجه، دون أسماء الجهات */
+  const domainOf = (id) => { const nm = uName(id); return nm.replace(/^(وحدة|لجنة|مركز|برنامج)\s+/, '') || nm; };
+  function staffHtml(reqs) {
+    const mf = myFac(), me = S.me;
+    const mine = reqs.filter((r) => mf && r.assignee_faculty === mf && !['done', 'rejected'].includes(r.status))
+      .sort((a, b) => String(a.due_date || '9999').localeCompare(String(b.due_date || '9999')));
+    const groups = {}; mine.forEach((r) => { const d = domainOf(r.unit_id); (groups[d] = groups[d] || []).push(r); });
+    const row = (r) => { const late = r.due_date && r.due_date < today();
+      return `<button class="trow" onclick="C.openReq('${r.id}')"><b class="grow">${esc(r.title)}</b>${r.priority === 'high' ? chip('عاجلة', 'bad') : ''}${chip(RSTAT[r.status][0], RSTAT[r.status][1])}<span class="small ${late ? 'bad' : 'muted'}">${r.due_date ? fmtD(r.due_date) + (late ? ' (متأخرة)' : '') : 'بلا موعد'}</span></button>`; };
+    const apps = S.apps.filter((a) => a.active && (S.appLv || {})[a.id] && (S.appLv || {})[a.id] !== 'none');
+    return `<section class="minebox"><div class="row" style="align-items:flex-start"><div class="grow"><h2>مرحبًا، ${esc(me.name)}</h2>
+        <div class="row" style="margin-top:6px">${chip('عضو هيئة التدريس')}${mine.length ? chip(mine.length + ' مهام مفتوحة', 'wait') : chip('لا مهام مفتوحة', 'ok')}</div></div>
+        <button class="btn sm" onclick="C.myTasks()">${icon('clipboard')}كل مهامي</button></div>
+      ${!mf ? '<p class="small" style="margin:10px 0 0">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر مهامك. يربطه مدير النظام من «الحسابات والصلاحيات».</p>' : ''}
+      ${Object.keys(groups).length ? `<h3 class="mh">مهامي حسب المجال</h3>${Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ar')).map((d) => `<div class="tgroup"><b>${esc(d)} <span class="muted small">(${groups[d].length})</span></b>${groups[d].map(row).join('')}</div>`).join('')}`
+        : mf ? '<p class="small" style="margin:10px 0 0">لا توجد مهام مسندة إليك حاليًا.</p>' : ''}
+      ${apps.length ? `<h3 class="mh">برامجي</h3><div class="row">${apps.map((a) => `<button class="uchip" onclick="C.appOpen('${a.id}')">${icon(a.icon || 'app')}${esc(a.name)}</button>`).join('')}</div>` : ''}</section>`;
   }
 
   /* «جهاتي وصلاحياتي»: ما يخص المستخدم وحده */
