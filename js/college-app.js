@@ -199,7 +199,7 @@
       if (!a || !a.me) { await D.auth.signOut(); return showLogin('الحساب غير نشط. تواصل مع مدير النظام.'); }
       /* أول دخول: يُربط الحساب بسجل العضو الذي بريده هو بريد الدخول، فتعمل صلاحيات تكليفاته فورًا (الملف 9) */
       if (!a.me.faculty_id) { const fid = await D.rpc('org_link_me').catch(() => null); if (fid) { a = await D.rpc('org_my_access'); toast('رُبط حسابك بسجلك في قاعدة أعضاء هيئة التدريس.'); } }
-      S.me = a.me; S.acc = a.units || {}; S.glob = a.global || {}; S.appLv = a.apps || {};
+      S.me = a.me; S.acc = a.units || {}; S.glob = a.global || {}; S.appLv = a.apps || {}; S.duties = a.duties || {};
       await loadAll();
       $('#app').classList.remove('hidden', 'guest');
       renderShell();
@@ -246,13 +246,13 @@
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
     ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
-    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'],
+    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['myschedule', 'مقرراتي', 'calendar', () => !!myFac() && viewRole() !== 'staff'],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
   ];
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'جدولي الدراسي' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مقرراتي' };
   const NAV_OF = { matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
@@ -272,7 +272,7 @@
     const showNav = (k) => staff ? !['college', 'vices', 'depts', 'units', 'committees', 'settings'].includes(k)
       : !KN[k] || fullRead() || S.units.some((u) => KN[k].includes(u.kind) && u.status !== 'archived' && u.id !== rootId() && cap(u.id, 'read'));
     const mine = myDirect();
-    const staffNav = staff ? `<button class="nav" data-p="myschedule" onclick="C.go('myschedule')">${icon('calendar')}جدولي الدراسي</button><button class="nav" data-p="apps" onclick="C.go('apps')">${icon('app')}برامجي</button>` : '';
+    const staffNav = staff ? `<button class="nav" data-p="myschedule" onclick="C.go('myschedule')">${icon('calendar')}مقرراتي</button><button class="nav" data-p="apps" onclick="C.go('apps')">${icon('app')}برامجي</button>` : '';
     $('#side').innerHTML = NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' + staffNav : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">${staff ? 'لجاني ووحداتي' : 'جهاتي'}</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
@@ -729,18 +729,52 @@
   const meetsOf = (c) => String(c.days || '').split(/[،,]/).map((p) => p.trim()).filter(Boolean).flatMap((p) => {
     const t = p.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/), ds = p.replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/, '').split(/\s+/).filter(Boolean).map(dayKey);
     return ds.map((d) => ({ d, from: t ? t[1] : c.from, to: t ? t[2] : c.to })); });
+  /* ---------- «مقرراتي»: مقررات الفصل من الجدول المعتمد، ودوري في كل مقرر، وأزرار البرامج، وبطاقة المقرر ----------
+     العبرة بالجدول لا بالقسم: أرى ما أُسند إليّ تدريسه أو تنسيقه أيًّا كان برنامجه */
+  const CBTN = [['file', 'ملف المقرر', 'file'], ['exam', 'الاختبار', 'clipboard'], ['bb', 'متطلبات البلاك بورد', 'book']];
+  const btnApp = (k) => { const id = (S.settings.courseButtons || {})[k]; const a = id && S.apps.find((x) => x.id === id && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
+  const courseBtns = (c, sm) => CBTN.map(([k, l, ic]) => { const a = btnApp(k); return a ? `<button class="btn ${sm ? 'sm' : ''}" onclick="event.stopPropagation();C.appOpenCtx('${a.id}','${c.id}')">${icon(ic)}${l}</button>` : ''; }).join('');
+  /* أيقونات الحالة: تُملأ من ملخصات البرامج (course_status) في المرحلة التالية */
+  const statusIcons = () => `<span class="tiny muted" title="تظهر حالة ملف المقرر والاختبار والبلاك بورد والاستفسارات بعد ربط البرامج">${['file', 'clipboard', 'book', 'chat'].map((i) => `<span style="opacity:.35">${icon(i)}</span>`).join('')}</span>`;
+  const secLine = (s) => [`شعبة ${esc(s.no)}`, esc(s.gender || ''), esc(s.campus || ''), esc(s.days || ''), s.from ? `<span class="num" dir="ltr">${esc(s.from)}–${esc(s.to)}</span>` : '', esc(s.room || '')].filter(Boolean).join(' · ');
   async function pgMySchedule() {
     const mf = myFac(), t = curTerm();
-    if (!mf) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا يظهر جدولك. يربطه مدير النظام.</div>';
-    const cs = t ? await D.rpc('faculty_courses', { p_faculty: mf, p_term: t.id }).catch(() => []) : [];
-    const hours = cs.reduce((s, c) => s + (+c.hours || 0), 0);
+    if (!mf) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر مقرراتك. يربطه مدير النظام.</div>';
+    await loadSched(); const sc = S.sched || { my: [], mine: [], courses: [] };
+    const my = sc.my, cs = sc.mine, hours = cs.reduce((s, c) => s + (+c.hours || 0), 0);
+    const progC = (S.programs || []).filter((p) => p.coordinator_id === mf).map((p) => p.id);
+    const progCourses = sc.courses.filter((c) => progC.includes(c.program_id));
+    const headDepts = deptUnits().filter((d) => myDirect().some((m) => m.unit_id === d.id && m.position === 'head')).map((d) => d.id);
+    const deptCourses = sc.courses.filter((c) => headDepts.includes(c.department_id));
+    const row = (c, mine) => { const r = c.role || courseRole(c, mf), rk = roleKey(r);
+      const secs = mine && r.teacher ? c.sections.filter((s) => r.sections.includes(s.id)) : c.sections;
+      return `<tr class="clickable" style="cursor:pointer" onclick="C.courseCard('${c.id}')"><td><b>${esc(c.code)}</b> ${esc(c.name)}<div class="tiny muted">${esc(progName(c.program_id) || (c.degree ? 'دون برنامج · ' + c.degree : ''))}</div></td>
+        <td>${chip(ROLE_TXT[rk], rk === 'view' ? '' : 'ok')}</td>
+        <td class="small">${mine ? secs.map((s) => `<div>${secLine(s)}</div>`).join('') : `${c.sections.length} شعبة · المنسق: ${esc(c.coordinator_id ? fName(c.coordinator_id) : '—')}`}</td>
+        <td>${statusIcons()}</td><td class="row" style="gap:4px">${courseBtns(c, true)}</td></tr>`; };
+    const tbl = (list, mine) => `<div class="tw"><table><tr><th>المقرر</th><th>دوري</th><th>${mine ? 'شعبي' : 'الشعب'}</th><th>الحالة</th><th></th></tr>${list.map((c) => row(c, mine)).join('')}</table></div>`;
     const byDay = {}; cs.forEach((c) => meetsOf(c).forEach((m) => (byDay[m.d] = byDay[m.d] || []).push(Object.assign({}, c, { from: m.from, to: m.to }))));
     const days = Object.keys(byDay).sort((a, b) => DAYS_ORDER.indexOf(a) - DAYS_ORDER.indexOf(b));
-    return `<p class="small muted">${esc(t ? t.name : 'لا يوجد فصل حالي')} · من الجدول المعتمد · ${cs.length} شعبة · ${hours} ساعة معتمدة</p>
-      ${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>البرنامج</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)} ${esc(c.gender || '')}</td><td class="small">${esc(c.program || '')}</td><td>${esc(c.days)}</td><td class="num">${esc(c.from)}–${esc(c.to)}</td><td>${esc(c.room || '')}</td></tr>`).join('')}</table></div>
-        ${days.length ? `<h3 style="margin:18px 0 8px">حسب اليوم</h3><div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${days.map((d) => `<div class="box"><b>${esc(d)}</b>${byDay[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((c) => `<div class="small" style="margin-top:6px"><span class="num">${esc(c.from)}–${esc(c.to)}</span> · ${esc(c.code)} (${esc(c.section)}) · ${esc(c.room || '')}</div>`).join('')}</div>`).join('')}</div>` : ''}`
-        : '<div class="empty">لا توجد شعب مسندة إليك في الجدول المعتمد لهذا الفصل.</div>'}`;
+    return `<p class="small muted">${esc(t ? t.name : 'لا يوجد فصل حالي')} · من الجدول المعتمد · ${my.length} مقرر · ${cs.length} شعبة · ${hours} ساعة معتمدة · اضغط المقرر لفتح بطاقته</p>
+      ${my.length ? tbl(my, true) : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}
+      ${progCourses.length ? `<h3 style="margin:18px 0 8px">مقررات برنامجي (${esc(progC.map(progName).join('، '))})</h3>${tbl(progCourses, false)}` : ''}
+      ${deptCourses.length ? `<h3 style="margin:18px 0 8px">مقررات قسمي</h3>${tbl(deptCourses, false)}` : ''}
+      ${days.length ? `<h3 style="margin:18px 0 8px">جدولي حسب اليوم</h3><div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${days.map((d) => `<div class="box"><b>${esc(d)}</b>${byDay[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((c) => `<div class="small" style="margin-top:6px"><span class="num" dir="ltr">${esc(c.from)}–${esc(c.to)}</span> · ${esc(c.code)} (شعبة ${esc(c.section)}) · ${esc(c.room || '')}</div>`).join('')}</div>`).join('')}</div>` : ''}`;
   }
+  /* بطاقة المقرر: كل ما هو مطلوب من الدكتور في المقرر. الحالات تأتي من ملخصات البرامج، والموقع لا يقرأ بياناتها الداخلية */
+  C.courseCard = (id) => {
+    const c = ((S.sched || {}).courses || []).find((x) => x.id === id); if (!c) return;
+    const r = courseRole(c, myFac()), rk = roleKey(r);
+    const part = (k, title, ic, body) => { const a = k && btnApp(k);
+      return `<div class="panel" style="margin:10px 0;padding:12px"><div class="row"><b class="grow">${icon(ic)} ${title}</b>${a ? `<button class="btn sm pri" onclick="C.close();C.appOpenCtx('${a.id}','${c.id}')">فتح ${esc(a.name)}</button>` : ''}</div><div class="small muted" style="margin-top:6px">${body}</div></div>`; };
+    modal(`${c.code} ${c.name}`, `<div class="row" style="flex-wrap:wrap;gap:6px">${chip(ROLE_TXT[rk], 'ok')}${chip(progName(c.program_id) || c.degree || '—')}${chip(uName(c.department_id))}${chip('المنسق: ' + (c.coordinator_id ? fName(c.coordinator_id) : 'لم يُحدَّد'))}</div>
+      <div class="tw" style="margin-top:10px"><table><tr><th>الشعبة</th><th>الشطر والمقر</th><th>الموعد</th><th>القاعة</th><th>الأستاذ</th></tr>${c.sections.map((s) => `<tr${r.sections.includes(s.id) ? ' style="font-weight:bold"' : ''}><td>${esc(s.no)}</td><td class="small">${[s.gender, s.campus].filter(Boolean).map(esc).join(' · ')}</td><td class="small">${esc(s.days || '')} ${s.from ? `<span class="num" dir="ltr">${esc(s.from)}–${esc(s.to)}</span>` : ''}</td><td>${esc(s.room || '')}</td><td class="small">${s.fac.map((x) => esc(fName(x))).join('، ') || '—'}</td></tr>`).join('')}</table></div>
+      ${part('file', 'ملف المقرر', 'file', 'الحالة (لم يبدأ / قيد الإعداد / مكتمل / عليه ملاحظات) تظهر هنا بعد ربط برنامج قياس المخرجات.')}
+      ${part('exam', 'الاختبارات', 'clipboard', 'مواعيد الفصلي الأول والثاني والنهائي وقاعاتها، ومهمتك في المراقبة، وحالة الأسئلة والأوراق، تظهر هنا بعد ربط نظام الاختبارات.')}
+      ${part('bb', 'البلاك بورد', 'book', 'حالة استيفاء المتطلبات والنقاط الناقصة، واستفسارات لجنة التعليم الإلكتروني وردك عليها، تظهر هنا بعد ربط برنامج التعليم الإلكتروني.')}
+      ${part('', 'إعلانات الطلاب', 'mega', 'إعلانات المقرر للطلاب (موعد الاختبار وقاعته، أو ما تنشره أنت) تأتي في المرحلة التالية.')}`,
+      `<button class="btn" onclick="C.close()">إغلاق</button>`, true);
+  };
   C.facView = async (id) => {
     const f = fac(id);
     const ass = S.members.filter((m) => m.faculty_id === id).sort((a, b) => activeM(b) - activeM(a) || b.start_date.localeCompare(a.start_date));
@@ -1746,6 +1780,31 @@
       <span class="meta">${esc(a.description || '')}</span><span class="meta">${esc(uName(a.unit_id))} · ${AK[a.kind]}${v ? ' · الإصدار ' + esc(v.version || '—') : ''}</span>
       <span class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح البرنامج</button>${a.kind === 'html' && appLv(a) === 'manage' ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</span></div>`;
   }
+  /* ربط أزرار «مقرراتي» بالبرامج، والأدوار العامة للبرامج (مراجعة/تدقيق/إشعار) — كلها في القاعدة (الملف 14) */
+  const DUTY = { review: 'مراجعة', audit: 'تدقيق', notify: 'إشعار (إرسال الملاحظات)' };
+  async function appLinksPanel() {
+    const html = S.apps.filter((a) => a.active !== false).sort((a, b) => a.name.localeCompare(b.name, 'ar')), B = S.settings.courseButtons || {};
+    const duties = await D.select('org_app_duties').catch(() => null);
+    const facs = S.faculty.filter((f) => f.status !== 'غير نشط').slice().sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
+    const aName = (id) => (S.apps.find((a) => a.id === id) || {}).name || id;
+    return `<div class="grid2" style="margin-bottom:14px"><div class="panel"><h2>أزرار «مقرراتي» وبطاقة المقرر</h2>
+        <p class="small muted">يفتح كل زر البرنامج المختار على المقرر مباشرة. من يدرّس مقررًا أو ينسقه في الجدول المعتمد، أو ينسق برنامجًا، يدخل هذه البرامج تلقائيًا بمستوى «استخدام».</p>
+        <div class="formgrid">${CBTN.map(([k, l]) => `<label class="f">${l}<select id="cb_${k}"><option value="">— لا يظهر —</option>${html.map((a) => opt(a.id, a.name + ' · ' + uName(a.unit_id), B[k])).join('')}</select></label>`).join('')}</div>
+        <div class="row" style="margin-top:10px"><button class="btn pri sm" onclick="C.cbSave(this)">حفظ</button></div></div>
+      <div class="panel"><h2>الأدوار العامة في البرامج</h2>
+        <p class="small muted">المراجعة والتدقيق والإشعار (إرسال الملاحظات للمنسق) لأشخاص بأعينهم، في أي برنامج، ويمكن حصرها ببرنامج أكاديمي. يدخل صاحبها البرنامج بمستوى «استخدام»، والبرنامج يحدد ما يفعله بدوره.</p>
+        ${duties === null ? '<div class="empty">تحتاج تنفيذ ملف قاعدة البيانات <b>14_course_roles_duties.sql</b>.</div>' : `
+        <div class="formgrid"><label class="f">البرنامج<select id="du_a">${html.map((a) => opt(a.id, a.name, '')).join('')}</select></label>
+          <label class="f">العضو<select id="du_f">${facs.map((f) => opt(f.id, f.name_ar, '')).join('')}</select></label>
+          <label class="f">الدور<select id="du_d">${Object.keys(DUTY).map((k) => opt(k, DUTY[k], '')).join('')}</select></label>
+          <label class="f">البرنامج الأكاديمي<select id="du_p"><option value="">كل البرامج</option>${(S.programs || []).map((p) => opt(p.id, p.name, '')).join('')}</select></label></div>
+        <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.dutyAdd(this)">+ إضافة</button></div>
+        ${duties.length ? `<div class="tw" style="margin-top:10px"><table><tr><th>العضو</th><th>البرنامج</th><th>الدور</th><th>النطاق</th><th></th></tr>${duties.map((d) => `<tr><td>${esc(fName(d.faculty_id))}</td><td class="small">${esc(aName(d.app_id))}</td><td>${esc(DUTY[d.duty])}</td><td class="small">${esc(d.program_id ? progName(d.program_id) : 'كل البرامج')}</td><td><button class="btn sm danger" onclick="C.dutyDel('${d.id}')">حذف</button></td></tr>`).join('')}</table></div>` : '<p class="small muted">لا توجد أدوار بعد.</p>'}`}</div></div>`;
+  }
+  C.cbSave = (btn) => busy(btn, async () => { const cb = Object.fromEntries(CBTN.map(([k]) => [k, val('cb_' + k)]).filter((x) => x[1]));
+    const d = Object.assign({}, S.settings, { courseButtons: cb }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; toast('حُفظ ربط الأزرار. يظهر للأعضاء بعد تحديث الصفحة.'); refresh(); });
+  C.dutyAdd = (btn) => busy(btn, async () => { await D.insert('org_app_duties', { app_id: val('du_a'), faculty_id: val('du_f'), duty: val('du_d'), program_id: val('du_p') || null }); toast('أُضيف الدور.'); refresh(); });
+  C.dutyDel = (id) => busy(null, async () => { await D.remove('org_app_duties', { eq: { id } }); toast('حُذف الدور.'); refresh(); });
   async function pgApps() {
     await loadVers(); S.apps = await D.select('org_apps');
     const f = VIEW.unit || '';
@@ -1754,7 +1813,8 @@
     if (!manageAny()) return list.length ? `<p class="small muted">البرامج المتاحة لك حسب تكليفك.</p><div class="tw"><table><tr><th>البرنامج</th><th>صلاحيتك</th><th></th></tr>${list.map((a) => `<tr><td><b>${esc(a.name)}</b><div class="tiny muted">${esc(a.description || '')}</div></td>
         <td>${chip(LV[appLv(a)] || appLv(a), appLv(a) === 'view' ? '' : 'ok')}</td><td><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح</button></td></tr>`).join('')}</table></div>`
       : '<div class="empty">لا توجد برامج متاحة لك بعد. يتيحها مدير النظام حسب تكليفك.</div>';
-    return `<div class="note" style="margin-bottom:12px">يرفع مسؤول كل جهة (الكلية، الوكالة، القسم، الوحدة، اللجنة) برامجه بصيغة HTML من هنا، على طريقة «الأنظمة والتحديثات» في حقيبة الطوارئ. كل رفع إصدار محفوظ يمكن الرجوع إليه. البرنامج يعمل داخل الموقع، وما كان يحفظه في ذاكرة المتصفح (localStorage) يُحفظ في قاعدة البيانات لهذه الجهة ويراه كل أعضائها.</div>
+    const links = isAdmin() ? await appLinksPanel() : "";
+    return `${links}<div class="note" style="margin-bottom:12px">يرفع مسؤول كل جهة (الكلية، الوكالة، القسم، الوحدة، اللجنة) برامجه بصيغة HTML من هنا، على طريقة «الأنظمة والتحديثات» في حقيبة الطوارئ. كل رفع إصدار محفوظ يمكن الرجوع إليه. البرنامج يعمل داخل الموقع، وما كان يحفظه في ذاكرة المتصفح (localStorage) يُحفظ في قاعدة البيانات لهذه الجهة ويراه كل أعضائها.</div>
       <div class="row noprint" style="margin-bottom:12px"><select class="inp" onchange="C.go('apps',{unit:this.value})"><option value="">كل الجهات</option>${unitOptions(f)}</select><span class="grow"></span>
         ${manageAny() ? `<button class="btn pri sm" onclick="C.appNew('${attr(f)}')">${icon('upload')}إضافة برنامج</button>` : ''}</div>
       ${list.length ? `<div class="tw"><table><tr><th>البرنامج</th><th>الجهة</th><th>النوع</th><th>الإصدار الحالي</th><th>آخر رفع</th><th></th></tr>${list.map((a) => { const v = VERS[a.current_version], m = appLv(a) === 'manage';
@@ -1862,14 +1922,37 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   }
   window.addEventListener('beforeunload', (e) => { const R = window.__CAPP; if (R && R.busy()) { R.flush(); e.preventDefault(); e.returnValue = 'لم يكتمل الحفظ.'; return e.returnValue; } });
   /* الجدول المعتمد للبرامج (مثل قياس المخرجات): window.parent.CS.sched
-     { term: {id, name}, mine: شعب المستخدم في الفصل الحالي, all(): كل الشعب ومحاضروها {id, name_ar, email} } */
+     { term: {id, name}, mine: شعب المستخدم في الفصل الحالي, all(): كل الشعب ومحاضروها {id, name_ar, email},
+       programs: البرامج الأكاديمية ومنسقوها, courses: كل مقررات الفصل بشعبها وأساتذتها ومنسقها (sched_context، الملف 13),
+       my: مقررات المستخدم مع دوره {teacher, coordinator, programCoordinator, sections} }
+     وعند فتح برنامج من «مقرراتي» يصله window.parent.__CAPP.ctx = {term, course, code, section, program, role} */
+  const progName = (id) => ((S.programs || []).find((p) => p.id === id) || {}).name || '';
+  /* دوري في مقرر: أستاذ شعبة، منسق المقرر، منسق برنامجه — من الجدول المعتمد، لا من قسمي */
+  const courseRole = (c, fid) => { const p = (S.programs || []).find((x) => x.id === c.program_id);
+    const secs = c.sections.filter((s) => s.fac.includes(fid));
+    return { teacher: secs.length > 0, coordinator: !!fid && c.coordinator_id === fid, programCoordinator: !!(p && fid && p.coordinator_id === fid), sections: secs.map((s) => s.id) }; };
+  const roleKey = (r) => r.teacher && r.coordinator ? 'teacher+coordinator' : r.coordinator ? 'coordinator' : r.teacher ? 'teacher' : r.programCoordinator ? 'program' : 'view';
+  const ROLE_TXT = { 'teacher+coordinator': 'أستاذ ومنسق', coordinator: 'منسق المقرر', teacher: 'أستاذ شعبة', program: 'منسق البرنامج', view: 'اطلاع' };
   async function loadSched() {
     const t = curTerm(); S.sched = null; if (!t) return;
-    const mine = myFac() ? await D.rpc('faculty_courses', { p_faculty: myFac(), p_term: t.id }).catch(() => []) : [];
-    S.sched = { term: { id: t.id, name: t.name }, mine: mine || [],
+    const [mine, ctx] = await Promise.all([myFac() ? D.rpc('faculty_courses', { p_faculty: myFac(), p_term: t.id }).catch(() => []) : [], D.rpc('sched_context', { p_term: t.id }).catch(() => null)]);
+    if (ctx && ctx.programs) S.programs = ctx.programs.map((p) => Object.assign({}, (S.programs || []).find((x) => x.id === p.id) || {}, p));
+    const courses = (ctx && ctx.courses) || [], me = myFac();
+    S.sched = { term: { id: t.id, name: t.name }, mine: mine || [], programs: S.programs || [], courses,
+      my: me ? courses.map((c) => Object.assign({}, c, { role: courseRole(c, me) })).filter((c) => c.role.teacher || c.role.coordinator) : [],
       all: async () => { const v = await approvedOf(t.id); if (!v) return [];
         return (await versionRows(v.id)).map((r) => Object.assign({}, r, { fac: r.fac.map((id) => { const f = fac(id); return f ? { id: f.id, name_ar: f.name_ar, email: f.email || '' } : null; }).filter(Boolean) })); } };
   }
+  /* فتح برنامج على مقرر: من بطاقة المقرر أو أزرار «مقرراتي» */
+  C.appOpenCtx = (appId, courseId, sectionId) => {
+    const c = ((S.sched || {}).courses || []).find((x) => x.id === courseId); if (!c) return C.appOpen(appId);
+    const r = courseRole(c, myFac());
+    const a = S.apps.find((x) => x.id === appId); if (!a) return toast('البرنامج المرتبط بهذا الزر غير موجود. يضبطه مدير النظام من «البرامج والتحديثات».', true);
+    if (appLv(a) === 'none') return toast('لا تملك صلاحية فتح هذا البرنامج.', true);
+    if (!a.current_version && a.kind !== 'link') return toast('لم يُرفع ملف لهذا البرنامج بعد.', true);
+    if (a.kind === 'link') { window.open(a.target, '_blank', 'noopener'); return; }
+    go('app', { id: appId, ctx: { term: S.sched.term.id, course: c.id, code: c.code, name: c.name, section: sectionId || (r.sections.length === 1 ? r.sections[0] : null), program: c.program_id, degree: c.degree, role: roleKey(r) } });
+  };
   async function pgApp() {
     const a = S.apps.find((x) => x.id === VIEW.id); if (!a) return '<div class="panel" style="margin:20px">البرنامج غير موجود.</div>';
     await loadVers(); const v = VERS[a.current_version]; if (!v) return '<div class="panel" style="margin:20px">لم يُرفع ملف لهذا البرنامج.</div>';
@@ -1877,7 +1960,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const html = await blob.text(); const data = {}; rows.forEach((r) => { data[r.key] = r.value; });
     const ro = !['use', 'manage'].includes(appLv(a));
     await loadSched();
-    window.__CAPP = makeRuntime(a.id, ro);
+    window.__CAPP = makeRuntime(a.id, ro); window.__CAPP.ctx = VIEW.ctx || null;
     VIEW.after = () => { $('#appFrame').srcdoc = injectShim(html, data); setSync(ro ? 'ro' : 'ok'); };
     const m = appLv(a) === 'manage'; await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
     return `<div id="apphost"><div class="bar"><button class="btn sm" onclick="C.go('unit',{id:'${a.unit_id}',tab:'apps'})">${icon('back')}${esc(uName(a.unit_id))}</button>
@@ -1953,7 +2036,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     ['org_exclusions', 'grant_id,unit_id'], ['org_changes', 'id'], ['terms', 'id'], ['courses', 'id'], ['sched_versions', 'id'], ['offerings', 'id'], ['sections', 'id'], ['teaching', 'id'],
     ['course_coords', 'term_id,course_id'],
     ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key'], ['org_app_fac', 'app_id,faculty_id'],
-    ['org_app_access', 'app_id,profile_app_id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
+    ['org_app_access', 'app_id,profile_app_id'], ['org_app_duties', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {
@@ -2608,7 +2691,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       S._today = cs.flatMap((c) => meetsOf(c).filter((m) => m.d === dn).map((m) => Object.assign({}, c, { from: m.from, to: m.to }))).sort((a, b) => String(a.from).localeCompare(String(b.from))); }
     if (role === 'staff') return `<div class="homebody">${banner}${staffHtml(reqs)}
       <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
-        ${q('C.myTasks()', 'clipboard', 'كل مهامي')}${q("C.go('myschedule')", 'calendar', 'جدولي الدراسي')}${q("C.go('apps')", 'app', 'برامجي')}
+        ${q('C.myTasks()', 'clipboard', 'كل مهامي')}${q("C.go('myschedule')", 'calendar', 'مقرراتي')}${q("C.go('apps')", 'app', 'برامجي')}
         ${q("C.go('notifs')", 'bell', 'الإشعارات')}${q('C.guide()', 'guide', 'دليل المستخدم')}${q('C.userMenu()', 'key', 'حسابي وكلمة المرور')}</div></div></div></div>`;
     const full = fullRead();
     const vis = S.units.filter((u) => u.status === 'active' && (full || cap(u.id, 'read')));
@@ -2643,7 +2726,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       ${apps.length ? `<h3 class="mh">برامجي</h3><div class="row">${apps.map((a) => `<button class="uchip" onclick="C.appOpen('${a.id}')">${icon(a.icon || 'app')}${esc(a.name)} <small>${esc(LV[S.appLv[a.id]] || '')}</small></button>`).join('')}</div>` : ''}
       ${myDirect().length ? `<h3 class="mh">لجاني ووحداتي</h3><div class="row">${myDirect().map((m) => `<button class="uchip" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}${esc(uName(m.unit_id))} <small>${esc(POS[m.position] || '')}${m.title ? ' · ' + esc(m.title) : ''}</small></button>`).join('')}</div>` : ''}
       ${S._today ? `<h3 class="mh">محاضراتي اليوم</h3>${S._today.length ? S._today.map((c) => `<div class="trow" style="cursor:default"><span class="num">${esc(c.from)}–${esc(c.to)}</span><b class="grow">${esc(c.code)} ${esc(c.name)}</b><span class="small muted">شعبة ${esc(c.section)} · ${esc(c.room || '')}</span></div>`).join('') : '<p class="small muted" style="margin:0">لا محاضرات لك اليوم.</p>'}
-        <a class="small" href="#" onclick="C.go('myschedule');return false">جدولي الدراسي كاملًا ${icon('chev')}</a>` : ''}</section>`;
+        <a class="small" href="#" onclick="C.go('myschedule');return false">مقرراتي وجدولي ${icon('chev')}</a>` : ''}</section>`;
   }
 
   /* «جهاتي وصلاحياتي»: ما يخص المستخدم وحده */

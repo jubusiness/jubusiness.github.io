@@ -81,7 +81,7 @@
     programs: [{ id: 'acct', name: 'بكالوريوس المحاسبة', department_id: 'dept-acct', degree: '', prefixes: ['ACCT'], coordinator_id: null, active: true, sort: 1 },
       { id: 'fin', name: 'بكالوريوس التمويل والاستثمار', department_id: 'dept-fin', degree: '', prefixes: ['FIN'], coordinator_id: null, active: true, sort: 2 },
       { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 }],
-    course_coords: [], faculty_aliases: []
+    course_coords: [], faculty_aliases: [], org_app_duties: []
   };
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
@@ -201,9 +201,17 @@
     const units = Object.fromEntries(T.org_units.map((u) => [u.id, capsFor(ME, u.id)]));
     return { me: { app_id: ME, name: p.name, is_admin: p.is_admin, college_role: p.college_role, faculty_id: f ? f.id : null }, units,
       apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
-        const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none', ev = (f && a.everyone) || 'none';
-        return [a.id, p.is_admin ? 'manage' : o ? o.level : ev !== 'none' && (base === 'none' || (base === 'view' && ev === 'use')) ? ev : base]; })),
+        const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none';
+        if (p.is_admin) return [a.id, 'manage']; if (o) return [a.id, o.level]; if (base === 'manage' || base === 'use') return [a.id, base];
+        /* الملف 14: «لكل الأعضاء»، والدور العام على البرنامج، والدور في مقرر لبرنامج مربوط بأزرار «مقرراتي» */
+        let extra = (f && a.everyone && a.everyone !== 'none') ? a.everyone : 'none';
+        if (f && (T.org_app_duties.some((d) => d.app_id === a.id && d.faculty_id === f.id) || (courseButtonApp(a.id) && myCourseRole(f.id)))) extra = 'use';
+        return [a.id, extra === 'use' ? 'use' : (extra === 'view' || base === 'view') ? 'view' : 'none']; })),
+      duties: f ? T.org_app_duties.filter((d) => d.faculty_id === f.id).reduce((m, d) => { (m[d.app_id] = m[d.app_id] || []).push({ duty: d.duty, program_id: d.program_id || null }); return m; }, {}) : {},
       global: globalFor(ME) }; };
+  const courseButtonApp = (id) => Object.values(((T.org_settings[0] || {}).data || {}).courseButtons || {}).includes(id);
+  const myCourseRole = (fid) => { const cur = (T.terms.find((t) => t.is_current) || {}).id; const v = cur && approvedV(cur);
+    return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === fid)) || T.course_coords.some((c) => c.term_id === cur && c.faculty_id === fid) || T.programs.some((p) => p.active && p.coordinator_id === fid)); };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
   /* معلومات عامة تجريبية للزوار (عدد الطلاب، التقويم، الفعاليات) بتواريخ قريبة من اليوم */
   const demoInfo = () => { const at = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
