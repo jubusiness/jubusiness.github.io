@@ -177,7 +177,7 @@
     try { await D.insert('notifs', to.map((a) => { const id = uid('n'); return { id, to_user: a, created_by: S.me.app_id, data: { id, to: a, text, ref: null, at, read: false, by: S.me.app_id } }; })); } catch (e) { console.warn('notify', e); }
   };
 
-  const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png';
+  const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png', BG_IMG = 'img/login-bg.jpg';
     let BRAND = null;
   C.logout = async () => { if (!DEMO && sb) await sb.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null;
     /* لا تنتقل الصفحة المفتوحة ولا مرشحات المهام إلى من يدخل بعده على الجهاز نفسه */
@@ -1263,7 +1263,7 @@
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
     palette: '<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
-    logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>', db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'
+    logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>', login: '<path d="M9 4H5v16h4"/><path d="M12 8l-4 4 4 4M8 12h11"/>', db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'
   };
   function icon(n) { return `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || IC.app}</svg>`; }
   function emblem() {
@@ -1379,7 +1379,9 @@
       <label class="f">عبارة التذييل<input id="iF" value="${attr(s.footer || 'رؤية . تطوير . تميز')}"></label>
       <label class="f full">نبذة الكلية (رؤيتها ورسالتها) في صفحة «الكلية»<textarea id="iA">${esc(s.about || '')}</textarea></label>
       <div class="f">شعار الجامعة (PNG بخلفية شفافة)<div class="row">${s.logo ? `<img src="${attr(s.logo)}" alt="" style="height:48px;background:#fff;border-radius:6px;padding:3px">` : '<span class="small muted">الشعار الافتراضي</span>'}
-        <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div></div>
+        <input type="file" accept="image/*" onchange="C.idImg('logo',this)">${s.logo ? `<button class="btn sm" onclick="C.idClear('logo')">إزالة</button>` : ''}</div></div>
+      <div class="f">خلفية صفحة الدخول (صورة للكلية، عرضها 1800 بكسل تقريبًا؛ يُضاف عليها غطاء بلون الهوية)<div class="row">${s.hero ? `<img src="${attr(s.hero)}" alt="" style="height:48px;border-radius:6px">` : '<span class="small muted">الصورة الافتراضية</span>'}
+        <input type="file" accept="image/*" onchange="C.idImg('hero',this)">${s.hero ? `<button class="btn sm" onclick="C.idClear('hero')">إزالة</button>` : ''}</div></div></div>
       ${(() => { const pi = s.publicInfo || {}; const lines = (l) => (l || []).map((x) => [x.d, x.t, x.p].filter(Boolean).join(' | ')).join('\n');
         return `<h3 style="margin:18px 0 8px">معلومات عامة للزوار (الصفحة الأولى قبل الدخول)</h3>
         <div class="formgrid"><label class="f">عدد الطلاب والطالبات (اختياري)<input id="iStu" type="number" min="0" value="${attr(pi.students || '')}"></label>
@@ -1388,7 +1390,7 @@
         <p class="small muted">يظهر للزوار القادم فقط، الأقرب أولًا (خمسة لكل قائمة).</p>`; })()}
       ${(() => { const t = Object.assign({}, THEME_DEF, s.theme || {}); const ci = (k, l) => `<label class="f">${l}<span class="row"><input type="color" id="th_${k}" value="${attr(t[k])}" oninput="C.thPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(t[k])}</code></span></label>`;
         return `<h3 style="margin:18px 0 8px">الألوان</h3><p class="small muted">الافتراضي بنفسجي شعار جامعة الجوف. يظهر التغيير فورًا للمعاينة، ولا يُعتمد إلا بعد «حفظ الهوية».</p>
-        <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'رأس بطاقة الدخول — بداية التدرج')}${ci('frame2', 'رأس بطاقة الدخول — نهاية التدرج')}</div>
+        <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'غطاء خلفية صفحة الدخول — بداية التدرج')}${ci('frame2', 'غطاء خلفية صفحة الدخول — نهاية التدرج')}</div>
         <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.thReset()">استعادة ألوان الجامعة</button></div>`; })()}
       <p class="small muted">تُضغط الصور تلقائيًا وتُحفظ مع إعدادات النظام، فتنتقل مع النسخة الشاملة عند النقل.</p>
       <div class="row" style="margin-top:12px"><button class="btn pri" onclick="C.idSave(this)">حفظ الهوية</button></div></div>`;
@@ -2048,16 +2050,17 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const stat = (ic, n, t) => n ? `<div>${icon(ic)}<b>${n}</b><span>${esc(t)}</span></div>` : '';
     const dl = (list, empty) => list.length ? `<ul class="glist">${list.map((x) => `<li><time>${esc(dayTxt(x.d))}</time><div><b>${esc(x.t)}</b>${x.p ? `<span>${esc(x.p)}</span>` : ''}</div></li>`).join('')}</ul>` : `<div class="empty">${empty}</div>`;
     const svc = (fn, ic, t, d) => `<button onclick="${fn}">${icon(ic)}<b>${esc(t)}</b><span>${esc(d)}</span></button>`;
+    /* خلفية صورة الكلية بغطاء بنفسجي، وبطاقة الدخول في الوسط (تُغيَّر الصورة من الإعدادات ← الهوية) */
     $('#view').innerHTML = `<div class="gate2">
-      <section class="ghero">
-        <div class="gintro"><img src="${attr(b.logo || LOGO_IMG)}" alt="" onerror="this.remove()">
-          <h1 id="gTitle">نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')}</h1><p class="gsub">${esc(b.university || 'جامعة الجوف')}</p>
-          <p class="gslog">${esc(b.slogan || 'معًا .. نحو مستقبل أكثر إبداعًا')}</p>
-          <p class="gdesc">منصة موحدة لمتابعة الأقسام والوحدات واللجان، والمهام والتكليفات، وبرامج الاختبارات والجودة والتدريب.</p></div>
+      <section class="gbg" style="--bg:url('${attr(b.hero || BG_IMG)}')">
         <section class="gcard" aria-labelledby="gTitle">
+          <header><div><h1 id="gTitle">بوابة الدخول</h1><p>نظام إدارة ${esc(b.collegeShort || 'كلية الأعمال')} — ${esc(b.university || 'جامعة الجوف')}</p><span>اختر نوع حسابك</span></div>
+            <i class="gico" aria-hidden="true">${icon('login')}</i></header>
+          <div class="gstripe" aria-hidden="true"></div>
           <div class="gtabs" role="tablist" aria-label="نوع الحساب">${Object.keys(GTABS).map((k) => `<button role="tab" id="gt-${k}" aria-selected="${GTAB === k}" class="${GTAB === k ? 'on' : ''}" onclick="C.gTab('${k}')">${icon(GTABS[k][1])}${GTABS[k][0]}</button>`).join('')}</div>
           <div class="gbody" id="gBody" role="tabpanel"></div>
         </section>
+        <p class="gslog">${esc(b.slogan || 'معًا .. نحو مستقبل أكثر إبداعًا')}</p>
       </section>
       <div class="gwrap">
         <div class="gstats">${stat('book', info.students, 'طالب وطالبة')}${stat('user', st.faculty, 'عضو هيئة تدريس')}${stat('sitemap', st.departments, 'أقسام علمية')}${stat('cubes', st.units, 'وحدات')}${stat('users', st.committees, 'لجان')}${stat('file', st.courses, 'مقررًا دراسيًا')}</div>
