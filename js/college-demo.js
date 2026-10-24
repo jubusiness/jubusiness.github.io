@@ -77,7 +77,11 @@
     org_members: [], org_grants: [], org_exclusions: [], org_changes: [], audit_log: [], notifs: [],
     org_settings: [{ id: 1, data: { ranks: ['أستاذ', 'أستاذ مشارك', 'أستاذ مساعد', 'محاضر', 'معيد'], statuses: ['نشط', 'غير نشط', 'إجازة', 'إعارة', 'ابتعاث'], university: 'جامعة الجوف', universityEn: 'Jouf University', slogan: 'معًا .. نحو مستقبل أكثر إبداعًا', footer: 'رؤية . تطوير . تميز', programs: ['بكالوريوس المحاسبة', 'بكالوريوس التمويل', 'بكالوريوس إدارة الأعمال'], maxFileMB: 10 } }],
     terms: [{ id: '1447-2', year: '1447', term: 'الثاني', name: 'الفصل الثاني 1447هـ', is_current: false }, { id: '1448-1', year: '1448', term: 'الأول', name: 'الفصل الأول 1448هـ', is_current: true }],
-    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: []
+    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: [],
+    programs: [{ id: 'acct', name: 'بكالوريوس المحاسبة', department_id: 'dept-acct', degree: '', prefixes: ['ACCT'], coordinator_id: null, active: true, sort: 1 },
+      { id: 'fin', name: 'بكالوريوس التمويل والاستثمار', department_id: 'dept-fin', degree: '', prefixes: ['FIN'], coordinator_id: null, active: true, sort: 2 },
+      { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 }],
+    course_coords: [], faculty_aliases: []
   };
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
@@ -109,8 +113,8 @@
   const DEMO = window.COLLEGE_DEMO = {};
   const FILES = {};
   const audit = (table, row_id, action, before, after) => T.audit_log.unshift({ id: T.audit_log.length + 1, at: nowISO(), actor_app_id: ME, table_name: table, row_id: String(row_id || ''), action, before: before ? clone(before) : null, after: after ? clone(after) : null });
-  const PK = { org_roles: 'key', org_settings: 'id', faculty_private: 'faculty_id', profiles: 'app_id' };
-  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'] };
+  const PK = { org_roles: 'key', org_settings: 'id', faculty_private: 'faculty_id', profiles: 'app_id', faculty_aliases: 'alias' };
+  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'] };
   const pk = (t) => PK[t] || 'id';
   const matches = (r, q) => {
     if (!q) return true;
@@ -302,7 +306,8 @@
       let off = T.offerings.find((o) => o.version_id === v.id && o.course_id === course.id && o.program === (r.program || ''));
       if (!off) { off = { id: uuid(), version_id: v.id, course_id: course.id, program: r.program || '', department_id: dep }; T.offerings.push(off); }
       let sec = T.sections.find((s) => s.offering_id === off.id && s.section_no === String(r.section).trim());
-      if (!sec) { sec = { id: uuid(), offering_id: off.id, version_id: v.id, section_no: String(r.section).trim(), gender: r.gender || '', days: r.days || '', time_from: r.time_from || '', time_to: r.time_to || '', room: r.room || '' }; T.sections.push(sec); }
+      if (!sec) { sec = { id: uuid(), offering_id: off.id, version_id: v.id, section_no: String(r.section).trim(), gender: r.gender || '', days: r.days || '', time_from: r.time_from || '', time_to: r.time_to || '', room: r.room || '', campus: String(r.campus || '').trim() }; T.sections.push(sec); }
+      else if (String(r.campus || '').trim()) sec.campus = String(r.campus).trim();
       const f = facOf(r);
       if (f && f !== 'dup' && !T.teaching.some((t) => t.section_id === sec.id && t.faculty_id === f.id)) T.teaching.push({ id: uuid(), section_id: sec.id, version_id: v.id, faculty_id: f.id, kind: r.teaching_kind || 'رئيسي' });
     });
@@ -311,6 +316,28 @@
     Object.assign(v, { status: 'approved', approved_at: nowISO(), approved_by: ME, stats: { sections: ns, teaching: nt, rows: v.rows.length, new_courses: val.new_courses } });
     audit('sched_versions', v.id, 'UPDATE', { status: 'draft' }, { status: 'approved', stats: v.stats });
     return { sections: ns, teaching: nt };
+  };
+  /* الملف 13: برنامج المقرر من رمزه ومستوى الدرجة، والجدول المعتمد كاملًا، واقتراح المنسقين */
+  const programOf = (code, degree) => (T.programs.filter((p) => p.active && p.prefixes.includes((String(code).match(/^[A-Z]+/) || [''])[0]) && (!p.degree || p.degree === String(degree || '').trim()))
+    .sort((a, b) => (b.degree ? 1 : 0) - (a.degree ? 1 : 0) || a.sort - b.sort)[0] || {}).id || null;
+  const approvedV = (term) => T.sched_versions.filter((x) => x.term_id === term && x.status === 'approved').sort((a, b) => b.version_no - a.version_no)[0];
+  R.sched_context = ({ p_term }) => {
+    const v = approvedV(p_term); const offs = v ? T.offerings.filter((o) => o.version_id === v.id) : [];
+    return { term: p_term, version: v ? v.id : null,
+      programs: T.programs.filter((p) => p.active).sort((a, b) => a.sort - b.sort).map((p) => ({ id: p.id, name: p.name, department_id: p.department_id, degree: p.degree, prefixes: p.prefixes, coordinator_id: p.coordinator_id })),
+      courses: offs.map((o) => { const c = T.courses.find((x) => x.id === o.course_id); const cc = T.course_coords.find((x) => x.term_id === p_term && x.course_id === c.id);
+        return { id: c.id, code: c.code, name: c.name_ar, hours: c.credit_hours, department_id: c.department_id, degree: o.program, program_id: programOf(c.code, o.program),
+          coordinator_id: cc ? cc.faculty_id : null, coord_source: cc ? cc.source : null,
+          sections: T.sections.filter((s) => s.offering_id === o.id).sort((a, b) => String(a.section_no).localeCompare(String(b.section_no), 'en', { numeric: true }))
+            .map((s) => ({ id: s.id, no: s.section_no, gender: s.gender, campus: s.campus || '', days: s.days, from: s.time_from, to: s.time_to, room: s.room, fac: T.teaching.filter((t) => t.section_id === s.id).map((t) => t.faculty_id) })) }; })
+        .sort((a, b) => a.code.localeCompare(b.code)) };
+  };
+  R.suggest_coords = ({ p_term }) => {
+    const v = approvedV(p_term); if (!v) return []; const n = new Map();
+    T.teaching.filter((t) => t.version_id === v.id).forEach((t) => { const s = T.sections.find((x) => x.id === t.section_id), o = T.offerings.find((x) => x.id === s.offering_id); const k = o.course_id + '|' + t.faculty_id; n.set(k, (n.get(k) || 0) + 1); });
+    const best = new Map(); [...n].forEach(([k, c]) => { const [course_id, faculty_id] = k.split('|'); const f = T.faculty.find((x) => x.id === faculty_id) || {}; const b = best.get(course_id);
+      if (!b || c > b.sections || (c === b.sections && String(f.employee_no || '~') < String(b.emp || '~'))) best.set(course_id, { course_id, faculty_id, sections: c, emp: f.employee_no }); });
+    return [...best.values()].map(({ course_id, faculty_id, sections }) => ({ course_id, faculty_id, sections }));
   };
   R.sched_reject = ({ p_version, p_note }) => { const v = T.sched_versions.find((x) => x.id === p_version); if (v && v.status === 'draft') { v.status = 'rejected'; v.note = ((v.note || '') + ' ' + (p_note || '')).trim(); } return null; };
   R.faculty_courses = ({ p_faculty, p_term }) => T.teaching.filter((t) => t.faculty_id === p_faculty).map((t) => {
