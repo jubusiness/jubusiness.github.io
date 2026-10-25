@@ -1396,7 +1396,8 @@
       <div class="panel">${!IMP ? `<p>الفصل المستهدف: <b>${esc(t ? t.name : '—')}</b> (غيّره من القائمة أعلاه).</p>
         <p class="small muted">يُرفع الملف وفق القالب المعتمد: صف لكل شعبة ولكل عضو هيئة تدريس فيها. يُتحقق من رموز المقررات والشعب والأعضاء والحقول الإلزامية والتكرار، ثم تُعرض المعاينة قبل الحفظ. الاستيراد لا يحذف أي إصدار سابق ولا يمس سجلات الاختبارات.</p>
         <div class="row" style="margin-top:12px"><button class="btn sm" onclick="C.schedTemplate()">تنزيل القالب</button></div>
-        <label class="f" style="margin-top:12px;max-width:420px">ملف الجدول (Excel)<input type="file" accept=".xlsx,.xls,.csv" onchange="C.schedParse(this)"></label>` : impPreview()}</div>`;
+        <label class="f" style="margin-top:12px;max-width:420px">ملف الجدول (XML أنصبة الأعضاء، أو البرش، أو Excel)<input type="file" accept=".xml,.xlsx,.xls,.csv" onchange="C.schedParse(this)"></label>
+        <p class="small muted">الأفضل: ملف XML لتقرير أنصبة الأعضاء من النظام الأكاديمي؛ يُطابَق فيه الأعضاء بالرقم الوظيفي.</p>` : impPreview()}</div>`;
   }
   C.schedTemplate = () => xlsxOut('قالب الجدول الدراسي.xlsx', [{ name: 'الجدول', head: SCH_HEAD, rows: [['ACCT 101', 'مبادئ المحاسبة 1', '3', 'بكالوريوس المحاسبة', (deptUnits()[0] || {}).name || '', '1', 'طلاب', 'أحد ثلاثاء', '08:00', '09:15', 'A-101', 'name@ju.edu.sa', '', '', 'رئيسي']] },
     { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['رمز المقرر', 'إلزامي؛ يُوحَّد تلقائيًا (ACCT 101 = ACCT101)'], ['اسم المقرر', 'إلزامي للمقرر الجديد غير الموجود في القاعدة'], ['الشعبة', 'إلزامي'],
@@ -1477,10 +1478,68 @@
     });
     return { rows, warn };
   }
+  /* ---------------------------------------------------------------------
+     تقرير أنصبة الأعضاء من النظام الأكاديمي (Oracle Reports XML، SIS_REP121) بترميز UTF-8:
+     لكل عضو في كل مقر (G_INSTRUCTOR_NAME: INSTRUCTOR_ID = الرقم الوظيفي، CAMPUS_NAME، DEPT_NAME، FACULTY_NAME)
+     شعبه (G_COURSE_CODE: COURSE_CODE، COURSE_NAME، SECTION_SEQ = الرقم المرجعي كما في البرش، CRD_HRS، ENROLLED_STUDENTS، ACTIVITY_DESC،
+     TIME_DESC = سطر لكل موعد «اليوم  من - إلى  القاعة»). لا يذكر الدرجة العلمية: تؤخذ من الجدول المعتمد للمقرر نفسه، وإلا من برنامج بادئته.
+     العضو يُطابق بالرقم الوظيفي أولًا ثم بالاسم. مقررات الكليات الأخرى (خارج مقررات الكلية وبادئات برامجها) تُترك مع تنبيه.
+     --------------------------------------------------------------------- */
+  const isSisXml = (buf) => { const h = new TextDecoder('utf-8').decode(buf.slice(0, 600)); return /^\s*(﻿)?<\?xml/.test(h) && /<SIS_REP|<LIST_G_SEMESTER/.test(h); };
+  function parseSisXml(buf, ctx) {
+    const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(buf), 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('تعذرت قراءة ملف XML.');
+    const tx = (el, tag) => ((el.getElementsByTagName(tag)[0] || {}).textContent || '').replace(/\s+/g, ' ').trim();
+    const codeOk = (c) => /^[A-Z]{2,6}\s?\d{3,4}[A-Z]?$/i.test(c), pfx = (c) => (norm(c).match(/^[A-Z]+/) || [''])[0];
+    const progPfx = new Set((S.programs || []).flatMap((p) => p.prefixes || []).concat(Object.keys(BR_DEPT)));
+    const byKey = new Map(), skipped = new Map(), warn = [], noId = new Map();   /* رقم وظيفي غير موجود ← طوبق بالاسم أم لا */
+    const skipKey = (c) => (/^[A-Z]/i.test(c) ? pfx(c) : String(c).trim().split(/[\s\d]/)[0]) || c;
+    [...doc.getElementsByTagName('G_INSTRUCTOR_NAME')].forEach((ins) => {
+      const empno = tx(ins, 'INSTRUCTOR_ID'), lect = tx(ins, 'INSTRUCTOR_NAME'), campus = tx(ins, 'CAMPUS_NAME');
+      const byNo = empno && S.faculty.find((f) => f.employee_no === empno && !offF(f)), f = byNo || (lect ? matchLect(lect) : null);
+      if (!byNo && empno) noId.set(empno, noId.get(empno) || !!f);
+      [...ins.getElementsByTagName('G_COURSE_CODE')].forEach((g) => {
+        const code = tx(g, 'COURSE_CODE'), c = norm(code);
+        if (!codeOk(code) || !(ctx.known.has(c) || progPfx.has(pfx(code)))) { const sk = skipKey(code); skipped.set(sk, (skipped.get(sk) || 0) + 1); return; }
+        const seq = tx(g, 'SECTION_SEQ') || tx(g, 'SECTION'), k = c + '|' + seq + '|' + campus + '|' + (f ? f.id : lect);
+        const s = byKey.get(k) || { code, name: tx(g, 'COURSE_NAME'), hours: tx(g, 'CRD_HRS'), seq, campus, lect, f, act: new Set(), meet: [] };
+        s.act.add(tx(g, 'ACTIVITY_DESC'));
+        ((g.getElementsByTagName('TIME_DESC')[0] || {}).textContent || '').split('\n').forEach((ln) => { const m = ln.match(/^\s*([1-7])\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(.*?)\s*$/); if (!m) return;
+          const mt = { day: m[1], from: m[2].padStart(5, '0'), to: m[3].padStart(5, '0'), room: m[4] }; if (!s.meet.some((x) => x.day === mt.day && x.from === mt.from)) s.meet.push(mt); });
+        byKey.set(k, s);
+      });
+    });
+    const rows = [...byKey.values()].map((s) => {
+      s.meet.sort((a, b) => a.day - b.day || a.from.localeCompare(b.from));
+      const city = (s.campus.match(/ب(\S+)$/) || [])[1] || '', girls = /الطالبات/.test(s.campus);
+      const m0 = s.meet[0] || {}, sameT = new Set(s.meet.map((m) => m.from + m.to)).size <= 1;
+      const days = sameT ? [...new Set(s.meet.map((m) => BR_DAY[m.day]))].join(' ') : s.meet.map((m) => `${BR_DAY[m.day]} ${m.from}-${m.to}`).join('، ');
+      const pre = pfx(s.code), degree = ctx.degree.get(norm(s.code)) || ((S.programs || []).find((p) => p.active !== false && (p.prefixes || []).includes(pre) && p.degree) || {}).degree || '';
+      const pg = progOf(pre, degree), dn = BR_DEPT[pre], dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn))), f = s.f;
+      return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: degree, department: dep ? dep.name : '', section: s.seq, campus: s.campus, _lect: s.lect || '',
+        gender: (girls ? 'طالبات' : 'طلاب') + (city && city !== 'سكاكا' ? ' - ' + city : ''), days, time_from: m0.from || '', time_to: m0.to || '', room: m0.room || '',
+        faculty_email: f && f.email ? f.email : '', faculty_empno: f && !f.email ? (f.employee_no || '') : '', faculty_name: f && !f.email && !f.employee_no ? f.name_ar : '',
+        teaching_kind: s.act.has('محاضرة') || !s.act.has('عملي') ? 'رئيسي' : 'عملي' };
+    });
+    const sum = (L) => L.reduce((a, x) => a + x[1], 0), lst = (L) => L.sort((a, b) => b[1] - a[1]).map(([p, n]) => p + ': ' + n).join('، ');
+    const skL = [...skipped].filter(([p]) => /^[A-Z]/i.test(p)), skA = [...skipped].filter(([p]) => !/^[A-Z]/i.test(p));
+    if (skL.length) warn.push('تُركت ' + sum(skL) + ' شعبة لمقررات ليست ضمن مقررات الكلية ولا بادئات برامجها (' + lst(skL) + '). لإدخالها أضف بادئتها إلى برنامج في «البرامج والمنسقون».');
+    if (skA.length) warn.push('تُركت ' + sum(skA) + ' شعبة لمقررات رموزها بالحروف العربية (' + lst(skA) + ')، والموقع لا يقبل حاليًا إلا الرموز اللاتينية.');
+    const byName = [...noId.values()].filter(Boolean).length;
+    if (noId.size) warn.push(noId.size + ' عضوًا في الملف ليس رقمهم الوظيفي في قاعدة الأعضاء' + (byName ? '؛ طوبق ' + byName + ' منهم بالاسم' : '') + (noId.size - byName ? '، والباقون (' + (noId.size - byName) + ') في «محاضرون لم يتطابقوا»' : '') + '.');
+    return { rows, warn };
+  }
   C.schedParse = (input) => busy(null, async () => {
     const file = input.files[0]; const buf = await file.arrayBuffer(); let rows, warn = [];
     ALIAS = new Map((await D.select('faculty_aliases').catch(() => [])).map((a) => [a.alias, a.faculty_id]));
-    if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
+    if (isSisXml(buf)) {
+      /* الدرجة العلمية لكل مقرر من آخر جدول معتمد، ومقررات الكلية المعروفة */
+      const v = await approvedOf(CQ.term).catch(() => null), prev = v ? await versionRows(v.id).catch(() => []) : [];
+      const known = new Set((await D.select('courses', { cols: 'code' }).catch(() => [])).map((c) => norm(c.code)));
+      const degree = new Map(); prev.forEach((p) => { if (p.program && !degree.has(p.code)) degree.set(p.code, p.program); });
+      const b = parseSisXml(buf, { known, degree }); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب لمقررات الكلية في ملف XML.');
+    }
+    else if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
     else {
       if (!window.XLSX) throw new Error('مكتبة Excel لم تُحمَّل. تحقق من الاتصال بالإنترنت.');
       const wb = XLSX.read(buf, { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
@@ -1535,8 +1594,8 @@
     const tbl = (list, f) => list.length ? `<div class="tw"><table>${f(list.slice(0, 300))}</table></div>${list.length > 300 ? '<p class="small muted">يُعرض أول 300 صف.</p>' : ''}` : '<div class="empty">لا شيء.</div>';
     const facOpts = S.faculty.filter((f) => f.status !== 'غير نشط').slice().sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
     const body = I.tab === 'err' ? tbl(I.errs, (l) => '<tr><th>صف الملف</th><th>المشكلة</th></tr>' + l.map((e) => `<tr><td>${e[0]}</td><td>${esc(e[1])}</td></tr>`).join(''))
-      : I.tab === 'lect' ? `<p class="small muted">أسماء المحاضرين كما في النظام الأكاديمي ولم تُطابق قاعدة الأعضاء. اختر العضو الصحيح فيُطبَّق على كل شعبه، ويُحفظ الاسم فلا يُسأل عنه في البرش القادم. اتركه «دون محاضر» لمن ليس من أعضاء الكلية؛ تُستورد شعبه دون محاضر.</p>
-        <div class="tw"><table><tr><th>الاسم في البرش</th><th>الشعب</th><th>العضو في قاعدة الأعضاء</th></tr>${unm.map((u, i) => `<tr><td>${esc(u.name)}</td><td>${u.n}</td><td><select onchange="C.impLect(${i},this.value)"><option value="">— دون محاضر —</option>${facOpts.map((f) => opt(f.id, f.name_ar + (f.department_id ? ' · ' + uName(f.department_id) : ''), u.fid)).join('')}</select></td></tr>`).join('')}</table></div>`
+      : I.tab === 'lect' ? `<p class="small muted">أسماء المحاضرين كما في النظام الأكاديمي ولم تُطابق قاعدة الأعضاء. اختر العضو الصحيح فيُطبَّق على كل شعبه، ويُحفظ الاسم فلا يُسأل عنه في الملف القادم. اتركه «دون محاضر» لمن ليس من أعضاء الكلية؛ تُستورد شعبه دون محاضر.</p>
+        <div class="tw"><table><tr><th>الاسم في الملف</th><th>الشعب</th><th>العضو في قاعدة الأعضاء</th></tr>${unm.map((u, i) => `<tr><td>${esc(u.name)}</td><td>${u.n}</td><td><select onchange="C.impLect(${i},this.value)"><option value="">— دون محاضر —</option>${facOpts.map((f) => opt(f.id, f.name_ar + (f.department_id ? ' · ' + uName(f.department_id) : ''), u.fid)).join('')}</select></td></tr>`).join('')}</table></div>`
       : I.tab === 'warn' ? `<p class="small muted">لا تمنع الاستيراد؛ راجعها. المحاضر غير الموجود في قاعدة الأعضاء (مثل أعضاء الكليات الأخرى) تُستورد شعبته دون محاضر.</p>` + tbl(I.warn, (l) => '<tr><th>التنبيه</th></tr>' + l.map((w) => `<tr><td class="small">${esc(w)}</td></tr>`).join(''))
       : I.tab === 'add' ? tbl(I.added, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>الأيام والوقت</th><th>القاعة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name || '')}</td><td>${esc(e.section)}</td><td>${esc(e.days)} ${esc(e.from)}</td><td>${esc(e.room)}</td><td>${e.fac.map(fName).join('، ') || '—'}</td></tr>`).join(''))
       : I.tab === 'chg' ? tbl(I.changed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>ما تغير</th><th>قبل</th><th>بعد</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)}</td><td>${esc(e.section)}</td><td>${esc(e.diff.join('، '))}</td><td class="small">${esc(e.prev.days)} ${esc(e.prev.from)} ${esc(e.prev.room)} · ${e.prev.fac.map(fName).join('، ')}</td><td class="small"><b>${esc(e.days)} ${esc(e.from)} ${esc(e.room)} · ${e.fac.map(fName).join('، ')}</b></td></tr>`).join(''))
