@@ -896,7 +896,10 @@
         if (n != null && n <= lead) out.push({ k: 'file', t: 'ملف المقرر لم يُسلَّم', sub: cn, n, late: n < 0, btn: 'فتح', act: openApp('file', c) }); }
       if (r.coordinator) stOf(c, 'exam').forEach((x) => { const d = x.details || {}; if (d.questions !== 'pending') return;
         const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = nx ? daysTo(nx.date) : null;
-        if (n == null || n <= lead) out.push({ k: 'exam', t: 'أسئلة الاختبار لم تُسلَّم' + (nx ? ' — ' + nx.name : ''), sub: cn, n, late: n != null && n < 0, btn: 'فتح', act: openApp('exam', c) }); }); });
+        if (n == null || n <= lead) out.push({ k: 'exam', t: 'أسئلة الاختبار لم تُسلَّم' + (nx ? ' — ' + nx.name : ''), sub: cn, n, late: n != null && n < 0, btn: 'فتح', act: openApp('exam', c) }); });
+      /* إعادة الأوراق المصححة لوحدة الاختبارات (موعدها من إعدادات نظام الاختبارات) */
+      if (r.teacher || r.coordinator) stOf(c, 'exam').forEach((x) => { const g = (x.details || {}).graded; if (!g || !g.due) return; const n = daysTo(g.due);
+        if (n <= lead) out.push({ k: 'exam', t: 'إعادة الأوراق المصححة لوحدة الاختبارات' + (g.pending > 1 ? ' (' + g.pending + ' شعب)' : ''), sub: cn, n, late: n < 0, btn: 'فتح', act: openApp('exam', c) }); }); });
     CX.st.filter((x) => x.kind === 'invigilation' && x.faculty_id === me).forEach((x) => { const c = ((S.sched || {}).courses || []).find((k) => k.id === x.course_id) || {};
       ((x.details || {}).items || []).forEach((i) => { const n = daysTo(i.date); if (n !== 0 && n !== 1) return;
         out.push({ k: 'exam', t: `مراقبة ${n === 0 ? 'اليوم' : 'غدًا'}: ${i.role || 'مراقب'}`, sub: [c.code, i.name, i.period && 'الفترة ' + i.period, i.room && 'القاعة ' + i.room].filter(Boolean).join(' · '), n, late: false, btn: 'فتح',
