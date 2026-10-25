@@ -84,7 +84,13 @@
     courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: [],
     programs: [{ id: 'acct', name: 'بكالوريوس المحاسبة', department_id: 'dept-acct', degree: '', prefixes: ['ACCT'], coordinator_id: null, active: true, sort: 1 },
       { id: 'fin', name: 'بكالوريوس التمويل والاستثمار', department_id: 'dept-fin', degree: '', prefixes: ['FIN'], coordinator_id: null, active: true, sort: 2 },
-      { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 }],
+      { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 },
+      /* الملف 20 */
+      { id: 'dip-acct', name: 'دبلوم المحاسبة', department_id: 'dept-acct', degree: 'الدبلوم المتوسط', prefixes: ['AACT'], coordinator_id: null, active: true, sort: 11 },
+      { id: 'dip-fm', name: 'دبلوم الإدارة المالية', department_id: 'dept-fin', degree: 'الدبلوم المتوسط', prefixes: ['AFM'], coordinator_id: null, active: true, sort: 12 },
+      { id: 'dip-mkt', name: 'دبلوم التسويق', department_id: 'dept-ba', degree: 'الدبلوم المتوسط', prefixes: ['ACMT'], coordinator_id: null, active: true, sort: 13 },
+      { id: 'dip-dmkt', name: 'دبلوم التسويق الرقمي', department_id: 'dept-ba', degree: 'الدبلوم المتوسط', prefixes: ['ACDM'], coordinator_id: null, active: true, sort: 14 },
+      { id: 'hd-hr', name: 'الدبلوم العالي في إدارة الموارد البشرية', department_id: 'dept-ba', degree: 'الدبلوم العالي', prefixes: ['بشر5', 'قصد5'], coordinator_id: null, active: true, sort: 21 }],
     course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: []
   };
   Object.assign(T.faculty[12], { gender: '', campus: '', service_start: null }); Object.assign(T.faculty[9], { campus: 'القريات' }); Object.assign(T.faculty[10], { gender: '' });
@@ -236,7 +242,7 @@
     const c = (a && capsFor(ME, a.unit_id)) || {}; return !!(c.write || c.manage || ['use', 'manage'].includes(entryLevel(app, f)) || (f && T.org_app_duties.some((d) => d.app_id === app && d.faculty_id === f.id))); };
   const myCourseOn = (term, course) => { const f = (T.faculty.find((x) => x.profile_app_id === ME) || {}).id; if (!f) return false; const v = approvedV(term); const c = T.courses.find((x) => x.id === course) || {};
     return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === f && T.sections.some((s) => s.id === t.section_id && T.offerings.some((o) => o.id === s.offering_id && o.course_id === course))))
-      || T.course_coords.some((x) => x.term_id === term && x.course_id === course && x.faculty_id === f) || T.programs.some((g) => g.coordinator_id === f && g.prefixes.includes((String(c.code).match(/^([A-Z]+|[ء-ي]+)/) || [''])[0]))); };
+      || T.course_coords.some((x) => x.term_id === term && x.course_id === course && x.faculty_id === f) || T.programs.some((g) => g.coordinator_id === f && g.id === programOf(c.code))); };
   const myCourseRole = (fid) => { const cur = (T.terms.find((t) => t.is_current) || {}).id; const v = cur && approvedV(cur);
     return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === fid)) || T.course_coords.some((c) => c.term_id === cur && c.faculty_id === fid) || T.programs.some((p) => p.active && p.coordinator_id === fid)); };
   DEMO.login = (u, pw) => { const p = T.profiles.find((x) => (x.username === String(u).trim().toLowerCase() || x.email === String(u).trim().toLowerCase()) && x.active); if (!p || pw !== '1234') return false; ME = p.app_id; return true; };
@@ -353,8 +359,11 @@
     return { sections: ns, teaching: nt };
   };
   /* الملف 13: برنامج المقرر من رمزه ومستوى الدرجة، والجدول المعتمد كاملًا، واقتراح المنسقين */
-  const programOf = (code, degree) => (T.programs.filter((p) => p.active && p.prefixes.includes((String(code).match(/^([A-Z]+|[ء-ي]+)/) || [''])[0]) && (!p.degree || p.degree === String(degree || '').trim()))
-    .sort((a, b) => (b.degree ? 1 : 0) - (a.degree ? 1 : 0) || a.sort - b.sort)[0] || {}).id || null;
+  /* الملف 20: التحديد اليدوي للمقرر أولًا، ثم أطول بادئة تطابق بداية الرمز، ومستوى الدرجة الفارغ لا يقيّد */
+  const programOf = (code, degree) => { const c = norm(code), dg = String(degree || '').trim();
+    const ov = (T.courses.find((x) => x.code === c) || {}).program_id; if (ov && T.programs.some((p) => p.id === ov && p.active)) return ov;
+    const cands = []; T.programs.filter((p) => p.active && (!p.degree || !dg || p.degree === dg)).forEach((p) => p.prefixes.forEach((pe) => { const k = norm(pe); if (k && c.startsWith(k)) cands.push([p, k.length]); }));
+    cands.sort((a, b) => b[1] - a[1] || (b[0].degree ? 1 : 0) - (a[0].degree ? 1 : 0) || a[0].sort - b[0].sort); return cands.length ? cands[0][0].id : null; };
   const approvedV = (term) => T.sched_versions.filter((x) => x.term_id === term && x.status === 'approved').sort((a, b) => b.version_no - a.version_no)[0];
   R.sched_context = ({ p_term }) => {
     const v = approvedV(p_term); const offs = v ? T.offerings.filter((o) => o.version_id === v.id) : [];

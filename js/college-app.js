@@ -953,7 +953,8 @@
     const { sc } = await mineData(); navBadge(); bellCount(); const cols = reqCols();
     const head = `<tr><th style="background:var(--line2)">المقرر</th><th style="background:var(--line2)">الشعب</th>${cols.map((c) => `<th style="background:${tint(c.color, 14)};color:${c.color}">${esc(c.name)}</th>`).join('')}</tr>`;
     const rows = sc.my.map((c) => { const r = c.role, secs = (r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections).map((x) => x.no).join('، ');
-      return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
+      const pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
+      return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}${pn ? `<div class="tiny muted">${esc(pn)}</div>` : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
         return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}</td>`; }).join('')}</tr>`; }).join('');
     const follow = viewRole() !== 'staff' ? await followBoard(sc) : '';
     return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
@@ -1301,6 +1302,7 @@
     try { [ctx, sug] = await Promise.all([D.rpc('sched_context', { p_term: CQ.term }), D.rpc('suggest_coords', { p_term: CQ.term })]); }
     catch (e) { return `<div class="empty">هذه الصفحة تحتاج تنفيذ ملف قاعدة البيانات <b>13_programs_coordinators.sql</b> في Supabase.<div class="small muted">${esc(pgErr(e))}</div></div>`; }
     S.programs = await D.select('programs', { order: ['sort'] }).catch(() => S.programs || []);
+    const OV = new Map((await D.select('courses', { cols: 'id,program_id' }).catch(() => [])).map((c) => [c.id, c.program_id || '']));   /* التحديد اليدوي (الملف 20) */
     const SG = new Map((sug || []).map((x) => [x.course_id, x])); KQ.ctx = ctx; KQ.sug = SG;
     const progs = S.programs, pname = (id) => (progs.find((p) => p.id === id) || {}).name || 'دون برنامج';
     const facList = S.faculty.filter((f) => f.status !== 'غير نشط').slice().sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
@@ -1312,25 +1314,37 @@
     const list = (ctx.courses || []).filter((c) => (!KQ.prog || (KQ.prog === '-' ? !c.program_id : c.program_id === KQ.prog)) && (!q || c.code.toLowerCase().includes(q) || normAr(c.name).toLowerCase().includes(q)));
     const missing = new Set(list.filter((c) => !c.coordinator_id && SG.has(c.id) && canCoordOf(c)).map((c) => c.id)).size;
     const crs = list.map((c) => { const teach = [...new Set(c.sections.flatMap((s) => s.fac))], sg = SG.get(c.id), ed = canCoordOf(c);
-      const opts = teach.map((id) => fac(id)).filter(Boolean).concat(facList.filter((f) => !teach.includes(f.id)));
-      return `<tr><td style="min-width:190px"><b>${esc(c.code)}</b> ${esc(c.name)}<div class="tiny muted">${esc(pname(c.program_id))}${c.degree ? ' · ' + esc(c.degree) : ''}</div></td><td>${c.sections.length}</td>
+      /* قائمة المنسق: من يدرّسون شعب المقرر هذا الفصل فقط (الأكثر شعبًا أولًا)، والمنسق الحالي إن كان من غيرهم، ثم «عضو آخر…» للحالات النادرة */
+      const nSec = (id) => c.sections.filter((s) => s.fac.includes(id)).length;
+      const opts = teach.slice().sort((a, b) => nSec(b) - nSec(a)).map((id) => fac(id)).filter(Boolean).concat(c.coordinator_id && !teach.includes(c.coordinator_id) && fac(c.coordinator_id) ? [fac(c.coordinator_id)] : []);
+      const ov = OV.get(c.id) || '', progSel = canProg() ? `<select class="tiny" style="max-width:230px;margin-top:3px" title="برنامج المقرر" onchange="C.courseProg('${attr(c.id)}',this.value)">
+          <option value="">تلقائي من البادئة${!ov && c.program_id ? ': ' + esc(pname(c.program_id)) : ''}</option>${progs.filter((p) => p.active !== false).map((p) => opt(p.id, p.name, ov)).join('')}</select>` : '';
+      return `<tr><td style="min-width:190px"><b>${esc(c.code)}</b> ${esc(c.name)}<div class="tiny muted">${progSel || esc(pname(c.program_id))}${ov ? ' · يدوي' : ''}</div></td><td>${c.sections.length}</td>
         <td class="small">${teach.map((id) => esc(fName(id)) + ' (' + c.sections.filter((s) => s.fac.includes(id)).length + ')').join('، ') || '—'}</td>
         <td class="small">${sg ? esc(fName(sg.faculty_id)) + ' (' + sg.sections + ')' : '—'}</td>
-        <td style="min-width:200px">${ed ? `<select style="max-width:240px" onchange="C.courseCoord('${attr(c.id)}',this.value)"><option value="">— لا منسق —</option>${opts.map((f) => opt(f.id, f.name_ar + (teach.includes(f.id) ? ' ★' : ''), c.coordinator_id)).join('')}</select>` : esc(c.coordinator_id ? fName(c.coordinator_id) : '—')}
+        <td style="min-width:200px">${ed ? `<select style="max-width:260px" onchange="C.courseCoord('${attr(c.id)}',this.value)"><option value="">— لا منسق —</option>${opts.map((f) => opt(f.id, f.name_ar + (teach.includes(f.id) ? ' (' + nSec(f.id) + ' ' + (nSec(f.id) === 1 ? 'شعبة' : 'شعب') + ')' : ' — لا يدرّسه'), c.coordinator_id)).join('')}<option value="__other">عضو آخر لا يدرّس المقرر هذا الفصل…</option></select>` : esc(c.coordinator_id ? fName(c.coordinator_id) : '—')}
           ${c.coordinator_id ? `<span class="tiny muted">${c.coord_source === 'auto' ? 'تلقائي' : 'يدوي'}</span>` : ''}</td></tr>`; }).join('');
     return `<div class="panel"><div class="row"><h2 class="grow" style="margin:0">البرامج الأكاديمية</h2>${canProg() ? `<button class="btn sm" onclick="C.progEdit('')">+ برنامج</button>` : ''}</div>
-        <p class="small muted">برنامج المقرر يُعرف من بادئة رمزه (مثل ACCT) ومستوى الدرجة في البرش، لا من قسم من يدرّسه. منسق البرنامج يرى كل مقررات برنامجه ويعد تقريره.</p>
+        <p class="small muted">برنامج المقرر يُعرف من أطول بادئة تطابق رمزه: حروف (ACCT، بشر) أو حروف ثم رقم (بشر5 للدبلوم العالي، دار6 للماجستير)، ومن مستوى الدرجة؛ لا من قسم من يدرّسه. ويمكن تحديده يدويًا لكل مقرر من القائمة تحت اسمه أدناه، فيغلب على البادئة. منسق البرنامج يرى كل مقررات برنامجه ويعد تقريره.</p>
         <div class="tw"><table><tr><th>البرنامج</th><th>المستوى</th><th>بادئات المقررات</th><th>القسم</th><th>مقررات الفصل</th><th>منسق البرنامج</th><th></th></tr>${progRows || '<tr><td colspan="7" class="muted">لا توجد برامج.</td></tr>'}</table></div></div>
       <div class="panel"><div class="row"><h2 class="grow" style="margin:0">منسقو المقررات — ${esc((S.terms.find((t) => t.id === CQ.term) || {}).name || '')}</h2>
-          ${missing ? `<button class="btn pri sm" onclick="C.coordApplyAll(this)">اعتماد الاقتراح لـ ${missing} مقرر بلا منسق</button>` : ''}</div>
+          ${missing ? `<button class="btn pri sm" onclick="C.coordApplyAll(this)">اقتراح المنسقين لكل المقررات الفارغة (${missing})</button>` : ''}</div>
         ${ctx.version ? '' : '<div class="empty">لا يوجد جدول معتمد لهذا الفصل.</div>'}
         <div class="row" style="margin:8px 0"><select onchange="C.kqProg(this.value)" id="kqP"><option value="">كل البرامج</option>${progs.map((p) => opt(p.id, p.name, KQ.prog)).join('')}<option value="-" ${KQ.prog === '-' ? 'selected' : ''}>دون برنامج</option></select>
-          <input class="inp" placeholder="بحث برمز المقرر أو اسمه" value="${attr(KQ.q)}" onchange="C.kq(this.value)"><span class="small muted">${list.length} مقرر · ★ يدرّس المقرر</span></div>
+          <input class="inp" placeholder="بحث برمز المقرر أو اسمه" value="${attr(KQ.q)}" onchange="C.kq(this.value)"><span class="small muted">${list.length} مقرر · قائمة المنسق: من يدرّس المقرر هذا الفصل وعدد شعبه</span></div>
         <div class="tw"><table><tr><th>المقرر</th><th>الشعب</th><th>من يدرّسه (عدد الشعب)</th><th>المقترح</th><th>منسق المقرر</th></tr>${crs || '<tr><td colspan="5" class="muted">لا مقررات.</td></tr>'}</table></div></div>`;
   }
+  /* برنامج المقرر يدويًا: يغلب على البادئة في كل الموقع (courses.program_id، الملف 20) */
+  C.courseProg = (cid, pid) => busy(null, async () => { await D.update('courses', { program_id: pid || null }, { eq: { id: cid } }); toast(pid ? 'حُدد برنامج المقرر.' : 'عاد برنامج المقرر تلقائيًا من البادئة.'); refresh(); });
   C.kqProg = (v) => { KQ.prog = v; refresh(); };
   C.kq = (v) => { KQ.q = v; refresh(); };
-  C.courseCoord = (cid, fid) => busy(null, async () => {
+  /* «عضو آخر…»: بحث في كل الأعضاء النشطين للحالات النادرة */
+  C.coordOther = (cid) => { const c = (KQ.ctx.courses || []).find((x) => x.id === cid) || {};
+    const list = (q) => { const k = normAr(q || '').toLowerCase(); return S.faculty.filter((f) => !offF(f) && (!k || normAr(f.name_ar).toLowerCase().includes(k))).sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar')).slice(0, 40)
+      .map((f) => `<button class="btn sm" style="margin:3px" onclick="C.close();C.courseCoord('${attr(cid)}','${f.id}')">${esc(f.name_ar)}<span class="tiny muted"> · ${esc(uName(f.department_id))}</span></button>`).join('') || '<p class="small muted">لا نتائج.</p>'; };
+    modal('منسق من خارج من يدرّسون ' + (c.code || ''), `<p class="small muted">للحالات النادرة فقط: عضو لا يدرّس المقرر هذا الفصل.</p><input class="inp" id="coQ" placeholder="ابحث بالاسم…" style="width:100%" autofocus><div id="coL" style="margin-top:10px;max-height:50vh;overflow:auto">${list('')}</div>`, '<button class="btn" onclick="C.close();C.refresh()">إلغاء</button>');
+    $('#coQ').oninput = (e) => { $('#coL').innerHTML = list(e.target.value); }; };
+  C.courseCoord = (cid, fid) => fid === '__other' ? C.coordOther(cid) : busy(null, async () => {
     if (fid) await D.upsertMany('course_coords', [{ term_id: CQ.term, course_id: cid, faculty_id: fid, source: 'manual' }], 'term_id,course_id', false);
     else await D.remove('course_coords', { eq: { term_id: CQ.term, course_id: cid } });
     toast(fid ? 'عُيّن منسق المقرر.' : 'أُزيل منسق المقرر.'); refresh(); });
@@ -1346,7 +1360,7 @@
       ${pid ? '' : `<label class="f">المعرّف (بالإنجليزية، ثابت)<input id="pgI" dir="ltr" placeholder="dip-acct"></label>`}
       <label class="f">اسم البرنامج<input id="pgN" value="${attr(p.name)}"></label>
       <label class="f">مستوى الدرجة كما في البرش<input id="pgD" value="${attr(p.degree)}" placeholder="البكالوريوس / الدبلوم المتوسط / ماجستير ؛ فارغ = الكل"></label>
-      <label class="f">بادئات رموز المقررات (بفاصلة)<input id="pgP" dir="ltr" value="${attr((p.prefixes || []).join(', '))}" placeholder="ACCT, AACT أو بشر، دار"></label>
+      <label class="f">بادئات رموز المقررات (بفاصلة)<input id="pgP" dir="ltr" value="${attr((p.prefixes || []).join(', '))}" placeholder="ACCT، AACT، بشر5، دار6"><span class="tiny muted">حروف، أو حروف ثم رقم أول (بشر5 = المقررات بشر 5xx)</span></label>
       <label class="f">القسم<select id="pgS"><option value="">—</option>${deptUnits().map((d) => opt(d.id, d.name, p.department_id)).join('')}</select></label>
       <label class="f">الحالة<select id="pgA">${opt('1', 'نشط', p.active === false ? '0' : '1')}${opt('0', 'موقوف', p.active === false ? '0' : '1')}</select></label></div><div class="err"></div>`,
       `<button class="btn pri" id="pgOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
@@ -1372,6 +1386,9 @@
     const v = await approvedOf(CQ.term);
     if (!v) return `<div class="empty">لا يوجد جدول معتمد لهذا الفصل.${gcap('import_schedule') ? ' ارفع ملف الجدول من تبويب «استيراد جدول».' : ''}</div>`;
     const rows = await versionRows(v.id); S._cur = rows;
+    /* اسم البرنامج (لا الدرجة): التحديد اليدوي للمقرر ثم البادئة */
+    COURSE_PROG = new Map((await D.select('courses', { cols: 'code,program_id' }).catch(() => [])).filter((c) => c.program_id).map((c) => [norm(c.code), c.program_id]));
+    rows.forEach((r) => { r.progName = (progMatch(r.code, r.program) || {}).name || ''; });
     const q = CQ.q.trim();
     const list = rows.filter((r) => !q || [r.code, r.name, r.room, r.fac.map(fName).join(' ')].some((x) => String(x).includes(q)));
     VIEW.after = () => { const i = $('#cq'); if (i && CQ._f) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); CQ._f = false; } };
@@ -1379,7 +1396,7 @@
       <div class="row noprint" style="margin-bottom:10px"><input class="inp" id="cq" placeholder="ابحث برمز المقرر أو اسمه أو عضو هيئة التدريس أو القاعة…" value="${attr(CQ.q)}" oninput="C.cq(this.value)" style="width:320px"><span class="grow"></span>
         <span class="small muted">${list.length} شعبة</span><button class="btn sm" onclick="C.schedExport()">تصدير Excel</button><button class="btn sm" onclick="C.printSched()">طباعة / PDF</button></div>
       <div class="tw"><table><tr><th>الرمز</th><th>المقرر</th><th>س</th><th>الشعبة</th><th>الشطر</th><th>الأيام</th><th>الوقت</th><th>القاعة</th><th>عضو هيئة التدريس</th></tr>
-      ${list.map((r) => `<tr><td dir="ltr" style="text-align:end">${esc(r.code)}</td><td>${esc(r.name)}${r.program ? `<div class="tiny muted">${esc(r.program)}</div>` : ''}</td><td class="num">${esc(r.hours)}</td><td>${esc(r.section)}</td><td>${esc(r.gender)}</td><td>${esc(r.days)}</td><td class="num">${esc(r.from)}${r.to ? '–' + esc(r.to) : ''}</td><td>${esc(r.room)}</td>
+      ${list.map((r) => `<tr><td dir="ltr" style="text-align:end">${esc(r.code)}</td><td>${esc(r.name)}<div class="tiny muted">${esc(r.progName || 'دون برنامج')}</div></td><td class="num">${esc(r.hours)}</td><td>${esc(r.section)}</td><td>${esc(r.gender)}</td><td>${esc(r.days)}</td><td class="num">${esc(r.from)}${r.to ? '–' + esc(r.to) : ''}</td><td>${esc(r.room)}</td>
         <td>${r.fac.map((f, i) => esc(fName(f)) + (r.kinds[i] && r.kinds[i] !== 'رئيسي' ? ` <span class="tiny muted">(${esc(r.kinds[i])})</span>` : '')).join('<br>') || '<span class="muted">—</span>'}</td></tr>`).join('')}</table></div>`;
   }
   C.cq = (v) => { CQ.q = v; CQ._f = true; refresh(); };
@@ -1420,9 +1437,14 @@
      --------------------------------------------------------------------- */
   const BR_DAY = { 1: 'أحد', 2: 'اثنين', 3: 'ثلاثاء', 4: 'أربعاء', 5: 'خميس', 6: 'جمعة', 7: 'سبت' };
   const BR_DEPT = { ACCT: 'المحاسبة', FIN: 'التمويل', BUS: 'إدارة الأعمال' };
-  /* برنامج المقرر: بادئة رمزه ومستوى الدرجة في البرش (البكالوريوس / الدبلوم المتوسط…)، لا قسم من يدرّسه */
-  const progOf = (pre, degree) => (S.programs || []).filter((p) => p.active !== false && (p.prefixes || []).includes(pre) && (!p.degree || p.degree === String(degree || '').trim()))
-    .sort((a, b) => (b.degree ? 1 : 0) - (a.degree ? 1 : 0) || (a.sort || 0) - (b.sort || 0))[0] || null;
+  /* برنامج المقرر (مثل program_of في الملف 20): ما حدده المسؤول للمقرر يدويًا، وإلا أطول بادئة تطابق بداية الرمز
+     (ACCT، أو بشر5 للدبلوم العالي، أو دار6 للماجستير) مع مستوى الدرجة إن عُرف؛ لا قسم من يدرّسه */
+  let COURSE_PROG = new Map();   /* رمز المقرر ← برنامجه المحدد يدويًا (courses.program_id) */
+  const progMatch = (code, degree) => { const c = norm(code), dg = String(degree || '').trim(), act = (S.programs || []).filter((p) => p.active !== false);
+    const ov = COURSE_PROG.get(c), o = ov && act.find((p) => p.id === ov); if (o) return o;
+    let best = null, bl = 0; act.forEach((p) => (p.prefixes || []).forEach((pe) => { const k = norm(pe); if (!k || !c.startsWith(k) || (p.degree && dg && p.degree !== dg)) return;
+      if (k.length > bl || (k.length === bl && best && ((p.degree ? 1 : 0) > (best.degree ? 1 : 0) || ((!!p.degree === !!best.degree) && (p.sort || 0) < (best.sort || 0))))) { best = p; bl = k.length; } }));
+    return best; };
   /* ملف HTML بامتداد xls (كما ينزل البرش من النظام الأكاديمي) */
   const isOracle = (buf) => { const h = new TextDecoder('latin1').decode(buf.slice(0, 6000)); return /<html|<table/i.test(h); };
   /* مفتاح الاسم: دون اللقب (د. أ. أ.د.)، و«بن/بنت» محذوفة، و«أبو زيد/عبد الله» ملتصقة، وهمزات موحدة */
@@ -1471,7 +1493,7 @@
       const m0 = s.meet[0] || {}, sameT = new Set(s.meet.map((m) => m.from + m.to)).size <= 1;
       const days = sameT ? [...new Set(s.meet.map((m) => BR_DAY[m.day]))].join(' ') : s.meet.map((m) => `${BR_DAY[m.day]} ${m.from}-${m.to}`).join('، ');
       /* قسم المقرر من برنامجه (رمز المقرر + مستوى الدرجة، جدول programs)، وإلا من البادئة */
-      const pre = codePfx(s.code), pg = progOf(pre, s.degree), dn = BR_DEPT[pre];
+      const pre = codePfx(s.code), pg = progMatch(s.code, s.degree), dn = BR_DEPT[pre];
       const dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn)));
       const f = s.lect ? matchLect(s.lect) : null;
       return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: s.degree, department: dep ? dep.name : '', section: s.crn, campus: s.campus, _lect: s.lect || '',
@@ -1493,17 +1515,15 @@
     const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(buf), 'application/xml');
     if (doc.querySelector('parsererror')) throw new Error('تعذرت قراءة ملف XML.');
     const tx = (el, tag) => ((el.getElementsByTagName(tag)[0] || {}).textContent || '').replace(/\s+/g, ' ').trim();
-    const codeOk = (c) => CODE_RE.test(c), pfx = codePfx;
-    const progPfx = new Set((S.programs || []).flatMap((p) => p.prefixes || []).concat(Object.keys(BR_DEPT)));
-    const byKey = new Map(), skipped = new Map(), warn = [], noId = new Map();   /* رقم وظيفي غير موجود ← طوبق بالاسم أم لا */
-    const skipKey = (c) => pfx(c) || String(c).trim().split(/[\s\d]/)[0] || c;
+    /* يُستورد كل مقرر في الملف؛ ما لا برنامج له يُنبَّه عنه بعد القراءة (C.schedParse) ويظهر في «دون برنامج» */
+    const pfx = codePfx, byKey = new Map(), warn = [], noId = new Map();   /* رقم وظيفي غير موجود ← طوبق بالاسم أم لا */
     [...doc.getElementsByTagName('G_INSTRUCTOR_NAME')].forEach((ins) => {
       const empno = tx(ins, 'INSTRUCTOR_ID'), lect = tx(ins, 'INSTRUCTOR_NAME'), campus = tx(ins, 'CAMPUS_NAME');
       const byNo = empno && S.faculty.find((f) => f.employee_no === empno && !offF(f)), f = byNo || (lect ? matchLect(lect) : null);
       if (!byNo && empno) noId.set(empno, noId.get(empno) || !!f);
       [...ins.getElementsByTagName('G_COURSE_CODE')].forEach((g) => {
         const code = tx(g, 'COURSE_CODE'), c = norm(code);
-        if (!codeOk(code) || !(ctx.known.has(c) || progPfx.has(pfx(code)))) { const sk = skipKey(code); skipped.set(sk, (skipped.get(sk) || 0) + 1); return; }
+        if (!c) return;
         const seq = tx(g, 'SECTION_SEQ') || tx(g, 'SECTION'), k = c + '|' + seq + '|' + campus + '|' + (f ? f.id : lect);
         const s = byKey.get(k) || { code, name: tx(g, 'COURSE_NAME'), hours: tx(g, 'CRD_HRS'), seq, campus, lect, f, act: new Set(), meet: [] };
         s.act.add(tx(g, 'ACTIVITY_DESC'));
@@ -1517,15 +1537,14 @@
       const city = (s.campus.match(/ب(\S+)$/) || [])[1] || '', girls = /الطالبات/.test(s.campus);
       const m0 = s.meet[0] || {}, sameT = new Set(s.meet.map((m) => m.from + m.to)).size <= 1;
       const days = sameT ? [...new Set(s.meet.map((m) => BR_DAY[m.day]))].join(' ') : s.meet.map((m) => `${BR_DAY[m.day]} ${m.from}-${m.to}`).join('، ');
-      const pre = pfx(s.code), degree = ctx.degree.get(norm(s.code)) || ((S.programs || []).find((p) => p.active !== false && (p.prefixes || []).includes(pre) && p.degree) || {}).degree || '';
-      const pg = progOf(pre, degree), dn = BR_DEPT[pre], dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn))), f = s.f;
+      /* الدرجة من برنامج المقرر (اليدوي أو بالبادئة)، وإلا من الجدول المعتمد السابق */
+      const pre = pfx(s.code), pm = progMatch(s.code), degree = (pm && pm.degree) || ctx.degree.get(norm(s.code)) || '';
+      const pg = pm || progMatch(s.code, degree), dn = BR_DEPT[pre], dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn))), f = s.f;
       return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: degree, department: dep ? dep.name : '', section: s.seq, campus: s.campus, _lect: s.lect || '',
         gender: (girls ? 'طالبات' : 'طلاب') + (city && city !== 'سكاكا' ? ' - ' + city : ''), days, time_from: m0.from || '', time_to: m0.to || '', room: m0.room || '',
         faculty_email: f && f.email ? f.email : '', faculty_empno: f && !f.email ? (f.employee_no || '') : '', faculty_name: f && !f.email && !f.employee_no ? f.name_ar : '',
         teaching_kind: s.act.has('محاضرة') || !s.act.has('عملي') ? 'رئيسي' : 'عملي' };
     });
-    const sum = (L) => L.reduce((a, x) => a + x[1], 0), lst = (L) => L.sort((a, b) => b[1] - a[1]).map(([p, n]) => p + ': ' + n).join('، ');
-    if (skipped.size) warn.push('تُركت ' + sum([...skipped]) + ' شعبة لمقررات ليست ضمن مقررات الكلية ولا بادئات برامجها (' + lst([...skipped]) + '). لإدخالها أضف بادئتها إلى برنامج في «البرامج والمنسقون» (عربية كانت مثل «بشر» أو لاتينية).');
     const byName = [...noId.values()].filter(Boolean).length;
     if (noId.size) warn.push(noId.size + ' عضوًا في الملف ليس رقمهم الوظيفي في قاعدة الأعضاء' + (byName ? '؛ طوبق ' + byName + ' منهم بالاسم' : '') + (noId.size - byName ? '، والباقون (' + (noId.size - byName) + ') في «محاضرون لم يتطابقوا»' : '') + '.');
     return { rows, warn };
@@ -1533,12 +1552,15 @@
   C.schedParse = (input) => busy(null, async () => {
     const file = input.files[0]; const buf = await file.arrayBuffer(); let rows, warn = [];
     ALIAS = new Map((await D.select('faculty_aliases').catch(() => [])).map((a) => [a.alias, a.faculty_id]));
+    /* مقررات الكلية المعروفة وبرامجها المحددة يدويًا (الملف 20) */
+    const crs = await D.select('courses', { cols: 'code,program_id' }).catch(() => D.select('courses', { cols: 'code' }).catch(() => []));
+    COURSE_PROG = new Map(crs.filter((c) => c.program_id).map((c) => [norm(c.code), c.program_id]));
     if (isSisXml(buf)) {
-      /* الدرجة العلمية لكل مقرر من آخر جدول معتمد، ومقررات الكلية المعروفة */
+      /* الدرجة العلمية لكل مقرر من آخر جدول معتمد إن لم يُعرف برنامجه */
       const v = await approvedOf(CQ.term).catch(() => null), prev = v ? await versionRows(v.id).catch(() => []) : [];
-      const known = new Set((await D.select('courses', { cols: 'code' }).catch(() => [])).map((c) => norm(c.code)));
+      const known = new Set(crs.map((c) => norm(c.code)));
       const degree = new Map(); prev.forEach((p) => { if (p.program && !degree.has(p.code)) degree.set(p.code, p.program); });
-      const b = parseSisXml(buf, { known, degree }); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب لمقررات الكلية في ملف XML.');
+      const b = parseSisXml(buf, { known, degree }); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف XML.');
     }
     else if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
     else {
@@ -1551,6 +1573,9 @@
     }
     if (!rows.length) throw new Error('الملف فارغ أو عناوين أعمدته لا تطابق القالب.');
     if (!rows.some((r) => r.course_code)) throw new Error('لم يُعثر على عمود «رمز المقرر». استخدم القالب.');
+    /* مقررات بلا برنامج: تُستورد، وتظهر في «البرامج والمنسقون» تحت «دون برنامج» ليُحدَّد برنامجها */
+    const noProg = new Map(); rows.forEach((r) => { const c = norm(r.course_code); if (c && !progMatch(c, r.program)) noProg.set(c, r.course_name || ''); });
+    if (noProg.size) warn.unshift(noProg.size + ' مقررًا بلا برنامج: ' + [...noProg].sort((a, b) => a[0].localeCompare(b[0])).map(([c, n]) => c + (n ? ' ' + n : '')).join('، ') + '. تُستورد كغيرها، وتجدها بعد الاعتماد في «البرامج والمنسقون ← دون برنامج» لتحدد برنامجها، أو أضف بادئتها إلى برنامج.');
     /* المحاضرون الذين لم يتطابقوا: يختار المستخدم العضو الصحيح قبل الحفظ */
     const um = new Map(); rows.forEach((r) => { if (r._lect && !r.faculty_email && !r.faculty_empno && !r.faculty_name) um.set(r._lect, (um.get(r._lect) || 0) + 1); });
     await impAnalyze(rows, warn, file.name, [...um].map(([name, n]) => ({ name, n, fid: '' })), 'add');
@@ -1648,6 +1673,7 @@
 
   async function coursesTab() {
     const cs = (await D.select('courses')).sort((a, b) => a.code.localeCompare(b.code)); S._courses = cs;
+    S.programs = await D.select('programs', { order: ['sort'] }).catch(() => S.programs || []);
     const ed = gcap('approve_import');
     return `<div class="row" style="margin-bottom:10px"><span class="small muted grow">${cs.length} مقرر. تُضاف المقررات تلقائيًا عند اعتماد جدول فيه مقرر جديد، أو يدويًا من هنا.</span>
       <button class="btn sm" onclick="C.courseExport()">تصدير Excel</button>${ed ? '<button class="btn sm pri" onclick="C.courseEdit()">إضافة مقرر</button>' : ''}</div>
@@ -1660,10 +1686,11 @@
       <label class="f">الساعات المعتمدة<input id="ch" type="number" min="0" max="20" step="0.5" value="${attr(c.credit_hours)}"></label>
       <label class="f full">اسم المقرر<input id="cn" value="${attr(c.name_ar)}"></label><label class="f full">الاسم بالإنجليزية<input id="ce" value="${attr(c.name_en)}" dir="ltr"></label>
       <label class="f">القسم<select id="cd"><option value="">—</option>${deptUnits().map((d) => opt(d.id, d.name, c.department_id)).join('')}</select></label>
-      <label class="f">الحالة<select id="ca">${opt('1', 'مطروح', c.active ? '1' : '0')}${opt('0', 'موقوف', c.active ? '1' : '0')}</select></label></div><div class="err"></div>`,
+      <label class="f">الحالة<select id="ca">${opt('1', 'مطروح', c.active ? '1' : '0')}${opt('0', 'موقوف', c.active ? '1' : '0')}</select></label>
+      <label class="f full">البرنامج<select id="cp"><option value="">تلقائي من بادئة الرمز</option>${(S.programs || []).filter((p) => p.active !== false).map((p) => opt(p.id, p.name, c.program_id || '')).join('')}</select></label></div><div class="err"></div>`,
       `<button class="btn pri" id="cOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#cOk').onclick = (ev) => busy(ev.target, async () => {
-      const row = { name_ar: val('cn'), name_en: val('ce'), credit_hours: Number(val('ch')) || 0, department_id: val('cd') || null, active: val('ca') === '1' };
+      const row = { name_ar: val('cn'), name_en: val('ce'), credit_hours: Number(val('ch')) || 0, department_id: val('cd') || null, active: val('ca') === '1', program_id: val('cp') || null };
       if (!row.name_ar) throw new Error('اسم المقرر مطلوب.');
       if (id) await D.update('courses', row, { eq: { id } }); else { const code = norm(val('cc')); if (!code) throw new Error('رمز المقرر مطلوب.'); await D.insert('courses', Object.assign({ code }, row)); }
       C.close(); refresh(); toast('حُفظ المقرر.');
