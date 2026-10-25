@@ -871,7 +871,7 @@
     const ts = rows.map(one); let t = openQ || ts.includes('late') ? 'late' : ts.length && ts.every((x) => x === 'ok') ? 'ok' : ts.includes('wait') || (ts.includes('ok') && ts.includes('none')) ? 'wait' : 'none';
     const n = openQ + rows.reduce((a, x) => a + (ST_LATE.includes(x.status) ? ((x.details || {}).missing || (x.details || {}).notes || []).length : 0), 0);
     const pr = rows.find((x) => x.progress != null && x.status !== 'complete');
-    return { t, text: t === 'ok' ? 'مكتمل' : t === 'late' ? 'ناقص' + (n ? ` (${n})` : '') : t === 'wait' ? 'قيد العمل' + (pr ? ' ' + Math.round(pr.progress) + '%' : '') : 'لم يبدأ' };
+    return { t, test: rows.some((x) => (x.details || {}).test), text: t === 'ok' ? 'مكتمل' : t === 'late' ? 'ناقص' + (n ? ` (${n})` : '') : t === 'wait' ? 'قيد العمل' + (pr ? ' ' + Math.round(pr.progress) + '%' : '') : 'لم يبدأ' };
   }
   const SB = { ok: '✓', wait: '⌛', late: '!', none: '○' };
   const stb = (tone, text) => `<span class="sb ${tone}"><span aria-hidden="true">${SB[tone]}</span>${esc(text)}</span>`;
@@ -958,7 +958,7 @@
     const rows = sc.my.map((c) => { const r = c.role, secs = (r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections).map((x) => x.no).join('، ');
       const pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
       return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}${pn ? `<div class="tiny muted">${esc(pn)}</div>` : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
-        return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}</td>`; }).join('')}</tr>`; }).join('');
+        return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}${s.test ? '<span class="tiny" style="display:block;color:#9A6B00">بيانات تجريبية</span>' : ''}</td>`; }).join('')}</tr>`; }).join('');
     const follow = viewRole() !== 'staff' ? await followBoard(sc) : '';
     return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
       ${sc.my.length ? `<table class="req"><thead>${head}</thead><tbody>${rows}</tbody></table>` : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}${follow}`;
@@ -1380,7 +1380,7 @@
     const courses = await D.select('courses');
     const cm = Object.fromEntries(courses.map((c) => [c.id, c])), om = Object.fromEntries(offs.map((o) => [o.id, o]));
     return secs.map((s) => { const o = om[s.offering_id], c = cm[o.course_id]; const ts = tch.filter((t) => t.section_id === s.id);
-      return { code: c.code, name: c.name_ar, hours: c.credit_hours, program: o.program, dept: o.department_id, section: s.section_no, gender: s.gender, days: s.days, from: s.time_from, to: s.time_to, room: s.room,
+      return { code: c.code, name: c.name_ar, hours: c.credit_hours, program: o.program, dept: o.department_id, section: s.section_no, id: s.id, campus: s.campus || '', students: s.students == null ? '' : String(s.students), gender: s.gender, days: s.days, from: s.time_from, to: s.time_to, room: s.room,
         fac: ts.map((t) => t.faculty_id), kinds: ts.map((t) => t.kind) }; })
       .sort((a, b) => a.code.localeCompare(b.code) || String(a.section).localeCompare(String(b.section), undefined, { numeric: true }));
   }
@@ -1481,7 +1481,7 @@
       const ti = L.findIndex(isTime);
       if (/^\d+$/.test(L[0]) && CODE_RE.test(L[1] || '')) {
         const key = L[0] + '|' + norm(L[1]);
-        cur = byKey.get(key) || { crn: L[0], code: L[1], name: L[2] || '', hours: L[3] || '', act: L[5] || '', campus: ctx.campus, degree: ctx.degree, meet: [], lect: '' };
+        cur = byKey.get(key) || { crn: L[0], code: L[1], name: L[2] || '', hours: L[3] || '', act: L[5] || '', enr: (ti >= 3 && /^\d+$/.test(L[ti - 2]) && /^[1-7]$/.test(L[ti - 1]) ? L[ti - 2] : /^\d+$/.test(L[8] || '') && /^\d+$/.test(L[7] || '') ? L[8] : ''), campus: ctx.campus, degree: ctx.degree, meet: [], lect: '' };
         if (!byKey.has(key)) { byKey.set(key, cur); secs.push(cur); }
         if (ti > 0) { meet(cur, [L[ti - 1], L[ti], L[ti + 1], L[ti + 2]]); cur.lect = cur.lect || L.slice(ti + 3).find(isName) || ''; if (pend) { warn.push('موعد في بداية صفحة لم يُعرف لأي شعبة هو: ' + pend.slice(0, 3).join(' ')); pend = null; } }
         else { cur.lect = cur.lect || L.slice(7).find(isName) || ''; if (pend) { meet(cur, pend); pend = null; } }
@@ -1499,7 +1499,7 @@
       const pre = codePfx(s.code), pg = progMatch(s.code, s.degree), dn = BR_DEPT[pre];
       const dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn)));
       const f = s.lect ? matchLect(s.lect) : null;
-      return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: s.degree, department: dep ? dep.name : '', section: s.crn, campus: s.campus, _lect: s.lect || '',
+      return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: s.degree, department: dep ? dep.name : '', section: s.crn, campus: s.campus, students: s.enr || '', _lect: s.lect || '',
         gender: (girls ? 'طالبات' : 'طلاب') + (city && city !== 'سكاكا' ? ' - ' + city : ''), days, time_from: m0.from || '', time_to: m0.to || '', room: m0.room || '',
         faculty_email: f && f.email ? f.email : '', faculty_empno: f && !f.email ? (f.employee_no || '') : '', faculty_name: f && !f.email && !f.employee_no ? f.name_ar : '',
         teaching_kind: s.act === 'عملي' ? 'عملي' : 'رئيسي' };
@@ -1601,14 +1601,14 @@
       if (f === null) return errs.push([n, 'عضو هيئة التدريس غير موجود في القاعدة المركزية: ' + (r.faculty_email || r.faculty_empno || r.faculty_name)]);
       const k = c + '|' + (r.program || '') + '|' + r.section + '|' + (f ? f.id : '');
       if (seen.has(k)) return errs.push([n, 'صف مكرر: ' + c + ' شعبة ' + r.section]); seen.add(k);
-      const sk = c + '|' + (r.program || '') + '|' + r.section; const e = keyed.get(sk) || { code: c, name: r.course_name, section: r.section, program: r.program || '', days: r.days || '', from: r.time_from || '', to: r.time_to || '', room: r.room || '', fac: [] };
+      const sk = c + '|' + (r.program || '') + '|' + r.section; const e = keyed.get(sk) || { code: c, name: r.course_name, section: r.section, program: r.program || '', campus: r.campus || '', students: String(r.students || ''), days: r.days || '', from: r.time_from || '', to: r.time_to || '', room: r.room || '', fac: [] };
       if (f) e.fac.push(f.id); keyed.set(sk, e);
     });
     const v = await approvedOf(CQ.term); const prev = v ? await versionRows(v.id) : [];
     const pm = new Map(prev.map((p) => [p.code + '|' + p.program + '|' + p.section, p]));
     const added = [], changed = [], same = [];
     keyed.forEach((e, k) => { const p = pm.get(k); if (!p) return added.push(e);
-      const d = []; if (e.days && e.days !== p.days) d.push('الأيام'); if (e.from && e.from !== p.from) d.push('الوقت'); if (e.room && e.room !== p.room) d.push('القاعة');
+      const d = []; if (e.days && e.days !== p.days) d.push('الأيام'); if (e.from && e.from !== p.from) d.push('الوقت'); if (e.room && e.room !== p.room) d.push('القاعة'); if (e.students && p.students && e.students !== p.students) d.push('عدد الطلاب'); if (e.campus && p.campus && e.campus !== p.campus) d.push('المقر');
       if (e.fac.slice().sort().join() !== p.fac.slice().sort().join()) d.push('عضو هيئة التدريس');
       (d.length ? changed : same).push(Object.assign({ diff: d, prev: p }, e)); });
     const removed = prev.filter((p) => !keyed.has(p.code + '|' + p.program + '|' + p.section));
@@ -1627,8 +1627,8 @@
         <div class="tw"><table><tr><th>الاسم في الملف</th><th>الشعب</th><th>العضو في قاعدة الأعضاء</th></tr>${unm.map((u, i) => `<tr><td>${esc(u.name)}</td><td>${u.n}</td><td><select onchange="C.impLect(${i},this.value)"><option value="">— دون محاضر —</option>${facOpts.map((f) => opt(f.id, f.name_ar + (f.department_id ? ' · ' + uName(f.department_id) : ''), u.fid)).join('')}</select></td></tr>`).join('')}</table></div>`
       : I.tab === 'warn' ? `<p class="small muted">لا تمنع الاستيراد؛ راجعها. المحاضر غير الموجود في قاعدة الأعضاء (مثل أعضاء الكليات الأخرى) تُستورد شعبته دون محاضر.</p>` + tbl(I.warn, (l) => '<tr><th>التنبيه</th></tr>' + l.map((w) => `<tr><td class="small">${esc(w)}</td></tr>`).join(''))
       : I.tab === 'add' ? tbl(I.added, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>الأيام والوقت</th><th>القاعة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name || '')}</td><td>${esc(e.section)}</td><td>${esc(e.days)} ${esc(e.from)}</td><td>${esc(e.room)}</td><td>${e.fac.map(fName).join('، ') || '—'}</td></tr>`).join(''))
-      : I.tab === 'chg' ? tbl(I.changed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>ما تغير</th><th>قبل</th><th>بعد</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)}</td><td>${esc(e.section)}</td><td>${esc(e.diff.join('، '))}</td><td class="small">${esc(e.prev.days)} ${esc(e.prev.from)} ${esc(e.prev.room)} · ${e.prev.fac.map(fName).join('، ')}</td><td class="small"><b>${esc(e.days)} ${esc(e.from)} ${esc(e.room)} · ${e.fac.map(fName).join('، ')}</b></td></tr>`).join(''))
-      : I.tab === 'rem' ? `<p class="small muted">هذه الشعب في الإصدار المعتمد الحالي وليست في الملف. لن تُحذف من الإصدار السابق، لكنها لن تظهر في الإصدار الجديد بعد اعتماده.</p>` + tbl(I.removed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name)}</td><td>${esc(e.section)}</td><td>${e.fac.map(fName).join('، ')}</td></tr>`).join(''))
+      : I.tab === 'chg' ? tbl(I.changed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>ما تغير</th><th>قبل</th><th>بعد</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)}</td><td>${esc(e.section)}</td><td>${esc(e.diff.join('، '))}</td><td class="small">${esc(e.prev.days)} ${esc(e.prev.from)} ${esc(e.prev.room)} · ${e.prev.fac.map(fName).join('، ')}${e.prev.students ? ' · ' + e.prev.students + ' طالب' : ''}${e.diff.includes('المقر') ? ' · ' + esc(e.prev.campus) : ''}</td><td class="small"><b>${esc(e.days)} ${esc(e.from)} ${esc(e.room)} · ${e.fac.map(fName).join('، ')}${e.students ? ' · ' + e.students + ' طالب' : ''}${e.diff.includes('المقر') ? ' · ' + esc(e.campus) : ''}</b></td></tr>`).join(''))
+      : I.tab === 'rem' ? `<p class="small muted">هذه الشعب في الجدول المعتمد الحالي وليست في الملف الجديد. بعد الاعتماد لا تُستخدم في أي مكان، وتبقى في «الإصدارات» فقط. وإن ارتبط بها شيء (مثل ملف المقرر لشعبة) يظهر لك تنبيه به بعد حفظ المسودة وقبل الاعتماد.</p>` + tbl(I.removed, (l) => '<tr><th>المقرر</th><th>الشعبة</th><th>العضو</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)} ${esc(e.name)}</td><td>${esc(e.section)}</td><td>${e.fac.map(fName).join('، ')}</td></tr>`).join(''))
       : tbl(I.same, (l) => '<tr><th>المقرر</th><th>الشعبة</th></tr>' + l.map((e) => `<tr><td>${esc(e.code)}</td><td>${esc(e.section)}</td></tr>`).join(''));
     return `<div class="row" style="margin-bottom:10px"><b class="grow">${esc(I.file)}: ${I.rows.length} صف${I.prevNo ? ' · مقارنةً بالإصدار المعتمد ' + I.prevNo : ' · لا يوجد إصدار معتمد سابق لهذا الفصل'}</b><button class="btn sm" onclick="C.impReset()">اختيار ملف آخر</button></div>
       <div class="tabs">${Object.keys(T).map((k) => `<button class="${I.tab === k ? 'on' : ''}" onclick="C.impTab('${k}')">${T[k][0]} (${T[k][1]})</button>`).join('')}</div>${body}
@@ -1641,12 +1641,16 @@
     if (al.length) await D.upsertMany('faculty_aliases', al, 'alias', false).catch((e) => toast('لم تُحفظ الأسماء البديلة: ' + pgErr(e), true));
     const rows = IMP.rows.map((r) => { const o = Object.assign({}, r); delete o._lect; return o; });
     const vid = await D.rpc('sched_upload', { p_term: CQ.term, p_rows: rows, p_source: IMP.file, p_note: '' });
-    IMP.vid = vid; IMP.val = await D.rpc('sched_validate', { p_version: vid }); refresh();
+    IMP.vid = vid; IMP.val = await D.rpc('sched_validate', { p_version: vid }); IMP.linked = await D.rpc('sched_linked', { p_version: vid }).catch(() => []); refresh();
   });
+  /* ما يبقى تلقائيًا عند اعتماد إصدار جديد، وما يرتبط بالشعب والمقررات التي ستخرج (الملف 21) */
+  const KEEP_NOTE = '<div class="note small">يبقى تلقائيًا لكل مقرر: المنسق، وربطه بالبرنامج، وملف المقرر وحالته في البرامج. وما يخص شعبة بعينها ينتقل إلى الشعبة نفسها (برقمها) في الإصدار الجديد.</div>';
+  const linkedHtml = (l) => (l && l.length ? `<div class="warn small" style="margin-top:8px"><b>مرتبط بشعب أو مقررات ستخرج من الجدول (${l.length}):</b> يبقى محفوظًا على الإصدار السابق ولا يظهر بعد الاعتماد.<div class="tw" style="max-height:220px;margin-top:6px"><table><tr><th>المقرر</th><th>الشعبة</th><th>المرتبط بها</th></tr>${l.map((x) => `<tr><td>${esc(x.code)} ${esc(x.name || '')}</td><td>${esc(x.section || 'المقرر كاملًا')}</td><td>${esc((x.what || []).map((t) => reqCols().reduce((s, c) => s.replace('(' + c.kind + ')', '(' + c.name + ')'), t)).join('، '))}</td></tr>`).join('')}</table></div></div>` : '');
   function impFinal() {
     const v = IMP.val || { errors: [] };
     return `<h3>حُفظت المسودة</h3><p>تحقق الخادم من ${v.rows} صف: ${v.errors.length ? `<span class="bad">${v.errors.length} خطأ</span>` : '<span class="good">لا توجد أخطاء</span>'}، ومقررات جديدة: ${v.new_courses}.</p>
       ${v.errors.length ? `<div class="tw"><table><tr><th>الصف</th><th>المشكلة</th></tr>${v.errors.map((e) => `<tr><td>${e.row}</td><td>${esc(e.msg)}</td></tr>`).join('')}</table></div>` : ''}
+      ${KEEP_NOTE}${linkedHtml(IMP.linked)}
       <div class="row" style="margin-top:14px">${gcap('approve_import') && !v.errors.length ? `<button class="btn pri" onclick="C.verApprove('${IMP.vid}',this)">اعتماد الإصدار الآن</button>` : '<span class="small muted">المسودة بانتظار اعتماد «معتمد الجداول» من تبويب الإصدارات.</span>'}
         <button class="btn" onclick="C.impReset()">استيراد ملف آخر</button></div>`;
   }
@@ -1664,8 +1668,9 @@
   C.verCheck = (id, btn) => busy(btn, async () => { const v = await D.rpc('sched_validate', { p_version: id });
     modal('نتيجة التحقق', `<p>${v.rows} صف · مقررات جديدة ${v.new_courses} · ${v.errors.length ? `<span class="bad">${v.errors.length} خطأ</span>` : '<span class="good">جاهز للاعتماد</span>'}</p>${v.errors.length ? `<div class="tw"><table><tr><th>الصف</th><th>المشكلة</th></tr>${v.errors.map((e) => `<tr><td>${e.row}</td><td>${esc(e.msg)}</td></tr>`).join('')}</table></div>` : ''}`); });
   C.verApprove = async (id, btn) => {
-    if (!(await confirmBox('اعتماد الجدول', '<p>سيصبح هذا الإصدار الجدول المعتمد للفصل، ويتحول الإصدار المعتمد الحالي إلى «سابق» مع الاحتفاظ به. تُضاف المقررات الجديدة إلى القاعدة. هل تعتمد؟</p>', 'اعتماد الإصدار'))) return;
-    await busy(btn, async () => { const r = await D.rpc('sched_approve', { p_version: id }); IMP = null; CQ.tab = 'current'; refresh(); toast('اعتُمد الجدول: ' + r.sections + ' شعبة و' + r.teaching + ' تكليف تدريس.'); });
+    const lk = await D.rpc('sched_linked', { p_version: id }).catch(() => []);
+    if (!(await confirmBox('اعتماد الجدول', '<p>سيصبح هذا الإصدار الجدول المعتمد للفصل وحده، ويتحول الإصدار المعتمد الحالي إلى «سابق» يبقى في «الإصدارات». تُضاف المقررات الجديدة إلى القاعدة. هل تعتمد؟</p>' + KEEP_NOTE + linkedHtml(lk), 'اعتماد الإصدار'))) return;
+    await busy(btn, async () => { const r = await D.rpc('sched_approve', { p_version: id }); IMP = null; CQ.tab = 'current'; refresh(); toast('اعتُمد الجدول: ' + r.sections + ' شعبة و' + r.teaching + ' تكليف تدريس' + (r.moved ? '، ونُقل ' + r.moved + ' ملخص شعبة إلى الإصدار الجديد' : '') + (r.orphans ? '، وبقي ' + r.orphans + ' ملخصًا على شعب خرجت من الجدول' : '') + '.', !!r.orphans); });
   };
   C.verReject = async (id) => {
     modal('رفض المسودة', `<label class="f">السبب<input id="rjN" maxlength="200"></label><div class="err"></div>`, `<button class="btn danger" id="rjOk">رفض المسودة</button><button class="btn" onclick="C.close()">تراجع</button>`);

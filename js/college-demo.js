@@ -339,6 +339,7 @@
     if (v.status !== 'draft') throw new Error('هذا الإصدار ليس مسودة (حالته: ' + v.status + ').');
     const val = R.sched_validate({ p_version });
     if (val.errors.length) throw new Error('لا يمكن الاعتماد: في الملف ' + val.errors.length + ' خطأ. صحّحها وارفع الملف من جديد.');
+    const prev = T.sched_versions.filter((x) => x.term_id === v.term_id && x.status === 'approved' && x.id !== v.id).sort((a, b) => b.version_no - a.version_no)[0];
     v.rows.forEach((r) => {
       const c = norm(r.course_code); const dep = (T.org_units.find((u) => u.kind === 'department' && (u.name === String(r.department || '').trim() || u.id === r.department)) || {}).id || null;
       let course = T.courses.find((x) => x.code === c);
@@ -347,16 +348,35 @@
       let off = T.offerings.find((o) => o.version_id === v.id && o.course_id === course.id && o.program === (r.program || ''));
       if (!off) { off = { id: uuid(), version_id: v.id, course_id: course.id, program: r.program || '', department_id: dep }; T.offerings.push(off); }
       let sec = T.sections.find((s) => s.offering_id === off.id && s.section_no === String(r.section).trim());
-      if (!sec) { sec = { id: uuid(), offering_id: off.id, version_id: v.id, section_no: String(r.section).trim(), gender: r.gender || '', days: r.days || '', time_from: r.time_from || '', time_to: r.time_to || '', room: r.room || '', campus: String(r.campus || '').trim() }; T.sections.push(sec); }
-      else if (String(r.campus || '').trim()) sec.campus = String(r.campus).trim();
+      if (!sec) { sec = { id: uuid(), offering_id: off.id, version_id: v.id, section_no: String(r.section).trim(), gender: r.gender || '', days: r.days || '', time_from: r.time_from || '', time_to: r.time_to || '', room: r.room || '', campus: String(r.campus || '').trim(), students: /^\d+$/.test(String(r.students || '')) ? +r.students : null }; T.sections.push(sec); }
+      else { if (String(r.campus || '').trim()) sec.campus = String(r.campus).trim(); if (/^\d+$/.test(String(r.students || ''))) sec.students = +r.students; }
       const f = facOf(r);
       if (f && f !== 'dup' && !T.teaching.some((t) => t.section_id === sec.id && t.faculty_id === f.id)) T.teaching.push({ id: uuid(), section_id: sec.id, version_id: v.id, faculty_id: f.id, kind: r.teaching_kind || 'رئيسي' });
     });
+    /* الملف 21: ما يرتبط بشعبة ينتقل إلى الشعبة نفسها في الإصدار الجديد */
+    let moved = 0, orphans = 0;
+    if (prev) { const key = (s) => { const o = T.offerings.find((x) => x.id === s.offering_id) || {}; return o.course_id + '|' + o.program + '|' + s.section_no; };
+      const nm = new Map(T.sections.filter((s) => s.version_id === v.id).map((s) => [key(s), s.id])), old = new Set(T.sections.filter((s) => s.version_id === prev.id).map((s) => s.id));
+      (T.course_status || []).filter((c) => old.has(c.section_id)).forEach((c) => { const n = nm.get(key(T.sections.find((s) => s.id === c.section_id)));
+        if (n && !T.course_status.some((x) => x.section_id === n && x.source_app === c.source_app && x.kind === c.kind && (x.faculty_id || '') === (c.faculty_id || ''))) { c.section_id = n; moved++; } else orphans++; }); }
     T.sched_versions.filter((x) => x.term_id === v.term_id && x.status === 'approved').forEach((x) => { x.status = 'superseded'; });
     const ns = T.sections.filter((s) => s.version_id === v.id).length, nt = T.teaching.filter((t) => t.version_id === v.id).length;
     Object.assign(v, { status: 'approved', approved_at: nowISO(), approved_by: ME, stats: { sections: ns, teaching: nt, rows: v.rows.length, new_courses: val.new_courses } });
     audit('sched_versions', v.id, 'UPDATE', { status: 'draft' }, { status: 'approved', stats: v.stats });
-    return { sections: ns, teaching: nt };
+    return { sections: ns, teaching: nt, moved, orphans };
+  };
+  R.sched_linked = ({ p_version }) => {
+    const v = T.sched_versions.find((x) => x.id === p_version);
+    const prev = T.sched_versions.filter((x) => x.term_id === v.term_id && x.status === 'approved' && x.id !== v.id).sort((a, b) => b.version_no - a.version_no)[0]; if (!prev) return [];
+    const keys = new Set(v.rows.map((r) => norm(r.course_code) + '|' + String(r.program || '').trim() + '|' + String(r.section).trim())), codes = new Set(v.rows.map((r) => norm(r.course_code)));
+    const out = [], app = (id) => (T.org_apps.find((a) => a.id === id) || {}).name || id;
+    const by = {}; (T.course_status || []).forEach((c) => { const s = T.sections.find((x) => x.id === c.section_id && x.version_id === prev.id); if (!s) return; const o = T.offerings.find((x) => x.id === s.offering_id), co = T.courses.find((x) => x.id === o.course_id);
+      if (keys.has(co.code + '|' + o.program + '|' + s.section_no)) return; const b = (by[co.code + '|' + s.section_no] = by[co.code + '|' + s.section_no] || { code: co.code, name: co.name_ar, section: s.section_no, what: new Set() }); b.what.add(app(c.source_app) + ' (' + c.kind + ')'); });
+    Object.values(by).forEach((b) => out.push(Object.assign(b, { what: [...b.what] })));
+    [...new Set(T.offerings.filter((o) => o.version_id === prev.id).map((o) => o.course_id))].map((id) => T.courses.find((c) => c.id === id)).filter((c) => c && !codes.has(c.code)).forEach((c) => {
+      const w = [(T.course_coords || []).some((k) => k.term_id === v.term_id && k.course_id === c.id) && 'منسق المقرر', (T.course_status || []).some((x) => x.term_id === v.term_id && x.course_id === c.id && !x.section_id) && 'ملخصات البرامج للمقرر'].filter(Boolean);
+      if (w.length) out.push({ code: c.code, name: c.name_ar, section: '', what: w }); });
+    return out.sort((a, b) => a.code.localeCompare(b.code));
   };
   /* الملف 13: برنامج المقرر من رمزه ومستوى الدرجة، والجدول المعتمد كاملًا، واقتراح المنسقين */
   /* الملف 20: التحديد اليدوي للمقرر أولًا، ثم أطول بادئة تطابق بداية الرمز، ومستوى الدرجة الفارغ لا يقيّد */
