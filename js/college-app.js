@@ -246,17 +246,17 @@
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
     ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
-    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'],
+    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
   ];
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي' };
-  const NAV_OF = { matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', mycomms: 'لجاني', alerts: 'تنبيهاتي' };
+  const NAV_OF = { myschedule: 'mine', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
-    const st = S.settings; applyTheme(st.theme); applyDomainColors(st.domainColors);
+    const st = S.settings; applyTheme(st.theme);
     $('#brand').innerHTML = `<img src="${attr(st.logo || LOGO_IMG)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="emb" style="display:none">${emblem()}</span><div><b>${esc(st.university || 'جامعة الجوف')}</b><span dir="ltr">${esc(st.universityEn || 'Jouf University')}</span></div>`;
     const roleTxt = isAdmin() ? 'مدير النظام' : S.me.college_role === 'dean' ? 'عميد الكلية' : S.me.college_role === 'vice' ? 'وكيل الكلية' : (myDirect().find((m) => m.position === 'head') ? 'رئيس ' + uName(myDirect().find((m) => m.position === 'head').unit_id) : S.me.faculty_id ? 'عضو هيئة التدريس' : 'مستخدم');
     const ini = (S.me.name || '؟').replace(/^(د|أ|م)\.\s*/, '').trim().charAt(0);
@@ -272,10 +272,12 @@
     const showNav = (k) => staff ? !['college', 'vices', 'depts', 'units', 'committees', 'settings'].includes(k)
       : !KN[k] || fullRead() || S.units.some((u) => KN[k].includes(u.kind) && u.status !== 'archived' && u.id !== rootId() && cap(u.id, 'read'));
     const mine = myDirect();
-    const staffNav = staff ? `<button class="nav" data-p="mine" onclick="C.go('mine')">${icon('clipboard')}مهامي</button><button class="nav" data-p="apps" onclick="C.go('apps')">${icon('app')}برامجي</button>` : '';
-    $('#side').innerHTML = NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' + staffNav : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
+    /* عضو هيئة التدريس: أربعة عناصر فقط */
+    const nb = (p, ic, t) => `<button class="nav" data-p="${p}" onclick="C.go('${p}')">${icon(ic)}${t}</button>`;
+    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('mycomms', 'users', 'لجاني') + nb('alerts', 'bell', 'تنبيهاتي') +
+      `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>` : NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
-      (mine.length ? `<div class="sep"></div><div class="sidehead">${staff ? 'لجاني ووحداتي' : 'جهاتي'}</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
+      (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
       `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>`;
     $('#menuBtn').onclick = (e) => { e.stopPropagation(); $('#side').classList.toggle('open'); };
     document.addEventListener('click', (e) => { if ($('#side').classList.contains('open') && !$('#side').contains(e.target)) $('#side').classList.remove('open'); });
@@ -299,7 +301,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, mycomms: pgComms, alerts: pgAlerts }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -729,223 +731,177 @@
   const meetsOf = (c) => String(c.days || '').split(/[،,]/).map((p) => p.trim()).filter(Boolean).flatMap((p) => {
     const t = p.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/), ds = p.replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/, '').split(/\s+/).filter(Boolean).map(dayKey);
     return ds.map((d) => ({ d, from: t ? t[1] : c.from, to: t ? t[2] : c.to })); });
-  /* ---------- «مقرراتي»: مقررات الفصل من الجدول المعتمد، ودوري في كل مقرر، وأزرار البرامج، وبطاقة المقرر ----------
-     العبرة بالجدول لا بالقسم: أرى ما أُسند إليّ تدريسه أو تنسيقه أيًّا كان برنامجه */
-  const CBTN = [['file', 'ملف المقرر', 'file'], ['exam', 'الاختبار', 'clipboard'], ['bb', 'متطلبات البلاك بورد', 'book']];
-  const btnApp = (k) => { const id = (S.settings.courseButtons || {})[k]; const a = id && S.apps.find((x) => x.id === id && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
-  /* ملخصات البرامج والاستفسارات والإعلانات للفصل (الملف 15)؛ الموقع لا يقرأ بيانات البرامج الداخلية */
-  const CX = { st: [], inq: [], ann: [] };
+  /* =====================================================================
+     صفحات عضو هيئة التدريس (مبسطة): الرئيسية = جدولي الدراسي ولمبة التنبيهات، «مهامي» = جدول المتطلبات،
+     «لجاني» = جهاته ودوره فيها، «تنبيهاتي» = المطلوب العاجل. التفاصيل داخل البرامج لا في الصفحات.
+     كل البيانات من الجدول المعتمد وملخصات البرامج (course_status) والمهام والاستفسارات؛ الموقع لا يقرأ بيانات البرامج الداخلية.
+     ===================================================================== */
+  /* ملخصات البرامج والاستفسارات للفصل (الملف 15) */
+  const CX = { st: [], inq: [] };
   async function loadCourseExtras() {
     const t = (S.sched || {}).term; if (!t) return;
-    const [st, inq, ann] = await Promise.all([D.select('course_status', { eq: { term_id: t.id } }).catch(() => []),
-      D.select('org_requests', { eq: { kind: 'inquiry', term_id: t.id } }).catch(() => []), D.select('org_announcements', { eq: { term_id: t.id } }).catch(() => [])]);
-    Object.assign(CX, { st, inq, ann: ann.filter((a) => a.course_id) });
+    const [st, inq] = await Promise.all([D.select('course_status', { eq: { term_id: t.id } }).catch(() => []), D.select('org_requests', { eq: { kind: 'inquiry', term_id: t.id } }).catch(() => [])]);
+    Object.assign(CX, { st, inq });
   }
   /* صفوف المقرر التي تخصني: على مستوى المقرر، أو شعبي، أو باسمي */
   const stOf = (c, kind) => { const r = courseRole(c, myFac()), whole = r.coordinator || r.programCoordinator || !r.teacher;
     return CX.st.filter((x) => x.course_id === c.id && x.kind === kind && (whole || !x.section_id || r.sections.includes(x.section_id))
       && (kind !== 'invigilation' || x.faculty_id === myFac())); };
   const myInq = (c) => CX.inq.filter((q) => q.course_id === c.id && q.assignee_faculty === myFac());
-  const FILE_ST = { not_started: ['لم يبدأ', 'muted'], in_progress: ['قيد الإعداد', 'wait'], complete: ['مكتمل', 'ok'], notes: ['عليه ملاحظات من لجنة الجودة', 'bad'] };
-  /* =====================================================================
-     «مهامي»: لوحة عضو هيئة التدريس — مهامي التدريسية، ولجاني، والتنبيهات العاجلة
-     (ولرئيس القسم والوكيل والعميد: لوحة المتابعة). كل البيانات من الجدول المعتمد وملخصات البرامج
-     (course_status) والمهام والاستفسارات؛ لا يُكتب تنبيه يدويًا ولا يقرأ الموقع بيانات البرامج الداخلية.
-     ألوان المجالات من org_settings.data.domainColors (الإعدادات ← الهوية والواجهة)، والافتراضي هنا.
-     ===================================================================== */
-  const DOM_DEF = { course: '#7B529A', quality: '#0F8B8D', exam: '#2F6DB5', bb: '#D9822B', comm: '#B7862A', urgent: '#C0392B' };
-  const DOM_ICON = { course: 'book', quality: 'shield', exam: 'clipboard', bb: 'screen', comm: 'users', urgent: 'bell' };
-  function applyDomainColors(dc) {
-    const x = Object.assign({}, DOM_DEF, dc || {}); Object.keys(DOM_DEF).forEach((k) => { if (!hx(x[k])) x[k] = DOM_DEF[k]; });
-    const light = Object.keys(x).map((k) => `--d-${k}:${x[k]}`).join(';'), dark = Object.keys(x).map((k) => `--d-${k}:${mix(x[k], '#ffffff', .32)}`).join(';');
-    let s = document.getElementById('domVars'); if (!s) { s = document.createElement('style'); s.id = 'domVars'; document.head.appendChild(s); }
-    s.textContent = `:root{${light}}:root[data-theme="dark"]{${dark}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${dark}}}
-.mine{display:grid;gap:22px;min-width:0}.mine *{min-width:0}.mine .sb{max-width:100%;overflow-wrap:anywhere}.msec .mh2{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;margin:0 0 12px;cursor:pointer;padding:12px 16px;border-radius:14px;
-  background:color-mix(in srgb,var(--c) 9%,var(--card));border-inline-start:5px solid var(--c);color:var(--ink);user-select:none}
-.msec .mh2 .ic{color:var(--c)}.msec .mh2 .cnt{background:var(--c);color:#fff;border-radius:999px;padding:0 10px;font-size:14px;line-height:1.7}
-.msec .mh2 .chev{margin-inline-start:auto;transition:transform .2s;color:var(--mute)}.msec.closed .mh2 .chev{transform:rotate(90deg)}.msec.closed .mbody{display:none}
-.dcard{background:var(--card);border-radius:14px;box-shadow:0 1px 2px rgba(40,20,60,.06),0 6px 18px rgba(40,20,60,.06);border-inline-start:5px solid var(--c);padding:14px 16px}
-.dtint{background:color-mix(in srgb,var(--c) 8%,var(--card));border-radius:10px;padding:6px 10px;color:var(--c);font-weight:700;display:flex;gap:6px;align-items:center}
-.sb{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap}
-.sb.ok{color:var(--ok);background:var(--ok-soft)}.sb.wait{color:var(--wait);background:var(--wait-soft)}.sb.late{color:var(--late);background:var(--late-soft)}.sb.none{color:var(--mute);background:var(--line2)}
-.crows{display:grid;gap:10px}.chd{display:grid;grid-template-columns:minmax(230px,1.5fr) repeat(3,minmax(150px,1fr));gap:10px;padding:0 6px;font-size:12.5px;color:var(--mute);font-weight:700}
-.crow{display:grid;grid-template-columns:minmax(230px,1.5fr) repeat(3,minmax(150px,1fr));gap:10px;align-items:stretch;--c:var(--d-course)}
-.crow .cmain{cursor:pointer}.crow .cmain b{color:var(--d-course)}.cell{border-radius:12px;padding:8px 10px;background:color-mix(in srgb,var(--c) 7%,var(--card));border-inline-start:3px solid var(--c);cursor:pointer;display:grid;gap:4px;align-content:start}
-.cell:hover,.crow .cmain:hover{outline:2px solid color-mix(in srgb,var(--c) 35%,transparent)}.cell .lab{font-size:12px;color:var(--c);font-weight:800;display:flex;gap:4px;align-items:center}.cell .lab .ic{width:15px;height:15px}
-.cell .sub{font-size:12.5px;color:var(--ink2)}.secl{font-size:12.5px;color:var(--ink2);margin-top:4px}
-.urg{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}.urg .ui{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--card))}
-.urg .when{font-size:12.5px;font-weight:700}.urg .when.late{color:var(--late)}.urg .when.soon{color:var(--wait)}
-.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}.cgrid .dcard{display:grid;gap:8px;align-content:start}
-.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}.fnum{font-size:28px;font-weight:800;color:var(--c);cursor:pointer;line-height:1.1}
-.okmsg{text-align:center;padding:22px;color:var(--ok);font-weight:700;background:var(--ok-soft);border-radius:14px}
-@media (max-width:760px){.mine .sb{white-space:normal}.chd{display:none}.crow{grid-template-columns:1fr 1fr;background:var(--card);border-radius:14px;padding:10px;box-shadow:0 1px 2px rgba(40,20,60,.06),0 6px 18px rgba(40,20,60,.06);border-inline-start:5px solid var(--d-course)}
-  .crow .cmain{grid-column:1/-1;box-shadow:none;border:0;padding:4px}.crow .cell:last-child{grid-column:1/-1}.urg{grid-template-columns:auto 1fr}.urg .act{grid-column:1/-1}.urg .act .btn{width:100%}.msec .mh2{font-size:18px}}`;
+  const answered = (q) => (q.comments || []).some((m) => m.reply || m.app === S.me.app_id);
+
+  /* أعمدة «مهامي» (المتطلبات): من الإعدادات وقاعدة البيانات (org_settings.data.reqColumns)، يضيفها مدير النظام دون برمجة.
+     لكل عمود: الاسم، واللون، والبرنامج الذي يُفتح على المقرر، ونوع الحالة في course_status (مصدرها). */
+  const REQ_DEF = () => { const B = S.settings.courseButtons || {};
+    return [{ key: 'quality', name: 'متطلبات الجودة', color: '#0F8B8D', kind: 'file', app: B.file || '' }, { key: 'bb', name: 'متطلبات بلاك بورد', color: '#D9822B', kind: 'bb', app: B.bb || '' },
+      { key: 'exam', name: 'متطلبات الاختبارات', color: '#2F6DB5', kind: 'exam', app: B.exam || '' }]; };
+  const reqCols = () => (S.settings.reqColumns && S.settings.reqColumns.length ? S.settings.reqColumns : REQ_DEF());
+  const colApp = (col) => { const a = col && col.app && S.apps.find((x) => x.id === col.app && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
+  const appOfKind = (kind) => colApp(reqCols().find((c) => c.kind === kind));
+  /* حالة عمود لمقرر: ✓ مكتمل / ⌛ قيد العمل / ! ناقص (العدد) / ○ لم يبدأ */
+  const ST_OK = ['complete', 'met', 'ok', 'accepted', 'submitted', 'done'], ST_LATE = ['notes', 'unmet', 'late', 'missing', 'returned'], ST_WAIT = ['in_progress', 'pending', 'scheduled', 'draft'];
+  function colState(c, col) {
+    const r = courseRole(c, myFac()), rows = stOf(c, col.kind), openQ = col.kind === 'bb' ? myInq(c).filter((q) => !answered(q)).length : 0;
+    const one = (x) => { const s = String(x.status || ''), d = x.details || {};
+      if (ST_OK.includes(s)) return 'ok'; if (ST_LATE.includes(s)) return 'late'; if (ST_WAIT.includes(s)) return 'wait'; if (s === 'not_started') return 'none';
+      if (col.kind === 'exam') return r.coordinator && d.questions === 'pending' ? 'wait' : (d.items || []).length ? 'ok' : 'none';
+      return 'none'; };
+    const ts = rows.map(one); let t = openQ || ts.includes('late') ? 'late' : ts.length && ts.every((x) => x === 'ok') ? 'ok' : ts.includes('wait') || (ts.includes('ok') && ts.includes('none')) ? 'wait' : 'none';
+    const n = openQ + rows.reduce((a, x) => a + (ST_LATE.includes(x.status) ? ((x.details || {}).missing || (x.details || {}).notes || []).length : 0), 0);
+    const pr = rows.find((x) => x.progress != null && x.status !== 'complete');
+    return { t, text: t === 'ok' ? 'مكتمل' : t === 'late' ? 'ناقص' + (n ? ` (${n})` : '') : t === 'wait' ? 'قيد العمل' + (pr ? ' ' + Math.round(pr.progress) + '%' : '') : 'لم يبدأ' };
   }
-  /* شارة الحالة: أيقونة + كلمة، لا لون فقط */
   const SB = { ok: '✓', wait: '⌛', late: '!', none: '○' };
   const stb = (tone, text) => `<span class="sb ${tone}"><span aria-hidden="true">${SB[tone]}</span>${esc(text)}</span>`;
-  const dvar = (d) => `--c:var(--d-${d})`;
   const daysTo = (d) => { if (!d) return null; const a = new Date(String(d).slice(0, 10) + 'T00:00:00'), b = new Date(today() + 'T00:00:00'); return Math.round((a - b) / 86400000); };
   const dShort = (d) => { try { return new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long' }); } catch (e) { return d; } };
   const whenTxt = (n) => n == null ? '' : n < 0 ? `متأخر ${-n} ${-n === 1 ? 'يوم' : -n === 2 ? 'يومين' : 'أيام'}` : n === 0 ? 'اليوم' : n === 1 ? 'غدًا' : `بعد ${n} أيام`;
   const ALERTS = () => Object.assign({ fileDue: '', leadDays: 7 }, S.settings.alerts || {});
-  const answered = (q) => (q.comments || []).some((m) => m.reply || m.app === S.me.app_id);
-  /* حالة المجالات لمقرر: الجودة (ملف المقرر) والاختبارات والبلاك بورد */
-  function courseStates(c) {
-    const r = courseRole(c, myFac()), al = ALERTS();
-    const f = stOf(c, 'file'), fs = f.find((x) => x.status === 'notes') || f.find((x) => x.status === 'in_progress') || f.find((x) => x.status === 'not_started') || f[0];
-    const due = daysTo(al.fileDue), late = fs ? fs.status !== 'complete' && due != null && due < 0 : due != null && due < 0;
-    const quality = !fs ? (late ? ['late', 'لم يبدأ · متأخر'] : ['none', 'لم يبدأ']) : fs.status === 'complete' ? ['ok', 'سُلّم'] : fs.status === 'notes' ? ['late', 'عليه ملاحظات']
-      : fs.status === 'in_progress' ? [late ? 'late' : 'wait', 'قيد الإعداد' + (fs.progress != null ? ' ' + Math.round(fs.progress) + '%' : '') + (late ? ' · متأخر' : '')] : ['none', 'لم يبدأ'];
-    const ex = stOf(c, 'exam'), items = ex.flatMap((x) => ((x.details || {}).items || [])).filter((i) => i.date).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const next = items.find((i) => String(i.date) >= today()), q = ex.map((x) => (x.details || {}).questions).find(Boolean);
-    const exam = next ? ['ok', `${next.name || 'اختبار'} · ${dShort(next.date)}${next.room ? ' · ' + next.room : ''}`] : items.length ? ['ok', 'انتهت الاختبارات'] : ['none', 'لم تُنشر المواعيد'];
-    const examQ = r.coordinator && q ? (q === 'submitted' ? ['ok', 'سُلّمت الأسئلة'] : ['wait', 'لم تُسلَّم الأسئلة']) : null;
-    const bb = stOf(c, 'bb'), unmet = bb.find((x) => x.status === 'unmet'), openQ = myInq(c).filter((x) => !answered(x));
-    const bbs = openQ.length ? ['late', 'عليه استفسار' + (openQ.length > 1 ? ' (' + openQ.length + ')' : '')] : unmet ? ['late', 'غير مستوفٍ'] : bb.length ? ['ok', 'مستوفٍ'] : ['none', 'لا تقرير بعد'];
-    return { quality, exam, examQ, bb: bbs };
-  }
-  /* التنبيهات العاجلة: تُبنى من البيانات، وتختفي حين يُنجز المطلوب */
+  const colColor = (kind) => (reqCols().find((c) => c.kind === kind) || {}).color || '#8A7F9B';
+
+  /* التنبيهات: تُبنى من البيانات وتختفي حين يُنجز المطلوب. لكل بند زر واحد: «رد» أو «فتح» */
   function buildUrgent(courses, reqs) {
     const out = [], al = ALERTS(), lead = Number(al.leadDays) || 7, me = myFac();
-    courses.forEach((c) => { const r = courseRole(c, me);
-      myInq(c).filter((q) => !answered(q)).forEach((q) => out.push({ d: 'bb', ic: 'chat', t: `استفسار من ${uName(q.unit_id)} لم تردّ عليه: ${q.title}`, sub: c.code + ' ' + c.name, n: null, w: (() => { const a = -daysTo(String(q.created_at).slice(0, 10)); return a <= 0 ? 'وصل اليوم' : a === 1 ? 'وصل أمس' : 'وصل منذ ' + a + ' أيام'; })(), late: true, btn: 'رد الآن', act: `C.courseCard('${c.id}','bb')` }));
-      const un = stOf(c, 'bb').find((x) => x.status === 'unmet');
-      if (un) { const m = (un.details || {}).missing || []; out.push({ d: 'bb', ic: 'screen', t: `متطلبات البلاك بورد ناقصة${m.length ? ' (' + m.length + ' نقاط)' : ''}`, sub: c.code + ' ' + c.name + (m.length ? ' — ' + m.slice(0, 2).join('، ') + (m.length > 2 ? '…' : '') : ''), n: null, late: true, btn: 'عرض النقاط', act: `C.courseCard('${c.id}','bb')` }); }
+    const openApp = (kind, c) => { const a = appOfKind(kind); return a ? `C.appOpenCtx('${a.id}','${c.id}')` : `C.toast('لم يُربط برنامج بهذا العمود بعد.',true)`; };
+    courses.forEach((c) => { const r = courseRole(c, me), cn = c.code + ' ' + c.name;
+      myInq(c).filter((q) => !answered(q)).forEach((q) => { const a = -daysTo(String(q.created_at).slice(0, 10));
+        out.push({ k: 'bb', t: 'استفسار لم تردّ عليه: ' + q.title, sub: cn, w: a <= 0 ? 'وصل اليوم' : a === 1 ? 'وصل أمس' : 'وصل منذ ' + a + ' أيام', n: null, late: true, btn: 'رد', act: `C.inqOpen('${q.id}')` }); });
+      const un = stOf(c, 'bb').filter((x) => x.status === 'unmet'), miss = un.flatMap((x) => (x.details || {}).missing || []);
+      if (un.length) out.push({ k: 'bb', t: 'نقاط بلاك بورد ناقصة' + (miss.length ? ' (' + miss.length + ')' : ''), sub: cn, n: null, late: true, btn: 'فتح', act: openApp('bb', c) });
       const f = stOf(c, 'file');
-      if (f.some((x) => x.status === 'notes')) out.push({ d: 'quality', ic: 'shield', t: 'ملاحظات من لجنة الجودة على ملف المقرر', sub: c.code + ' ' + c.name, n: null, late: true, btn: 'عرض الملاحظات', act: `C.courseCard('${c.id}','file')` });
+      if (f.some((x) => x.status === 'notes')) out.push({ k: 'file', t: 'ملف المقرر عليه ملاحظات', sub: cn, n: null, late: true, btn: 'فتح', act: openApp('file', c) });
       else if ((r.teacher || r.coordinator) && !f.some((x) => x.status === 'complete')) { const n = daysTo(al.fileDue);
-        if (n != null && n <= lead) out.push({ d: 'quality', ic: 'file', t: 'ملف المقرر لم يُسلَّم', sub: c.code + ' ' + c.name, n, late: n < 0, btn: 'فتح ملف المقرر', act: btnApp('file') ? `C.appOpenCtx('${btnApp('file').id}','${c.id}')` : `C.courseCard('${c.id}','file')` }); }
-      if (r.coordinator) stOf(c, 'exam').forEach((x) => { const d = x.details || {}; if (d.questions === 'pending') { const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
-        const n = nx ? daysTo(nx.date) : null; if (n == null || n <= lead) out.push({ d: 'exam', ic: 'clipboard', t: 'أسئلة الاختبار لم تُسلَّم لوحدة الاختبارات' + (nx ? ' — ' + nx.name : ''), sub: c.code + ' ' + c.name, n, late: n != null && n < 0, btn: 'فتح الاختبارات', act: btnApp('exam') ? `C.appOpenCtx('${btnApp('exam').id}','${c.id}')` : `C.courseCard('${c.id}','exam')` }); } }); });
+        if (n != null && n <= lead) out.push({ k: 'file', t: 'ملف المقرر لم يُسلَّم', sub: cn, n, late: n < 0, btn: 'فتح', act: openApp('file', c) }); }
+      if (r.coordinator) stOf(c, 'exam').forEach((x) => { const d = x.details || {}; if (d.questions !== 'pending') return;
+        const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = nx ? daysTo(nx.date) : null;
+        if (n == null || n <= lead) out.push({ k: 'exam', t: 'أسئلة الاختبار لم تُسلَّم' + (nx ? ' — ' + nx.name : ''), sub: cn, n, late: n != null && n < 0, btn: 'فتح', act: openApp('exam', c) }); }); });
     CX.st.filter((x) => x.kind === 'invigilation' && x.faculty_id === me).forEach((x) => { const c = ((S.sched || {}).courses || []).find((k) => k.id === x.course_id) || {};
-      ((x.details || {}).items || []).forEach((i) => { const n = daysTo(i.date); if (n === 0 || n === 1) out.push({ d: 'exam', ic: 'clipboard', t: `مراقبة ${n === 0 ? 'اليوم' : 'غدًا'}: ${i.role || 'مراقب'} — ${i.name || ''} ${c.code || ''}`, sub: [i.period && 'الفترة ' + i.period, i.room && 'القاعة ' + i.room].filter(Boolean).join(' · '), n, late: false, btn: 'التفاصيل', act: `C.go('mine')` }); }); });
+      ((x.details || {}).items || []).forEach((i) => { const n = daysTo(i.date); if (n !== 0 && n !== 1) return;
+        out.push({ k: 'exam', t: `مراقبة ${n === 0 ? 'اليوم' : 'غدًا'}: ${i.role || 'مراقب'}`, sub: [c.code, i.name, i.period && 'الفترة ' + i.period, i.room && 'القاعة ' + i.room].filter(Boolean).join(' · '), n, late: false, btn: 'فتح',
+          act: appOfKind('exam') && c.id ? `C.appOpenCtx('${appOfKind('exam').id}','${c.id}')` : `C.toast('لم يُربط نظام الاختبارات بعد.',true)` }); }); });
     reqs.filter((q) => q.kind !== 'inquiry' && !['done', 'rejected'].includes(q.status) && !q.archived && q.due_date).forEach((q) => { const n = daysTo(q.due_date);
-      if (n <= lead) out.push({ d: 'comm', ic: 'users', t: q.title, sub: uName(q.unit_id) + (q.assignee_faculty ? ' · ' + fName(q.assignee_faculty) : ''), n, late: n < 0, btn: 'فتح المهمة', act: `C.openReq('${q.id}')` }); });
+      if (n <= lead) out.push({ k: 'comm', t: q.title, sub: uName(q.unit_id), n, late: n < 0, btn: 'فتح', act: `C.openReq('${q.id}')` }); });
     return out.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
   }
-  /* قسم قابل للطي يتذكر المتصفح حالته */
-  const secOpen = (id) => { try { return localStorage.getItem('mine.' + id) !== '0'; } catch (e) { return true; } };
-  C.secTog = (id, el) => { const s = el.closest('.msec'); s.classList.toggle('closed'); try { localStorage.setItem('mine.' + id, s.classList.contains('closed') ? '0' : '1'); } catch (e) {} };
-  const msec = (id, d, title, n, body) => `<section class="msec${secOpen(id) ? '' : ' closed'}" style="${dvar(d)}"><h2 class="mh2" onclick="C.secTog('${id}',this)" role="button" aria-expanded="${secOpen(id)}">${icon(DOM_ICON[d])}${title}${n != null ? ` <span class="cnt">${n}</span>` : ''}<span class="chev">${icon('chev')}</span></h2><div class="mbody">${body}</div></section>`;
-  /* بيانات «مهامي»: الجدول وملخصات البرامج والمهام والتكليفات والتنبيهات (تُستعمل للصفحة ولعدّاد التنبيهات عند الدخول) */
+  /* بيانات الصفحات: الجدول وملخصات البرامج والمهام والتكليفات والتنبيهات */
   async function mineData() {
     const mf = myFac(); await loadSched(); await loadCourseExtras(); const sc = S.sched || { my: [], mine: [], courses: [] };
     const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; }), units = mem.map((m) => m.unit_id);
     const reqs = [...new Map([...(await D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => [])), ...(units.length ? await D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [])].map((q) => [q.id, q])).values()];
     const urg = buildUrgent(sc.my, reqs.filter((q) => q.assignee_faculty === mf || mem.some((m) => m.unit_id === q.unit_id && ['head', 'deputy'].includes(m.position))));
+    S.urgentN = urg.length;
     return { sc, reqs, mem, urg };
   }
-  async function refreshUrgent() { if (!myFac()) return; try { const { urg } = await mineData(); S.urgentN = urg.length; navBadge(); bellCount(); } catch (e) { console.warn(e); } }
-  async function pgMine() {
-    const mf = myFac(), t = curTerm(); applyDomainColors(S.settings.domainColors);
-    if (!mf) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر مهامك. يربطه مدير النظام.</div>';
-    const { sc, reqs, mem, urg } = await mineData();
-    /* ١ مهامي التدريسية */
-    const my = sc.my, cs = sc.mine;
-    const cell = (c, d, part, label, st, extra) => `<div class="cell" style="${dvar(d)}" onclick="C.courseCard('${c.id}','${part}')" role="button" tabindex="0"><span class="lab">${icon(DOM_ICON[d])}${label}</span>${stb(st[0], st[1])}${extra || ''}</div>`;
-    const rows = my.map((c) => { const r = c.role, rk = roleKey(r), s = courseStates(c), secs = r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections;
-      return `<div class="crow"><div class="dcard cmain" onclick="C.courseCard('${c.id}')" role="button" tabindex="0"><div class="row" style="gap:6px;flex-wrap:wrap"><b>${esc(c.code)}</b> <span>${esc(c.name)}</span>${chip(ROLE_TXT[rk], 'ok')}</div>
-          <div class="tiny muted">${esc(progName(c.program_id) || c.degree || '')}</div>${secs.map((x) => `<div class="secl">شعبة ${esc(x.no)} · ${[x.gender, x.campus].filter(Boolean).map(esc).join(' · ')}${x.days ? ' · ' + esc(x.days) : ''}${x.from ? ` <span dir="ltr">${esc(x.from)}–${esc(x.to)}</span>` : ''}${x.room ? ' · ' + esc(x.room) : ''}</div>`).join('')}</div>
-        ${cell(c, 'bb', 'bb', 'البلاك بورد', s.bb)}${cell(c, 'exam', 'exam', 'الاختبارات', s.exam, s.examQ ? stb(s.examQ[0], s.examQ[1]) : '')}${cell(c, 'quality', 'file', 'ملف المقرر', s.quality)}</div>`; }).join('');
+  async function refreshUrgent() { if (!myFac()) return; try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); } }
+  const MINE_CSS = `.req{width:100%;border-collapse:separate;border-spacing:0 6px}.req th{font-size:13px;font-weight:800;padding:8px 10px;text-align:start;border-radius:10px 10px 0 0}
+.req td{padding:10px;background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.req td:first-child{border-inline-start:1px solid var(--line);border-radius:0 10px 10px 0}.req td:last-child{border-inline-end:1px solid var(--line);border-radius:10px 0 0 10px}
+.req td.rc{cursor:pointer}.req td.rc:hover{filter:brightness(.97)}.sb{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap}
+.sb.ok{color:var(--ok);background:var(--ok-soft)}.sb.wait{color:var(--wait);background:var(--wait-soft)}.sb.late{color:var(--late);background:var(--late-soft)}.sb.none{color:var(--mute);background:var(--line2)}
+.lamp{display:inline-flex;align-items:center;gap:10px;border:0;cursor:pointer;font:inherit;font-weight:800;border-radius:999px;padding:8px 16px 8px 10px}
+.lamp .bulb{width:38px;height:38px;border-radius:50%;display:grid;place-items:center}.lamp.on{background:#FFF4D6;color:#8A5A00}.lamp.on .bulb{background:#F5B700;color:#fff;box-shadow:0 0 0 6px rgba(245,183,0,.22),0 0 18px rgba(245,183,0,.55)}
+.lamp.off{background:var(--line2);color:var(--mute)}.lamp.off .bulb{background:var(--line);color:var(--mute)}
+.aline{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-inline-start:4px solid var(--c);border-radius:10px;padding:10px 12px}
+.aline .when{font-size:12.5px;font-weight:700;white-space:nowrap}.aline .when.late{color:var(--late)}.aline .when.soon{color:var(--wait)}
+.clist{display:grid;gap:8px}.clist button{display:flex;gap:10px;align-items:center;text-align:start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit;color:var(--ink)}
+.clist button:hover{border-color:var(--ledger)}.okmsg{text-align:center;padding:20px;color:var(--ok);font-weight:700;background:var(--ok-soft);border-radius:12px}
+@media (max-width:760px){.req thead{display:none}.req,.req tbody,.req tr,.req td{display:block;width:100%}.req tr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:10px}
+  .req td,.req td:first-child,.req td:last-child{border:0;border-radius:8px;padding:6px 8px;margin-top:4px}.req td[data-h]::before{content:attr(data-h);display:block;font-size:12px;font-weight:800;color:var(--c)}
+  .aline{grid-template-columns:1fr auto}.aline .act{grid-column:1/-1}.aline .act .btn{width:100%}}`;
+  const mineCss = () => { if (!document.getElementById('mineCss')) { const s = document.createElement('style'); s.id = 'mineCss'; s.textContent = MINE_CSS; document.head.appendChild(s); } };
+  const tint = (col, p) => `color-mix(in srgb, ${col} ${p}%, var(--card))`;
+
+  /* ١ الرئيسية للدكتور: جدولي الدراسي، ولمبة التنبيهات */
+  const lampHtml = () => { const n = S.urgentN || 0;
+    return `<button class="lamp ${n ? 'on' : 'off'}" id="lamp" onclick="C.go('alerts')" aria-label="تنبيهاتي">${'<span class="bulb">' + icon('bell') + '</span>'}${n ? `${n} ${n === 1 ? 'تنبيه' : n === 2 ? 'تنبيهان' : n <= 10 ? 'تنبيهات' : 'تنبيهًا'}` : 'لا تنبيهات'}</button>`; };
+  function lampSet() { const l = $('#lamp'); if (l) l.outerHTML = lampHtml(); }
+  async function staffHome() {
+    mineCss(); const { sc } = await mineData(); navBadge(); bellCount(); const t = curTerm(), cs = sc.mine;
     const byDay = {}; cs.forEach((c) => meetsOf(c).forEach((m) => (byDay[m.d] = byDay[m.d] || []).push(Object.assign({}, c, { from: m.from, to: m.to }))));
-    const days = Object.keys(byDay).sort((a, b) => DAYS_ORDER.indexOf(a) - DAYS_ORDER.indexOf(b));
-    const teach = `<p class="small muted" style="margin:0 0 10px">${esc(t ? t.name : '')} · من الجدول المعتمد · ${cs.length} شعبة · ${cs.reduce((s, c) => s + (+c.hours || 0), 0)} ساعة · اضغط أي خانة لفتح بطاقة المقرر عليها</p>
-      ${my.length ? `<div class="chd"><span>المقرر</span><span>البلاك بورد</span><span>الاختبارات</span><span>ملف المقرر (الجودة)</span></div><div class="crows">${rows}</div>` : '<div class="empty">لا توجد مقررات مسندة إليك في الجدول المعتمد لهذا الفصل.</div>'}
-      ${days.length ? `<details style="margin-top:14px" ${(() => { try { return localStorage.getItem('mine.days') === '1' ? 'open' : ''; } catch (e) { return ''; } })()} ontoggle="try{localStorage.setItem('mine.days',this.open?'1':'0')}catch(e){}"><summary class="small" style="cursor:pointer;font-weight:700">جدولي حسب اليوم</summary>
-        <div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-top:8px">${days.map((d) => `<div class="dcard" style="${dvar('course')}"><b>${esc(d)}</b>${byDay[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((c) => `<div class="small" style="margin-top:6px"><span dir="ltr">${esc(c.from)}–${esc(c.to)}</span> · ${esc(c.code)} (شعبة ${esc(c.section)})${c.room ? ' · ' + esc(c.room) : ''}</div>`).join('')}</div>`).join('')}</div></details>` : ''}`;
-    /* ٢ لجاني */
-    const comm = mem.length ? `<div class="cgrid">${mem.map((m) => { const u = unit(m.unit_id), open = reqs.filter((q) => q.unit_id === u.id && q.kind !== 'inquiry' && !['done', 'rejected'].includes(q.status) && !q.archived);
-        const apps = S.apps.filter((a) => a.active !== false && a.unit_id === u.id && appLv(a) !== 'none'), head = ['head', 'deputy'].includes(m.position);
-        const dueL = head ? open.filter((q) => q.due_date).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date))).slice(0, 4) : [];
-        return `<div class="dcard" style="${dvar('comm')}"><div class="row" style="gap:6px"><a href="#" class="grow" style="font-weight:800;color:var(--ink)" onclick="C.go('unit',{id:'${u.id}'});return false">${esc(u.name)}</a>${chip(POS[m.position] || m.position, 'ok')}</div>
-          <div class="small muted">${esc(KIND[u.kind] || '')} · ${open.length ? `<a href="#" onclick="C.go('unit',{id:'${u.id}'});return false">${open.length} مهمة مفتوحة</a>` : 'لا مهام مفتوحة'}</div>
-          ${dueL.length ? `<div class="mlist small">${dueL.map((q) => { const n = daysTo(q.due_date); return `<div><a href="#" class="grow" onclick="C.openReq('${q.id}');return false">${esc(q.title)}</a><span class="${n < 0 ? 'bad' : 'muted'}">${esc(whenTxt(n))}</span></div>`; }).join('')}</div>` : ''}
-          ${apps.length ? `<div class="row" style="gap:6px;flex-wrap:wrap">${apps.map((a) => `<button class="btn sm" onclick="C.appOpen('${a.id}')">${icon(a.icon || 'app')}${esc(a.name)} <small class="muted">${esc(LV[appLv(a)] || '')}</small></button>`).join('')}</div>` : ''}</div>`; }).join('')}</div>`
-      : '<div class="empty">لست عضوًا في أي وحدة أو لجنة حاليًا.</div>';
-    /* ٣ التنبيهات العاجلة */
-    S.urgentN = urg.length; navBadge(); bellCount();
-    const urgB = urg.length ? `<div class="crows">${urg.map((x) => `<div class="dcard urg" style="${dvar(x.d)}"><span class="ui">${icon(x.ic)}</span><div><div style="font-weight:700">${esc(x.t)}</div><div class="small muted">${esc(x.sub)}</div>${x.n != null || x.w ? `<div class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</div>` : ''}</div>
-        <div class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></div></div>`).join('')}</div>` : '<div class="okmsg">لا توجد مطلوبات عاجلة ✓</div>';
-    const follow = await followBoard(sc);
-    return `<div class="mine">${msec('teach', 'course', 'مهامي التدريسية', my.length, teach)}${msec('comm', 'comm', 'لجاني', mem.length, comm)}${msec('urgent', 'urgent', 'تنبيهات ومطلوبات عاجلة', urg.length, urgB)}${follow}</div>`;
+    const days = Object.keys(byDay).sort((a, b) => DAYS_ORDER.indexOf(a) - DAYS_ORDER.indexOf(b)), td = todayKey();
+    const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية.</div>' : '';
+    return `<div class="homebody">${banner}<div class="row" style="align-items:center;margin-bottom:14px"><div class="grow"><h2 style="margin:0">جدولي الدراسي</h2>
+        <div class="small muted">${esc(t ? t.name : '')} · ${cs.length} شعبة · ${cs.reduce((s, c) => s + (+c.hours || 0), 0)} ساعة</div></div>${lampHtml()}</div>
+      ${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)}</td><td>${esc(c.days)}</td><td><span dir="ltr" style="white-space:nowrap">${esc(c.from)}–${esc(c.to)}</span></td><td><span dir="ltr">${esc(c.room || '')}</span></td></tr>`).join('')}</table></div>
+        <h3 style="margin:18px 0 8px">حسب اليوم</h3><div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${days.map((d) => `<div class="box"${d === td ? ' style="outline:2px solid var(--ledger)"' : ''}><b>${esc(d)}${d === td ? ' · اليوم' : ''}</b>${byDay[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((c) => `<div class="small" style="margin-top:6px"><span dir="ltr">${esc(c.from)}–${esc(c.to)}</span> · ${esc(c.code)} (${esc(c.section)})${c.room ? ` · <span dir="ltr">${esc(c.room)}</span>` : ''}</div>`).join('')}</div>`).join('')}</div>`
+        : `<div class="empty">${myFac() ? 'لا توجد شعب مسندة إليك في الجدول المعتمد لهذا الفصل.' : 'حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.'}</div>`}</div>`;
   }
-  /* لوحة المتابعة لرئيس القسم (قسمه) وللوكيل والعميد (كل الأقسام): بالأرقام، وبالضغط تظهر الأسماء */
+  /* ٢ «مهامي»: جدول واحد — المقرر، والشعب، وعمود لكل متطلب؛ الضغط على الخانة يفتح البرنامج على المقرر */
+  async function pgMine() {
+    mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
+    const { sc } = await mineData(); navBadge(); bellCount(); const cols = reqCols();
+    const head = `<tr><th style="background:var(--line2)">المقرر</th><th style="background:var(--line2)">الشعب</th>${cols.map((c) => `<th style="background:${tint(c.color, 14)};color:${c.color}">${esc(c.name)}</th>`).join('')}</tr>`;
+    const rows = sc.my.map((c) => { const r = c.role, secs = (r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections).map((x) => x.no).join('، ');
+      return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
+        return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}</td>`; }).join('')}</tr>`; }).join('');
+    const follow = viewRole() !== 'staff' ? await followBoard(sc) : '';
+    return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
+      ${sc.my.length ? `<table class="req"><thead>${head}</thead><tbody>${rows}</tbody></table>` : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}${follow}`;
+  }
+  /* ٣ «لجاني»: الجهات ودوري فيها؛ الضغط يدخل مساحة عمل الجهة (صفحة الجهة الموجودة) وبرامجها */
+  async function pgComms() {
+    mineCss(); const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; });
+    if (!mem.length) return '<div class="empty">لست عضوًا في أي وحدة أو لجنة حاليًا.</div>';
+    return `<div class="clist">${mem.map((m) => { const u = unit(m.unit_id); return `<button onclick="C.go('unit',{id:'${u.id}'})">${kindDot(u.kind)}<b class="grow">${esc(u.name)}</b>${chip(({ head: 'رئيس', deputy: 'نائب', secretary: 'مقرر', member: 'عضو' })[m.position] || POS[m.position] || m.position, m.position === 'head' ? 'brass' : m.position === 'secretary' ? 'ok' : '')}${icon('chev')}</button>`; }).join('')}</div>`;
+  }
+  /* ٤ «تنبيهاتي»: المتأخر أولًا ثم الأقرب موعدًا؛ سطر واحد وزر واحد لكل بند */
+  async function pgAlerts() {
+    mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
+    const { urg } = await mineData(); navBadge(); bellCount();
+    const col = (k) => k === 'comm' ? '#B7862A' : colColor(k);
+    return urg.length ? `<div class="clist">${urg.map((x) => `<div class="aline" style="--c:${col(x.k)}"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub)}</div></div>
+        <span class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>`
+      : '<div class="okmsg">لا توجد مطلوبات عاجلة ✓</div>';
+  }
+  /* الرد على استفسار: نافذة صغيرة بالسؤال والرد، وتُسجَّل القراءة عند فتحها */
+  C.inqOpen = (qid) => busy(null, async () => { const q = CX.inq.find((x) => x.id === qid); if (!q) return;
+    try { await D.rpc('inquiry_read', { p_id: qid }); q.read_at = q.read_at || new Date().toISOString(); } catch (e) {}
+    const c = ((S.sched || {}).courses || []).find((x) => x.id === q.course_id) || {};
+    modal(q.title, `<p class="small muted">${esc(uName(q.unit_id))} · ${esc(c.code || '')} ${esc(c.name || '')} · ${esc(fmtDT(q.created_at))}</p>${q.body ? `<p>${esc(q.body)}</p>` : ''}
+      ${(q.comments || []).map((m) => `<div class="small" style="margin-top:6px;padding-inline-start:8px;border-inline-start:3px solid var(--line)"><b>${esc(m.by)}</b> <span class="tiny muted">${esc(fmtDT(m.at))}</span><div>${esc(m.text)}</div></div>`).join('')}
+      <label class="f" style="margin-top:12px">ردك<textarea id="iqText" rows="3"></textarea></label><div class="err"></div>`,
+      `<button class="btn pri" id="iqOk">إرسال الرد</button><button class="btn" onclick="C.close()">إغلاق</button>`);
+    $('#iqOk').onclick = (ev) => busy(ev.target, async () => { await D.rpc('inquiry_reply', { p_id: qid, p_text: val('iqText') });
+      const u = headOf(q.unit_id), hf = u && fac(u.faculty_id); if (hf && hf.profile_app_id) notify([hf.profile_app_id], 'رد ' + S.me.name + ' على الاستفسار: ' + q.title);
+      C.close(); toast('أُرسل الرد.'); refresh(); }); });
+  /* لوحة المتابعة لرئيس القسم والوكيل والعميد (الملف 16)، أسفل «مهامي» لغير أعضاء هيئة التدريس فقط */
   async function followBoard(sc) {
     const t = (sc || {}).term; if (!t) return '';
     let fb; try { fb = await D.rpc('dept_followup', { p_term: t.id }); } catch (e) { fb = null; }
     if (!fb || !fb.length) return '';
     S._fb = Object.fromEntries(fb.map((x) => [x.dept, x]));
-    const rowsHtml = fb.map((x) => { const n = (d, k, v, lab) => `<div class="dcard" style="${dvar(d)};padding:10px 12px"><div class="small muted">${icon(DOM_ICON[d])} ${lab}</div><div class="fnum" onclick="C.fbList('${x.dept}','${k}')" role="button" tabindex="0">${v}</div></div>`;
-      return `<div style="margin-bottom:12px"><div class="dtint" style="${dvar('course')};margin-bottom:8px">${icon('sitemap')}${esc(uName(x.dept))} · ${x.courses} مقرر</div>
-        <div class="fgrid">${n('quality', 'no_file', x.no_file.length, 'ملفات مقررات لم تُسلَّم')}${n('bb', 'bb_unmet', x.bb_unmet.length, 'لم تستوفِ البلاك بورد')}${n('bb', 'inq', x.inq.length, 'استفسارات بلا رد')}</div></div>`; }).join('');
-    return msec('follow', 'course', fb.length > 1 ? 'لوحة المتابعة: الأقسام' : 'لوحة المتابعة: قسمي', null, rowsHtml);
+    const n = (x, k, v, lab, color) => `<div class="box" style="border-inline-start:4px solid ${color}"><div class="small muted">${lab}</div><a href="#" style="font-size:26px;font-weight:800;color:${color}" onclick="C.fbList('${x.dept}','${k}');return false">${v}</a></div>`;
+    return `<h3 style="margin:22px 0 8px">لوحة المتابعة</h3>${fb.map((x) => `<div style="margin-bottom:12px"><b>${esc(uName(x.dept))}</b> <span class="small muted">· ${x.courses} مقرر</span>
+      <div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:6px">${n(x, 'no_file', x.no_file.length, 'ملفات مقررات لم تُسلَّم', colColor('file'))}${n(x, 'bb_unmet', x.bb_unmet.length, 'لم تستوفِ البلاك بورد', colColor('bb'))}${n(x, 'inq', x.inq.length, 'استفسارات بلا رد', colColor('bb'))}</div></div>`).join('')}`;
   }
   C.fbList = (dep, k) => { const x = (S._fb || {})[dep]; if (!x) return;
     const names = (ids) => (ids || []).map(fName).join('، ') || '—';
     const T = { no_file: 'ملفات مقررات لم تُسلَّم', bb_unmet: 'مقررات لم تستوفِ البلاك بورد', inq: 'استفسارات بلا رد' };
-    const body = k === 'inq' ? x.inq.map((q) => `<tr><td>${esc(q.code || '')}</td><td>${esc(fName(q.faculty))}</td><td class="small">${esc(q.title)}</td><td class="small">${esc(whenTxt(daysTo(String(q.created_at).slice(0, 10))).replace('متأخر', 'منذ'))}</td></tr>`).join('')
+    const body = k === 'inq' ? x.inq.map((q) => `<tr><td>${esc(q.code || '')}</td><td>${esc(fName(q.faculty))}</td><td class="small">${esc(q.title)}</td></tr>`).join('')
       : x[k].map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="small">${esc(names(c.fac))}</td><td class="small">${esc(c.coord ? fName(c.coord) : '—')}</td></tr>`).join('');
-    modal(T[k] + ' — ' + uName(dep), `<div class="tw"><table>${k === 'inq' ? '<tr><th>المقرر</th><th>العضو</th><th>الاستفسار</th><th>منذ</th></tr>' : '<tr><th>المقرر</th><th>الأساتذة</th><th>المنسق</th></tr>'}${body || '<tr><td colspan="4" class="muted">لا شيء.</td></tr>'}</table></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true); };
-  /* عدد التنبيهات العاجلة بجانب «مهامي» في القائمة الجانبية */
-  function navBadge() { const b = $('#side .nav[data-p="mine"]'); if (!b) return; let s = b.querySelector('.ubadge'); if (!S.urgentN) { if (s) s.remove(); return; }
-    if (!s) { s = document.createElement('span'); s.className = 'ubadge'; s.style.cssText = 'margin-inline-start:auto;background:var(--d-urgent,#C0392B);color:#fff;border-radius:999px;padding:0 8px;font-size:12px;font-weight:800'; b.appendChild(s); } s.textContent = S.urgentN; }
-  /* بطاقة المقرر: كل ما هو مطلوب من الدكتور في المقرر. الحالات تأتي من ملخصات البرامج، والموقع لا يقرأ بياناتها الداخلية */
-  C.courseCard = (id, focus) => busy(null, async () => {
-    const c = ((S.sched || {}).courses || []).find((x) => x.id === id); if (!c) return;
-    await loadCourseExtras();
-    const me = myFac(), r = courseRole(c, me), rk = roleKey(r), canPost = r.teacher || r.coordinator || isAdmin();
-    /* قراءة الاستفسارات تُسجَّل عند فتح البطاقة */
-    const unread = myInq(c).filter((q) => !q.read_at);
-    for (const q of unread) { try { await D.rpc('inquiry_read', { p_id: q.id }); q.read_at = new Date().toISOString(); } catch (e) {} }
-    /* كل جزء بلون مجاله: ملف المقرر (الجودة) والاختبارات والبلاك بورد، والإعلانات بلون المقرر */
-    const PD = { file: 'quality', exam: 'exam', bb: 'bb', '': 'course' };
-    const part = (k, title, ic, body) => { const a = k && btnApp(k), d = PD[k];
-      return `<div class="dcard" id="cc_${k || 'ann'}" style="${dvar(d)};margin:12px 0"><div class="row"><b class="grow dtint" style="background:none;padding:0">${icon(DOM_ICON[d])} ${title}</b>${a ? `<button class="btn sm pri" onclick="C.close();C.appOpenCtx('${a.id}','${c.id}')">فتح ${esc(a.name)}</button>` : ''}</div><div style="margin-top:8px">${body}</div></div>`; };
-    const none = (t) => `<p class="small muted" style="margin:0">${t}</p>`;
-    const secNo = (sid) => (c.sections.find((s) => s.id === sid) || {}).no || '';
-    const when = (x) => `<span class="tiny muted">آخر تحديث ${esc(fmtDT(x.updated_at))}</span>`;
-    /* ملف المقرر */
-    const fl = stOf(c, 'file');
-    const fileB = fl.length ? fl.map((x) => { const t = FILE_ST[x.status] || [x.status || '—', 'muted'], n = (x.details || {}).notes;
-      return `<div style="margin-bottom:6px">${x.section_id ? 'شعبة ' + esc(secNo(x.section_id)) + ': ' : ''}${chip(t[0] + (x.progress != null && x.status === 'in_progress' ? ' ' + Math.round(x.progress) + '%' : ''), t[1] === 'muted' ? '' : t[1])} ${when(x)}
-        ${n && n.length ? `<ul class="small" style="margin:6px 0 0">${(Array.isArray(n) ? n : [n]).map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}</div>`; }).join('') : none('لم يُنشر لملف المقرر حالة بعد. تظهر هنا حين يعمل برنامج قياس المخرجات على المقرر.');
-    /* الاختبارات */
-    const ex = stOf(c, 'exam'), inv = stOf(c, 'invigilation');
-    const exRows = ex.flatMap((x) => ((x.details || {}).items || []).map((i) => `<tr><td>${esc(i.name || '')}</td><td>${esc(i.date ? dShort(i.date) : '')}</td><td>${esc(i.period || '')}</td><td>${esc(i.room || '')}</td></tr>`));
-    const exMeta = ex.map((x) => { const d = x.details || {}; return r.coordinator && (d.questions || d.papers) ? `<div class="small" style="margin-top:6px">الأسئلة: ${chip(d.questions === 'submitted' ? 'سُلّمت' : 'لم تُسلَّم', d.questions === 'submitted' ? 'ok' : 'wait')} · الأوراق: ${chip(d.papers === 'received' ? 'استُلمت' : 'لم تُستلم', d.papers === 'received' ? 'ok' : 'wait')}</div>` : ''; }).join('');
-    const invRows = inv.flatMap((x) => ((x.details || {}).items || []).map((i) => `<tr><td>${esc(i.name || '')}</td><td>${esc(i.date ? dShort(i.date) : '')}</td><td>${esc(i.period || '')}</td><td>${esc(i.room || '')}</td><td>${chip(i.role || 'مراقب', 'ok')}</td></tr>`));
-    const examB = (exRows.length ? `<div class="tw"><table><tr><th>الاختبار</th><th>التاريخ</th><th>الفترة</th><th>القاعة</th></tr>${exRows.join('')}</table></div>` : none('لم تُنشر مواعيد الاختبارات بعد.'))
-      + exMeta + (invRows.length ? `<div class="small" style="margin-top:8px"><b>مهمتي في المراقبة</b></div><div class="tw"><table><tr><th>الاختبار</th><th>التاريخ</th><th>الفترة</th><th>القاعة</th><th>المهمة</th></tr>${invRows.join('')}</table></div>` : '');
-    /* البلاك بورد: الاستيفاء والاستفسارات */
-    const bb = stOf(c, 'bb');
-    const bbB = (bb.length ? bb.map((x) => { const miss = (x.details || {}).missing || [];
-      return `<div style="margin-bottom:6px">${x.section_id ? 'شعبة ' + esc(secNo(x.section_id)) + ': ' : ''}${x.status === 'met' ? chip('مستوفٍ', 'ok') : chip('غير مستوفٍ', 'bad')} ${when(x)}
-        ${x.status !== 'met' && miss.length ? `<div class="small" style="margin-top:4px">النقاط الناقصة:</div><ul class="small" style="margin:4px 0 0">${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}</div>`; }).join('') : none('لم يصدر تقرير استيفاء لهذا المقرر بعد.'))
-      + `<div class="small" style="margin-top:10px"><b>الاستفسارات</b></div>` + (myInq(c).length ? myInq(c).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map((q) => `<div class="panel" style="padding:8px;margin:6px 0">
-          <div class="row"><b class="grow">${esc(q.title)}</b><span class="tiny muted">${esc(uName(q.unit_id))} · ${esc(fmtDT(q.created_at))}</span></div>${q.body ? `<div class="small">${esc(q.body)}</div>` : ''}
-          ${(q.comments || []).map((m) => `<div class="small" style="margin-top:4px;padding-inline-start:8px;border-inline-start:3px solid #ddd"><b>${esc(m.by)}</b> <span class="tiny muted">${esc(fmtDT(m.at))}</span><div>${esc(m.text)}</div></div>`).join('')}
-          <div class="row" style="margin-top:6px;gap:6px"><input class="inp grow" id="iq_${q.id}" placeholder="اكتب ردك"><button class="btn sm" onclick="C.inqReply('${q.id}','${c.id}')">رد</button></div></div>`).join('') : none('لا توجد استفسارات عن هذا المقرر.'));
-    /* إعلانات الطلاب */
-    const anns = CX.ann.filter((a) => a.course_id === c.id).sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)));
-    const annB = (anns.length ? `<div class="mlist">${anns.map((a) => `<div><div class="grow"><b>${esc(a.title)}</b>${a.body ? `<div class="small">${esc(a.body)}</div>` : ''}<div class="tiny muted">${esc(fmtD(a.published_at))}${a.expires_at ? ' · حتى ' + esc(fmtD(a.expires_at)) : ''} · ${esc(pName(a.created_by))}</div></div>
-        ${a.created_by === S.me.app_id || isAdmin() ? `<button class="btn sm danger" onclick="C.annCourseDel('${a.id}','${c.id}')">حذف</button>` : ''}</div>`).join('')}</div>` : none('لا توجد إعلانات للمقرر.'))
-      + (canPost ? `<div class="formgrid" style="margin-top:8px"><label class="f">عنوان الإعلان<input id="ca_t" maxlength="200"></label><label class="f">ينتهي في (اختياري)<input id="ca_e" type="date"></label>
-          <label class="f full">النص<input id="ca_b" maxlength="2000"></label></div><div class="row" style="margin-top:6px"><button class="btn sm pri" onclick="C.annCoursePost('${c.id}')">${icon('mega')}نشر للطلاب</button>
-          <span class="tiny muted">يظهر للطلاب في الصفحة العامة برمز المقرر ${esc(c.code)}. لا تكتب بيانات شخصية.</span></div>` : '');
-    modal(`${c.code} ${c.name}`, `<div class="row" style="flex-wrap:wrap;gap:6px">${chip(ROLE_TXT[rk], 'ok')}${chip(progName(c.program_id) || c.degree || '—')}${chip(uName(c.department_id))}${chip('المنسق: ' + (c.coordinator_id ? fName(c.coordinator_id) : 'لم يُحدَّد'))}</div>
-      <div class="tw" style="margin-top:10px"><table><tr><th>الشعبة</th><th>الشطر والمقر</th><th>الموعد</th><th>القاعة</th><th>الأستاذ</th></tr>${c.sections.map((s) => `<tr${r.sections.includes(s.id) ? ' style="font-weight:bold"' : ''}><td>${esc(s.no)}</td><td class="small">${[s.gender, s.campus].filter(Boolean).map(esc).join(' · ')}</td><td class="small">${esc(s.days || '')} ${s.from ? `<span class="num" dir="ltr">${esc(s.from)}–${esc(s.to)}</span>` : ''}</td><td>${esc(s.room || '')}</td><td class="small">${s.fac.map((x) => esc(fName(x))).join('، ') || '—'}</td></tr>`).join('')}</table></div>
-      ${part('file', 'ملف المقرر', 'file', fileB)}${part('exam', 'الاختبارات', 'clipboard', examB)}${part('bb', 'البلاك بورد', 'book', bbB)}${part('', 'إعلانات الطلاب', 'mega', annB)}`,
-      `<button class="btn" onclick="C.close()">إغلاق</button>`, true);
-    if (focus) { const e = document.getElementById('cc_' + focus); if (e) setTimeout(() => e.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60); }
-    if (unread.length && ['myschedule', 'mine'].includes(VIEW.page)) refresh();
-  });
-  C.inqReply = (qid, cid) => busy(null, async () => { const t = val('iq_' + qid); await D.rpc('inquiry_reply', { p_id: qid, p_text: t });
-    const q = CX.inq.find((x) => x.id === qid), u = q && headOf(q.unit_id), hf = u && fac(u.faculty_id);
-    if (hf && hf.profile_app_id) notify([hf.profile_app_id], 'رد ' + S.me.name + ' على الاستفسار: ' + (q ? q.title : ''));
-    toast('أُرسل الرد.'); C.close(); C.courseCard(cid); });
-  C.annCoursePost = (cid) => busy(null, async () => { await D.rpc('course_announce', { p_course: cid, p_title: val('ca_t'), p_body: val('ca_b'), p_expires: val('ca_e') || null }); toast('نُشر الإعلان للطلاب.'); C.close(); C.courseCard(cid); });
-  C.annCourseDel = (aid, cid) => busy(null, async () => { await D.rpc('course_announce_delete', { p_id: aid }); toast('حُذف الإعلان.'); C.close(); C.courseCard(cid); });
+    modal(T[k] + ' — ' + uName(dep), `<div class="tw"><table>${k === 'inq' ? '<tr><th>المقرر</th><th>العضو</th><th>الاستفسار</th></tr>' : '<tr><th>المقرر</th><th>الأساتذة</th><th>المنسق</th></tr>'}${body || '<tr><td colspan="3" class="muted">لا شيء.</td></tr>'}</table></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true); };
+  /* عدد التنبيهات بجانب «تنبيهاتي» في القائمة الجانبية */
+  function navBadge() { const b = $('#side .nav[data-p="alerts"]'); if (!b) return; let s = b.querySelector('.ubadge'); if (!S.urgentN) { if (s) s.remove(); return; }
+    if (!s) { s = document.createElement('span'); s.className = 'ubadge'; s.style.cssText = 'margin-inline-start:auto;background:#C0392B;color:#fff;border-radius:999px;padding:0 8px;font-size:12px;font-weight:800'; b.appendChild(s); } s.textContent = S.urgentN; }
   C.facView = async (id) => {
     const f = fac(id);
     const ass = S.members.filter((m) => m.faculty_id === id).sort((a, b) => activeM(b) - activeM(a) || b.start_date.localeCompare(a.start_date));
@@ -1902,12 +1858,8 @@
         return `<h3 style="margin:18px 0 8px">الألوان</h3><p class="small muted">الافتراضي بنفسجي شعار جامعة الجوف. يظهر التغيير فورًا للمعاينة، ولا يُعتمد إلا بعد «حفظ الهوية».</p>
         <div class="formgrid">${ci('primary', 'اللون الأساسي (الأزرار والعناوين والروابط)')}${ci('bar', 'الشريط العلوي والقائمة الجانبية')}${ci('frame1', 'غطاء خلفية صفحة الدخول — بداية التدرج')}${ci('frame2', 'غطاء خلفية صفحة الدخول — نهاية التدرج')}</div>
         <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.thReset()">استعادة ألوان الجامعة</button></div>`; })()}
-      ${(() => { const dc = Object.assign({}, DOM_DEF, s.domainColors || {}), L = { course: 'المقرر والجدول الدراسي', quality: 'الجودة (ملف المقرر)', exam: 'الاختبارات', bb: 'البلاك بورد (التعليم الإلكتروني)', comm: 'لجاني', urgent: 'التنبيهات العاجلة' };
-        const al = Object.assign({ fileDue: '', leadDays: 7 }, s.alerts || {});
-        return `<h3 style="margin:18px 0 8px">ألوان المجالات (صفحة «مهامي»)</h3><p class="small muted">لون ثابت لكل مجال يظهر في الحافة والعنوان والأيقونة. ويُشتق لون الوضع الليلي منه تلقائيًا.</p>
-        <div class="formgrid">${Object.keys(DOM_DEF).map((k) => `<label class="f">${icon(DOM_ICON[k])} ${L[k]}<span class="row"><input type="color" id="dc_${k}" value="${attr(dc[k])}" oninput="C.dcPrev()" style="width:52px;height:36px;padding:2px"><code dir="ltr" class="small">${esc(dc[k])}</code></span></label>`).join('')}</div>
-        <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.dcReset()">استعادة الافتراضي</button></div>
-        <h3 style="margin:18px 0 8px">مواعيد التنبيهات</h3><p class="small muted">تبني منها صفحة «مهامي» التنبيهات العاجلة لأعضاء هيئة التدريس.</p>
+      ${(() => { const al = Object.assign({ fileDue: '', leadDays: 7 }, s.alerts || {});
+        return `<h3 style="margin:18px 0 8px">مواعيد التنبيهات</h3><p class="small muted">تبني منها صفحة «تنبيهاتي» تنبيهات أعضاء هيئة التدريس. ألوان أعمدة «مهامي» في «البرامج والتحديثات ← أعمدة مهامي».</p>
         <div class="formgrid"><label class="f">آخر موعد لتسليم ملف المقرر (الفصل الحالي)<input type="date" id="al_due" value="${attr(al.fileDue || '')}"></label>
           <label class="f">يبدأ التنبيه قبل الموعد بـ (يوم)<input type="number" id="al_lead" min="0" max="60" value="${attr(al.leadDays)}"></label></div>`; })()}
       <p class="small muted">تُضغط الصور تلقائيًا وتُحفظ مع إعدادات النظام، فتنتقل مع النسخة الشاملة عند النقل.</p>
@@ -1918,9 +1870,7 @@
     if ($('#iCal')) { const rd = (id) => val(id).split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((x) => x[1])
         .map(([d, tt, p]) => { const m = String(d).replace(/\//g, '-').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); return m ? { d: `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`, t: tt, p: p || '' } : null; }).filter(Boolean);
       IDN.publicInfo = { students: Number(val('iStu')) || null, calendar: rd('iCal'), events: rd('iEv') }; }
-    if ($('#dc_course')) { IDN.domainColors = Object.fromEntries(Object.keys(DOM_DEF).map((k) => [k, val('dc_' + k)])); IDN.alerts = { fileDue: val('al_due') || '', leadDays: Math.max(0, Math.min(60, Number(val('al_lead')) || 0)) }; } };
-  C.dcPrev = () => { const dc = Object.fromEntries(Object.keys(DOM_DEF).map((k) => [k, val('dc_' + k)])); applyDomainColors(dc); Object.keys(DOM_DEF).forEach((k) => { const c = document.getElementById('dc_' + k).nextElementSibling; if (c) c.textContent = dc[k]; }); };
-  C.dcReset = () => { Object.keys(DOM_DEF).forEach((k) => { document.getElementById('dc_' + k).value = DOM_DEF[k]; }); C.dcPrev(); toast('أُعيدت الألوان الافتراضية. اضغط «حفظ الهوية» لاعتمادها.'); };
+    if ($('#al_lead')) IDN.alerts = { fileDue: val('al_due') || '', leadDays: Math.max(0, Math.min(60, Number(val('al_lead')) || 0)) }; };
   C.thPrev = () => { const t = thRead(); if (!t) return; applyTheme(t); ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { const c = document.getElementById('th_' + k).nextElementSibling; if (c) c.textContent = t[k]; }); };
   C.thReset = () => { ['primary', 'bar', 'frame1', 'frame2'].forEach((k) => { document.getElementById('th_' + k).value = THEME_DEF[k]; }); C.thPrev(); toast('أُعيدت ألوان الجامعة. اضغط «حفظ الهوية» لاعتمادها.'); };
   C.idImg = (k, input) => busy(null, async () => { idKeep(); IDN[k] = await imgToData(input.files[0], k === 'logo' ? 256 : 1800, k === 'logo' ? 'image/png' : 'image/jpeg', 0.82); refresh(); });
@@ -1969,10 +1919,15 @@
     const duties = await D.select('org_app_duties').catch(() => null);
     const facs = S.faculty.filter((f) => f.status !== 'غير نشط').slice().sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
     const aName = (id) => (S.apps.find((a) => a.id === id) || {}).name || id;
-    return `<div class="grid2" style="margin-bottom:14px"><div class="panel"><h2>أزرار «مقرراتي» وبطاقة المقرر</h2>
-        <p class="small muted">يفتح كل زر البرنامج المختار على المقرر مباشرة. من يدرّس مقررًا أو ينسقه في الجدول المعتمد، أو ينسق برنامجًا، يدخل هذه البرامج تلقائيًا بمستوى «استخدام».</p>
-        <div class="formgrid">${CBTN.map(([k, l]) => `<label class="f">${l}<select id="cb_${k}"><option value="">— لا يظهر —</option>${html.map((a) => opt(a.id, a.name + ' · ' + uName(a.unit_id), B[k])).join('')}</select></label>`).join('')}</div>
-        <div class="row" style="margin-top:10px"><button class="btn pri sm" onclick="C.cbSave(this)">حفظ</button></div></div>
+    const rc = S._rc || (S._rc = reqCols().map((c) => Object.assign({}, c)));
+    return `<div class="grid2" style="margin-bottom:14px"><div class="panel" style="grid-column:1/-1"><h2>أعمدة «مهامي» (متطلبات المقرر)</h2>
+        <p class="small muted">كل عمود: اسمه، ولونه، والبرنامج الذي يُفتح على المقرر عند الضغط، ونوع الحالة التي ينشرها البرنامج (file ملف المقرر، bb البلاك بورد، exam الاختبارات، أو نوع جديد). برنامج عمود «file» يدخله أستاذ المقرر ومنسقه بمستوى «استخدام»، وبقية الأعمدة «اطلاع».</p>
+        <div class="tw"><table><tr><th>الاسم</th><th>اللون</th><th>البرنامج</th><th>نوع الحالة</th><th></th></tr>${rc.map((c, i) => `<tr>
+          <td><input id="rc_n_${i}" value="${attr(c.name)}" maxlength="40"></td><td><input type="color" id="rc_c_${i}" value="${attr(c.color || '#8A7F9B')}" style="width:46px;height:34px;padding:2px"></td>
+          <td><select id="rc_a_${i}"><option value="">— لم يُربط —</option>${html.map((a) => opt(a.id, a.name + ' · ' + uName(a.unit_id), c.app)).join('')}</select></td>
+          <td><input id="rc_k_${i}" value="${attr(c.kind)}" dir="ltr" list="rcKinds" style="width:90px"></td><td><button class="btn sm danger" onclick="C.rcDel(${i})">حذف</button></td></tr>`).join('')}</table></div>
+        <datalist id="rcKinds"><option value="file"><option value="bb"><option value="exam"></datalist>
+        <div class="row" style="margin-top:10px"><button class="btn sm" onclick="C.rcAdd()">+ عمود</button><button class="btn pri sm" onclick="C.rcSave(this)">حفظ</button></div></div>
       <div class="panel"><h2>الأدوار العامة في البرامج</h2>
         <p class="small muted">المراجعة والتدقيق والإشعار (إرسال الملاحظات للمنسق) لأشخاص بأعينهم، في أي برنامج، ويمكن حصرها ببرنامج أكاديمي. يدخل صاحبها البرنامج بمستوى «استخدام»، والبرنامج يحدد ما يفعله بدوره.</p>
         ${duties === null ? '<div class="empty">تحتاج تنفيذ ملف قاعدة البيانات <b>14_course_roles_duties.sql</b>.</div>' : `
@@ -1983,8 +1938,16 @@
         <div class="row" style="margin-top:8px"><button class="btn sm" onclick="C.dutyAdd(this)">+ إضافة</button></div>
         ${duties.length ? `<div class="tw" style="margin-top:10px"><table><tr><th>العضو</th><th>البرنامج</th><th>الدور</th><th>النطاق</th><th></th></tr>${duties.map((d) => `<tr><td>${esc(fName(d.faculty_id))}</td><td class="small">${esc(aName(d.app_id))}</td><td>${esc(DUTY[d.duty])}</td><td class="small">${esc(d.program_id ? progName(d.program_id) : 'كل البرامج')}</td><td><button class="btn sm danger" onclick="C.dutyDel('${d.id}')">حذف</button></td></tr>`).join('')}</table></div>` : '<p class="small muted">لا توجد أدوار بعد.</p>'}`}</div></div>`;
   }
-  C.cbSave = (btn) => busy(btn, async () => { const cb = Object.fromEntries(CBTN.map(([k]) => [k, val('cb_' + k)]).filter((x) => x[1]));
-    const d = Object.assign({}, S.settings, { courseButtons: cb }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; toast('حُفظ ربط الأزرار. يظهر للأعضاء بعد تحديث الصفحة.'); refresh(); });
+  /* أعمدة «مهامي»: تُحفظ في org_settings.data.reqColumns، ومعها courseButtons التي تعتمد عليها دوال القاعدة في صلاحية الدور في المقرر (الملفان 14 و15) */
+  const rcRead = () => (S._rc || []).map((c, i) => ({ key: c.key, name: val('rc_n_' + i).trim(), color: val('rc_c_' + i), app: val('rc_a_' + i), kind: val('rc_k_' + i).trim().toLowerCase().replace(/[^a-z0-9_]/g, '') }));
+  C.rcAdd = () => { S._rc = rcRead().concat([{ key: 'c' + Date.now().toString(36), name: 'عمود جديد', color: '#7A6FA0', app: '', kind: '' }]); refresh(); };
+  C.rcDel = (i) => { const r = rcRead(); r.splice(i, 1); S._rc = r; refresh(); };
+  C.rcSave = (btn) => busy(btn, async () => { const rc = rcRead();
+    if (rc.some((c) => !c.name || !c.kind)) throw new Error('لكل عمود اسم ونوع حالة.');
+    if (new Set(rc.map((c) => c.kind)).size < rc.length) throw new Error('نوع الحالة لا يتكرر بين الأعمدة.');
+    const cb = {}; rc.forEach((c) => { if (c.app) cb[c.kind === 'file' ? 'file' : c.key] = c.app; });
+    const d = Object.assign({}, S.settings, { reqColumns: rc, courseButtons: cb }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; S._rc = null;
+    toast('حُفظت أعمدة «مهامي».'); refresh(); });
   C.dutyAdd = (btn) => busy(btn, async () => { await D.insert('org_app_duties', { app_id: val('du_a'), faculty_id: val('du_f'), duty: val('du_d'), program_id: val('du_p') || null }); toast('أُضيف الدور.'); refresh(); });
   C.dutyDel = (id) => busy(null, async () => { await D.remove('org_app_duties', { eq: { id } }); toast('حُذف الدور.'); refresh(); });
   async function pgApps() {
@@ -2187,7 +2150,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   async function pgNotifs() {
     const ns = (await D.select('notifs', { eq: { to_user: S.me.app_id }, cols: 'id,data,created_at' })).sort((a, b) => String((b.data || {}).at).localeCompare(String((a.data || {}).at))).slice(0, 100); S._ns = ns;
     const unread = ns.filter((n) => !(n.data || {}).read).length;
-    return `${S.urgentN ? `<div class="dcard urg" style="--c:var(--d-urgent,#C0392B);margin-bottom:12px"><span class="ui">${icon('bell')}</span><div><b>لديك ${S.urgentN} من المطلوبات العاجلة</b><div class="small muted">تجدها في «مهامي» مرتبة: المتأخر أولًا.</div></div><div class="act"><button class="btn sm pri" onclick="C.go('mine')">فتح مهامي</button></div></div>` : ''}<div class="row" style="margin-bottom:12px"><span class="grow small muted">${unread} غير مقروء. </span>${unread ? '<button class="btn sm" onclick="C.notifRead(this)">تعليم الكل كمقروء</button>' : ''}</div>
+    return `${S.urgentN ? `<div class="panel row" style="margin-bottom:12px;align-items:center"><b class="grow">لديك ${S.urgentN} من التنبيهات</b><button class="btn sm pri" onclick="C.go('alerts')">فتح تنبيهاتي</button></div>` : ''}<div class="row" style="margin-bottom:12px"><span class="grow small muted">${unread} غير مقروء. </span>${unread ? '<button class="btn sm" onclick="C.notifRead(this)">تعليم الكل كمقروء</button>' : ''}</div>
       ${ns.length ? `<div class="mlist">${ns.map((n) => `<div class="${(n.data || {}).read ? 'past' : ''}"><span class="grow">${(n.data || {}).read ? '' : '<b>● </b>'}${esc((n.data || {}).text)}</span><span class="small muted">${fmtDT((n.data || {}).at)}</span></div>`).join('')}</div>` : '<div class="empty">لا توجد إشعارات.</div>'}`;
   }
   C.notifRead = (btn) => busy(btn, async () => { for (const n of S._ns.filter((x) => !(x.data || {}).read)) await D.update('notifs', { data: Object.assign({}, n.data, { read: true }) }, { eq: { id: n.id } }); bellCount(); refresh(); });
@@ -2882,6 +2845,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   /* الصفحة الرئيسية بعد الدخول: بلا صور كبيرة، وما يظهر بحسب نوع المستخدم (viewRole) */
   async function pgHome() {
     const st = S.settings, role = viewRole();
+    if (role === 'staff') return staffHome();
     const [anns, courses, reqs] = await Promise.all([D.select('org_announcements').catch(() => []), D.select('courses', { cols: 'id' }).catch(() => []),
       D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,priority,assignee_faculty,due_date' }).catch(() => [])]);
     await loadTpl().catch(() => {});
@@ -2891,15 +2855,6 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       <div class="ann">${list.length ? list.map((a) => `<a class="${a.pinned ? 'pin' : ''}" href="#" onclick="C.annView('${a.id}');return false"><b>${esc(a.title)}</b><span class="d">${esc(String(a.published_at).replace(/-/g, '/'))}</span><span class="s">${esc(a.body)}</span></a>`).join('') : '<div class="empty">لا توجد إعلانات حالية.</div>'}</div>
       <a class="small" href="#" onclick="C.go('ann');return false" style="display:inline-flex;gap:4px;align-items:center;margin-top:10px">عرض جميع الإعلانات ${icon('chev')}</a></div>`;
     const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية. اخرج من القائمة العلوية وادخل بحساب آخر لترى ما يظهر لكل شخص.</div>' : '';
-    /* محاضرات اليوم لعضو هيئة التدريس (من الجدول المعتمد للفصل الحالي) */
-    S._today = null;
-    if (role === 'staff' && myFac() && curTerm()) { const dn = todayKey();
-      const cs = await D.rpc('faculty_courses', { p_faculty: myFac(), p_term: curTerm().id }).catch(() => []);
-      S._today = cs.flatMap((c) => meetsOf(c).filter((m) => m.d === dn).map((m) => Object.assign({}, c, { from: m.from, to: m.to }))).sort((a, b) => String(a.from).localeCompare(String(b.from))); }
-    if (role === 'staff') return `<div class="homebody">${banner}${staffHtml(reqs)}
-      <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
-        ${q('C.myTasks()', 'clipboard', 'كل مهامي')}${q("C.go('mine')", 'clipboard', 'مهامي')}${q("C.go('apps')", 'app', 'برامجي')}
-        ${q("C.go('notifs')", 'bell', 'الإشعارات')}${q('C.guide()', 'guide', 'دليل المستخدم')}${q('C.userMenu()', 'key', 'حسابي وكلمة المرور')}</div></div></div></div>`;
     const full = fullRead();
     const vis = S.units.filter((u) => u.status === 'active' && (full || cap(u.id, 'read')));
     const n = (k) => vis.filter((u) => u.kind === k).length;
@@ -2912,28 +2867,6 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
         ${q("C.go('tasks')", 'clipboard', 'المهام والتكليفات')}${q("C.go('college')", 'college', st.collegeShort || 'كلية الأعمال')}${q("C.go('courses',{tab:'current'})", 'calendar', 'جدول الدراسة')}
         ${q("C.go('files')", 'folder', 'الملفات والمرفقات')}${q(gcap('reports') ? "C.go('reports')" : "C.toast('التقارير تحتاج صلاحية «التقارير».',true)", 'chart', 'التقارير')}${q('C.guide()', 'guide', 'دليل المستخدم')}</div></div></div></div>`;
-  }
-
-  /* عضو هيئة التدريس: مهامه المسندة إليه موزعة حسب المجال، وبرامجه، دون أسماء الجهات */
-  const domainOf = (id) => { const nm = uName(id); return nm.replace(/^(وحدة|لجنة|مركز|برنامج)\s+/, '') || nm; };
-  function staffHtml(reqs) {
-    const mf = myFac(), me = S.me;
-    const mine = reqs.filter((r) => mf && r.assignee_faculty === mf && !['done', 'rejected'].includes(r.status))
-      .sort((a, b) => String(a.due_date || '9999').localeCompare(String(b.due_date || '9999')));
-    const groups = {}; mine.forEach((r) => { const d = domainOf(r.unit_id); (groups[d] = groups[d] || []).push(r); });
-    const row = (r) => { const late = r.due_date && r.due_date < today();
-      return `<button class="trow" onclick="C.openReq('${r.id}')"><b class="grow">${esc(r.title)}</b>${r.priority === 'high' ? chip('عاجلة', 'bad') : ''}${chip(RSTAT[r.status][0], RSTAT[r.status][1])}<span class="small ${late ? 'bad' : 'muted'}">${r.due_date ? fmtD(r.due_date) + (late ? ' (متأخرة)' : '') : 'بلا موعد'}</span></button>`; };
-    const apps = S.apps.filter((a) => a.active && (S.appLv || {})[a.id] && (S.appLv || {})[a.id] !== 'none');
-    return `<section class="minebox"><div class="row" style="align-items:flex-start"><div class="grow"><h2>مرحبًا، ${esc(me.name)}</h2>
-        <div class="row" style="margin-top:6px">${chip('عضو هيئة التدريس')}${mine.length ? chip(mine.length + ' مهام مفتوحة', 'wait') : chip('لا مهام مفتوحة', 'ok')}</div></div>
-        <button class="btn sm" onclick="C.myTasks()">${icon('clipboard')}كل مهامي</button></div>
-      ${!mf ? '<p class="small" style="margin:10px 0 0">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر مهامك. يربطه مدير النظام من «الحسابات والصلاحيات».</p>' : ''}
-      ${Object.keys(groups).length ? `<h3 class="mh">مهامي حسب المجال</h3>${Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ar')).map((d) => `<div class="tgroup"><b>${esc(d)} <span class="muted small">(${groups[d].length})</span></b>${groups[d].map(row).join('')}</div>`).join('')}`
-        : mf ? '<p class="small" style="margin:10px 0 0">لا توجد مهام مسندة إليك حاليًا.</p>' : ''}
-      ${apps.length ? `<h3 class="mh">برامجي</h3><div class="row">${apps.map((a) => `<button class="uchip" onclick="C.appOpen('${a.id}')">${icon(a.icon || 'app')}${esc(a.name)} <small>${esc(LV[S.appLv[a.id]] || '')}</small></button>`).join('')}</div>` : ''}
-      ${myDirect().length ? `<h3 class="mh">لجاني ووحداتي</h3><div class="row">${myDirect().map((m) => `<button class="uchip" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}${esc(uName(m.unit_id))} <small>${esc(POS[m.position] || '')}${m.title ? ' · ' + esc(m.title) : ''}</small></button>`).join('')}</div>` : ''}
-      ${S._today ? `<h3 class="mh">محاضراتي اليوم</h3>${S._today.length ? S._today.map((c) => `<div class="trow" style="cursor:default"><span class="num">${esc(c.from)}–${esc(c.to)}</span><b class="grow">${esc(c.code)} ${esc(c.name)}</b><span class="small muted">شعبة ${esc(c.section)} · ${esc(c.room || '')}</span></div>`).join('') : '<p class="small muted" style="margin:0">لا محاضرات لك اليوم.</p>'}
-        <a class="small" href="#" onclick="C.go('mine');return false">مهامي وجدولي ${icon('chev')}</a>` : ''}</section>`;
   }
 
   /* «جهاتي وصلاحياتي»: ما يخص المستخدم وحده */
