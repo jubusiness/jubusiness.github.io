@@ -159,6 +159,7 @@
       const before = clone(r);
       if (t === 'org_requests' && patch.archived && !r.archived) patch = Object.assign({}, patch, { archived_at: nowISO() });
       if (t === 'org_units' && 'parent_id' in patch && patch.parent_id !== r.parent_id) DEMO._checkCycle(r.id, patch.parent_id);
+      if (t === 'org_units' && 'entry_app' in patch && !(prof(ME) || {}).is_admin) { patch = Object.assign({}, patch); delete patch.entry_app; }   /* الملف 18 */
       if (t === 'faculty') { /* مثل faculty_guard والفهرس الفريد للبريد (الملفان 2 و17) */
         if (patch.email && T.faculty.some((f) => f.id !== r.id && (f.email || '').toLowerCase() === String(patch.email).toLowerCase())) throw new Error('البريد الجامعي مسجل لعضو آخر (faculty_email_uq)');
         if (!(prof(ME) || {}).is_admin) { patch = Object.assign({}, patch); delete patch.status; delete patch.deact_request; delete patch.profile_app_id;
@@ -213,21 +214,26 @@
     const units = Object.fromEntries(T.org_units.map((u) => [u.id, capsFor(ME, u.id)]));
     return { me: { app_id: ME, name: p.name, is_admin: p.is_admin, college_role: p.college_role, faculty_id: f ? f.id : null }, units,
       apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
-        const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none';
-        if (p.is_admin) return [a.id, 'manage']; if (o) return [a.id, o.level]; if (base === 'manage' || base === 'use') return [a.id, base];
+        const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none', ent = entryLevel(a.id, f, units);
+        if (p.is_admin) return [a.id, 'manage']; if (o) return [a.id, o.level]; if (base === 'manage' || ent === 'manage') return [a.id, 'manage']; if (base === 'use' || ent === 'use') return [a.id, 'use'];
         /* الملف 14: «لكل الأعضاء»، والدور العام على البرنامج، والدور في مقرر لبرنامج مربوط بأزرار «مقرراتي» */
         let extra = (f && a.everyone && a.everyone !== 'none') ? a.everyone : 'none';
         if (f && T.org_app_duties.some((d) => d.app_id === a.id && d.faculty_id === f.id)) extra = 'use';
         /* الملف 15: الدور في المقرر = «استخدام» لبرنامج ملف المقرر، و«اطلاع» لبرنامجي الاختبارات والبلاك بورد */
         const cb = courseButtonLevel(a.id); if (f && cb && extra !== 'use' && myCourseRole(f.id)) extra = cb === 'use' ? 'use' : 'view';
-        return [a.id, extra === 'use' ? 'use' : (extra === 'view' || base === 'view') ? 'view' : 'none']; })),
+        return [a.id, extra === 'use' ? 'use' : (extra === 'view' || base === 'view' || ent === 'view') ? 'view' : 'none']; })),
       duties: f ? T.org_app_duties.filter((d) => d.faculty_id === f.id).reduce((m, d) => { (m[d.app_id] = m[d.app_id] || []).push({ duty: d.duty, program_id: d.program_id || null }); return m; }, {}) : {},
       global: globalFor(ME) }; };
+  /* الملف 18: مستوى البرنامج من عضوية سارية في جهة اختارته وجهةً للدخول */
+  const entryLevel = (app, f, units) => { if (!f) return 'none'; let best = 'none';
+    T.org_units.filter((u) => u.entry_app === app && u.status === 'active' && T.org_members.some((m) => m.unit_id === u.id && m.faculty_id === f.id && activeR(m))).forEach((u) => {
+      const c = (units || {})[u.id] || capsFor(ME, u.id); if (c.manage) best = 'manage'; else if (c.write && best !== 'manage') best = 'use'; else if (c.read && best === 'none') best = 'view'; });
+    return best; };
   const courseButtonLevel = (id) => { const b = ((T.org_settings[0] || {}).data || {}).courseButtons || {}; return b.file === id ? 'use' : Object.values(b).includes(id) ? 'view' : null; };
   /* صلاحية قوية على البرنامج: من الجهة أو استثناء أو دور عام — لا من الدور في المقرر وحده */
   const appStrong = (app) => { const p = prof(ME), f = T.faculty.find((x) => x.profile_app_id === ME), a = T.org_apps.find((x) => x.id === app); if (p.is_admin) return true;
     const o = T.org_app_access.find((x) => x.app_id === app && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === app && x.faculty_id === f.id)); if (o && ['use', 'manage'].includes(o.level)) return true;
-    const c = (a && capsFor(ME, a.unit_id)) || {}; return !!(c.write || c.manage || (f && T.org_app_duties.some((d) => d.app_id === app && d.faculty_id === f.id))); };
+    const c = (a && capsFor(ME, a.unit_id)) || {}; return !!(c.write || c.manage || ['use', 'manage'].includes(entryLevel(app, f)) || (f && T.org_app_duties.some((d) => d.app_id === app && d.faculty_id === f.id))); };
   const myCourseOn = (term, course) => { const f = (T.faculty.find((x) => x.profile_app_id === ME) || {}).id; if (!f) return false; const v = approvedV(term); const c = T.courses.find((x) => x.id === course) || {};
     return !!((v && T.teaching.some((t) => t.version_id === v.id && t.faculty_id === f && T.sections.some((s) => s.id === t.section_id && T.offerings.some((o) => o.id === s.offering_id && o.course_id === course))))
       || T.course_coords.some((x) => x.term_id === term && x.course_id === course && x.faculty_id === f) || T.programs.some((g) => g.coordinator_id === f && g.prefixes.includes((String(c.code).match(/^[A-Z]+/) || [''])[0]))); };

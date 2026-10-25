@@ -246,14 +246,14 @@
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
     ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
-    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'],
+    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
   ];
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', mycomms: 'لجاني', alerts: 'تنبيهاتي' };
-  const NAV_OF = { myschedule: 'mine', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي' };
+  const NAV_OF = { myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
     const st = S.settings; applyTheme(st.theme);
@@ -274,7 +274,7 @@
     const mine = myDirect();
     /* عضو هيئة التدريس: أربعة عناصر فقط */
     const nb = (p, ic, t) => `<button class="nav" data-p="${p}" onclick="C.go('${p}')">${icon(ic)}${t}</button>`;
-    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('mycomms', 'users', 'لجاني') + nb('alerts', 'bell', 'تنبيهاتي') +
+    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') +
       `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>` : NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
@@ -301,7 +301,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, mycomms: pgComms, alerts: pgAlerts }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -334,7 +334,7 @@
     const h = u ? headOf(u.id) : null;
     return { id: u ? u.id : '', name: u ? u.name : '', kind: u ? u.kind : 'committee', description: u ? u.description : '', parent_id: u ? (u.parent_id || '') : (ORG.newParent || 'vice'),
       status: u ? u.status : 'active', dept_ref: u ? (u.dept_ref || '') : '', term_start: u ? (u.term_start || '') : '', term_end: u ? (u.term_end || '') : '',
-      apps: u ? ((u.data || {}).apps || []).slice().sort() : [], head: h ? h.faculty_id : '', headStart: today(), data: u ? (u.data || {}) : {} };
+      apps: u ? ((u.data || {}).apps || []).slice().sort() : [], head: h ? h.faculty_id : '', headStart: today(), data: u ? (u.data || {}) : {}, entry_app: u ? (u.entry_app || '') : '' };
   };
   function pgOrg() {
     if (VIEW.id && unit(VIEW.id) && ORG.sel !== VIEW.id && !ORG.dirty) { ORG.sel = VIEW.id; pathOf(VIEW.id).forEach((p) => ORG.open.add(p.id)); ORG.form = null; }
@@ -414,6 +414,9 @@
         <label class="f">بداية تكليف الجهة<input type="date" id="oStart" value="${attr(f.term_start)}" ${dis}></label>
         <label class="f">نهاية تكليف الجهة<input type="date" id="oEnd" value="${attr(f.term_end)}" ${dis}></label>
         ${u ? `<div class="f full">البرامج<span>${S.apps.filter((a) => a.unit_id === u.id).map((a) => esc(a.name)).join('، ') || 'لا توجد برامج'} · <a href="#" onclick="C.go('apps',{unit:'${u.id}'});return false">إدارة البرامج</a></span></div>` : ''}
+        <label class="f full">عند الدخول من «العضوية في الوحدات واللجان» يُفتح:<select id="oEntry" ${dis}><option value="">مساحة عمل الجهة (برامجها ومهامها)</option>${S.apps.filter((a) => a.active !== false).slice()
+          .sort((a, b) => (b.unit_id === (u && u.id)) - (a.unit_id === (u && u.id)) || a.name.localeCompare(b.name, 'ar')).map((a) => opt(a.id, a.name + ' · ' + uName(a.unit_id), f.entry_app)).join('')}</select>
+          <span class="tiny muted">يُفتح البرنامج لأعضاء الجهة بمستوى دورهم فيها: الرئيس إدارة، والعضو والمقرر استخدام، والمطّلع اطلاع؛ والصلاحية الفردية تغلب.</span></label>
       </div>
       <div class="row" style="margin-top:16px">
         ${canDesc ? `<button class="btn pri" id="oSave" onclick="C.orgSave(this)" ${ORG.dirty ? '' : 'disabled'}>حفظ التغييرات</button>
@@ -432,7 +435,7 @@
   const afterEditor = () => { if (ORG.sel && ORG.sel !== '__new') loadHist(ORG.sel, '#uHist'); };
   C.orgInput = () => {
     const f = ORG.form;
-    ['name:oName', 'kind:oKind', 'parent_id:oParent', 'status:oStatus', 'description:oDesc', 'head:oHead', 'headStart:oHeadStart', 'term_start:oStart', 'term_end:oEnd', 'dept_ref:oDept']
+    ['name:oName', 'kind:oKind', 'parent_id:oParent', 'status:oStatus', 'description:oDesc', 'head:oHead', 'headStart:oHeadStart', 'term_start:oStart', 'term_end:oEnd', 'dept_ref:oDept', 'entry_app:oEntry']
       .forEach((p) => { const [k, id] = p.split(':'); const e = document.getElementById(id); if (e) f[k] = e.value; });
     const o = JSON.parse(ORG.orig); o.headStart = f.headStart;
     ORG.dirty = JSON.stringify(Object.assign({}, f, { headStart: '' })) !== JSON.stringify(Object.assign({}, o, { headStart: '' }));
@@ -450,8 +453,8 @@
     if (!isAdmin()) { // مسؤول الجهة: الوصف فقط
       return busy(btn, async () => { await D.update('org_units', { description: f.description }, { eq: { id: u.id } }); await afterSave(u.id); });
     }
-    const LBL = { name: 'الاسم', kind: 'النوع', parent_id: 'جهة التبعية', status: 'الحالة', description: 'الوصف', head: 'المسؤول', term_start: 'بداية التكليف', term_end: 'نهاية التكليف', dept_ref: 'القسم المقابل' };
-    const show = (k, v) => k === 'parent_id' ? uName(v) : k === 'head' ? (v ? fName(v) : '—') : k === 'kind' ? KIND[v] : k === 'status' ? USTATUS[v] : k === 'apps' ? (v.map((a) => APPS[a].name).join('، ') || '—') : k === 'dept_ref' ? ((S.depts.find((d) => d.id === v) || {}).name || '—') : (v || '—');
+    const LBL = { name: 'الاسم', kind: 'النوع', parent_id: 'جهة التبعية', status: 'الحالة', description: 'الوصف', head: 'المسؤول', term_start: 'بداية التكليف', term_end: 'نهاية التكليف', dept_ref: 'القسم المقابل', entry_app: 'وجهة الدخول من «العضوية في الوحدات واللجان»' };
+    const show = (k, v) => k === 'parent_id' ? uName(v) : k === 'head' ? (v ? fName(v) : '—') : k === 'kind' ? KIND[v] : k === 'status' ? USTATUS[v] : k === 'apps' ? (v.map((a) => APPS[a].name).join('، ') || '—') : k === 'dept_ref' ? ((S.depts.find((d) => d.id === v) || {}).name || '—') : k === 'entry_app' ? (v ? ((S.apps.find((a) => a.id === v) || {}).name || v) : 'مساحة عمل الجهة') : (v || '—');
     const diffs = Object.keys(LBL).filter((k) => JSON.stringify(f[k]) !== JSON.stringify(o[k]));
     const moving = !isNew && f.parent_id !== o.parent_id;
     let prev = null;
@@ -473,6 +476,7 @@
       if (!isNew) p.id = u.id;
       const id = await D.rpc('org_save_unit', { p, p_exclude: exclude, p_note: moving ? val('mvNote') : '' });
       if (f.head !== o.head) await D.rpc('org_set_head', { p_unit: id, p_faculty: f.head || null, p_start: f.headStart || today(), p_end: null });
+      if ((f.entry_app || '') !== (o.entry_app || '')) await D.update('org_units', { entry_app: f.entry_app || null }, { eq: { id } });   /* الملف 18 */
       C.close(); await afterSave(id); toast(moving ? 'نُقلت الجهة وحُفظت التغييرات.' : 'حُفظت التغييرات.');
     });
   };
@@ -955,11 +959,34 @@
     return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
       ${sc.my.length ? `<table class="req"><thead>${head}</thead><tbody>${rows}</tbody></table>` : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}${follow}`;
   }
-  /* ٣ «لجاني»: الجهات ودوري فيها؛ الضغط يدخل مساحة عمل الجهة (صفحة الجهة الموجودة) وبرامجها */
+  /* ٣ «العضوية في الوحدات واللجان»: كل جهة لي فيها دور، بلا فصل بين وحدة ولجنة وقسم ووكالة.
+     الضغط يفتح وجهة الدخول التي حددها مدير النظام للجهة (org_units.entry_app، الملف 18) بمستوى دوري فيها، وإلا مساحة عمل الجهة.
+     ثم «صلاحيات خاصة»: برامج لي عليها صلاحية فردية أو دور عام دون عضوية في جهتها. */
+  const ROLE_ORD = { head: 0, deputy: 1, secretary: 2, member: 3, viewer: 4 };
+  const ROLE_LBL = { head: ['رئيس', 'brass'], deputy: ['نائب', 'brass'], secretary: ['مقرر', 'ok'], member: ['عضو', ''], viewer: ['مطّلع', 'wait'] };
   async function pgComms() {
-    mineCss(); const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; });
-    if (!mem.length) return '<div class="empty">لست عضوًا في أي وحدة أو لجنة حاليًا.</div>';
-    return `<div class="clist">${mem.map((m) => { const u = unit(m.unit_id); return `<button onclick="C.go('unit',{id:'${u.id}'})">${kindDot(u.kind)}<b class="grow">${esc(u.name)}</b>${chip(({ head: 'رئيس', deputy: 'نائب', secretary: 'مقرر', member: 'عضو' })[m.position] || POS[m.position] || m.position, m.position === 'head' ? 'brass' : m.position === 'secretary' ? 'ok' : '')}${icon('chev')}</button>`; }).join('')}</div>`;
+    mineCss();
+    if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر عضوياتك. يربطه مدير النظام من «الحسابات والصلاحيات» (أو يُربط تلقائيًا إن تطابق بريد الحساب مع بريدك في قاعدة الأعضاء).</div>';
+    const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; })
+      .sort((a, b) => ((ROLE_ORD[a.position] ?? 9) - (ROLE_ORD[b.position] ?? 9)) || uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar'));
+    const [reqs, fac, acc] = await Promise.all([D.select('org_requests', { eq: { assignee_faculty: myFac() } }).catch(() => []),
+      D.select('org_app_fac', { eq: { faculty_id: myFac() } }).catch(() => []), D.select('org_app_access', { eq: { profile_app_id: S.me.app_id } }).catch(() => [])]);
+    const openN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status)).length;
+    const entry = (u) => { const a = u.entry_app && S.apps.find((x) => x.id === u.entry_app && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
+    const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''];
+      return `<button onclick="${a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`}">${kindDot(u.kind)}<span class="grow"><b>${esc(u.name)}</b>
+        <span class="small muted" style="display:block">${a ? 'يفتح: ' + esc(a.name) : 'مساحة عمل الجهة'}</span></span>
+        ${n ? `<span class="chip wait">${n} ${n === 1 ? 'مهمة مفتوحة' : n === 2 ? 'مهمتان مفتوحتان' : 'مهام مفتوحة'}</span>` : ''}${chip(r[0], r[1])}${icon('chev')}</button>`; }).join('');
+    /* صلاحيات خاصة: فردية (org_app_access / org_app_fac) أو دور عام (org_app_duties) على برنامج ليست لي عضوية في جهته ولا هو وجهة دخول لجهة من جهاتي */
+    const mine = new Set(mem.map((m) => m.unit_id)), viaEntry = new Set(mem.map((m) => (unit(m.unit_id) || {}).entry_app).filter(Boolean));
+    const ids = new Set([...fac, ...acc].filter((x) => x.level && x.level !== 'none').map((x) => x.app_id).concat(Object.keys(S.duties || {})));
+    const special = S.apps.filter((a) => ids.has(a.id) && a.active !== false && appLv(a) !== 'none' && !mine.has(a.unit_id) && !viaEntry.has(a.id))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    const LVL = { manage: ['إدارة', 'brass'], use: ['استخدام', 'ok'], view: ['اطلاع', ''] };
+    if (!mem.length && !special.length) return '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>';
+    return (mem.length ? `<div class="clist">${cards}</div>` : '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>') +
+      (special.length ? `<h3 style="margin:22px 0 4px;font-size:15px">صلاحيات خاصة</h3><p class="small muted" style="margin:0 0 8px">برامج لك عليها صلاحية دون عضوية في جهتها.</p>
+        <div class="clist">${special.map((a) => { const l = LVL[appLv(a)] || ['اطلاع', '']; return `<button onclick="C.appOpen('${a.id}')" style="padding:9px 14px">${icon(a.icon || 'app')}<span class="grow"><b>${esc(a.name)}</b><span class="small muted" style="display:block">${esc(uName(a.unit_id))}</span></span>${chip(l[0], l[1])}${icon('chev')}</button>`; }).join('')}</div>` : '');
   }
   /* ٤ «تنبيهاتي»: المتأخر أولًا ثم الأقرب موعدًا؛ سطر واحد وزر واحد لكل بند */
   async function pgAlerts() {
