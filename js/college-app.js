@@ -170,10 +170,10 @@
     wb.Workbook = { Views: [{ RTL: true }] };
     XLSX.writeFile(wb, file);
   };
-  const xlsxIn = (file) => new Promise((res, rej) => {
+  const xlsxIn = (file, opt) => new Promise((res, rej) => {
     if (!window.XLSX) return rej(new Error('مكتبة Excel لم تُحمَّل.'));
     const r = new FileReader();
-    r.onload = () => { try { const wb = XLSX.read(r.result, { type: 'array', cellDates: false }); const ws = wb.Sheets[wb.SheetNames[0]]; res(XLSX.utils.sheet_to_json(ws, { defval: '', raw: false })); } catch (e) { rej(new Error('تعذرت قراءة الملف. تأكد أنه بصيغة Excel (xlsx).')); } };
+    r.onload = () => { try { const wb = XLSX.read(r.result, { type: 'array', cellDates: false }); const ws = wb.Sheets[wb.SheetNames[0]]; res(XLSX.utils.sheet_to_json(ws, Object.assign({ defval: '', raw: false }, opt))); } catch (e) { rej(new Error('تعذرت قراءة الملف. تأكد أنه بصيغة Excel (xlsx).')); } };
     r.onerror = () => rej(new Error('تعذرت قراءة الملف.'));
     r.readAsArrayBuffer(file);
   });
@@ -686,14 +686,34 @@
   /* =====================================================================
      أعضاء هيئة التدريس (القاعدة المركزية)
      ===================================================================== */
-  const FQ = { q: '', dept: '', rank: '', status: '' };
+  const FQ = { q: '', dept: '', rank: '', st: 'active', miss: false, req: false, sel: new Set() };
   const canEditFac = (f) => isAdmin() || (f && f.department_id && cap(f.department_id, 'manage'));
   const canAddFac = () => isAdmin() || deptUnits().some((d) => cap(d.id, 'manage'));
   const ranks = () => S.settings.ranks || ['أستاذ', 'أستاذ مشارك', 'أستاذ مساعد', 'محاضر', 'معيد'];
   const statuses = () => S.settings.statuses || ['نشط', 'غير نشط'];
+  const CAMPUSES = () => S.settings.campuses || ['سكاكا', 'اللقائط', 'القريات', 'طبرجل'];
+  const GENDERS = ['ذكر', 'أنثى'];
+  const offF = (f) => f.status === 'غير نشط';
+  /* سنوات الخدمة من تاريخ بدايتها */
+  const svcYears = (d) => { if (!d) return null; const a = new Date(String(d).slice(0, 10) + 'T00:00:00'), n = new Date(); if (isNaN(a)) return null;
+    let y = n.getFullYear() - a.getFullYear(); if (n.getMonth() < a.getMonth() || (n.getMonth() === a.getMonth() && n.getDate() < a.getDate())) y--; return Math.max(0, y); };
+  const yrsTxt = (y) => y == null ? '' : y === 0 ? 'أقل من سنة' : y === 1 ? 'سنة' : y === 2 ? 'سنتان' : y <= 10 ? y + ' سنوات' : y + ' سنة';
+  /* ما ينقص سجل العضو (الجوال يُحكم عليه لمن يطّلع على الجوالات فقط) */
+  const mobSeen = (f) => isAdmin() || (f.department_id && cap(f.department_id, 'faculty_private'));
+  const facMissing = (f) => [!f.email && 'البريد', mobSeen(f) && !S.privates[f.id] && 'الجوال', !f.department_id && 'القسم', !f.gender && 'الجنس', !f.campus && 'المقر'].filter(Boolean);
+  /* السجلات المكررة المحتملة: الاسم نفسه بعد حذف اللقب و«بن/بنت»، أو اسم مختصر (الأول والأخير) داخل الاسم الكامل */
+  function facDups() {
+    const L = S.faculty.map((f) => ({ f, k: nameKey(f.name_ar) })).filter((x) => x.k.length >= 2), out = [];
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      const [s, l] = L[i].k.length <= L[j].k.length ? [L[i].k, L[j].k] : [L[j].k, L[i].k];
+      if (s.join(' ') === l.join(' ') || (s[0] === l[0] && s[s.length - 1] === l[l.length - 1] && s.every((w) => l.includes(w)))) out.push([L[i].f, L[j].f]);
+    }
+    return out;
+  }
   function facFiltered() {
     const q = FQ.q.trim().toLowerCase();
-    return S.faculty.filter((f) => (!FQ.dept || f.department_id === FQ.dept) && (!FQ.rank || f.rank === FQ.rank) && (!FQ.status || f.status === FQ.status) &&
+    return S.faculty.filter((f) => (FQ.st === 'all' || (FQ.st === 'inactive') === offF(f)) && (!FQ.dept || f.department_id === FQ.dept) && (!FQ.rank || f.rank === FQ.rank) &&
+      (!FQ.miss || (canEditFac(f) && facMissing(f).length)) && (!FQ.req || f.deact_request) &&
       (!q || [f.name_ar, f.name_en, f.email, f.employee_no, f.specialty].some((x) => String(x || '').toLowerCase().includes(q))))
       .sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
   }
@@ -701,11 +721,22 @@
     const showMob = Object.keys(S.privates).length > 0;
     VIEW.after = () => { const i = $('#fq'); if (i && FQ._focus) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); FQ._focus = false; } };
     const list = facFiltered();
+    FQ.sel.forEach((id) => { if (!list.some((f) => f.id === id)) FQ.sel.delete(id); });
+    /* مساعدات التنظيف */
+    const miss = S.faculty.filter((f) => !offF(f) && canEditFac(f) && facMissing(f).length), dups = isAdmin() ? facDups() : [], reqs = isAdmin() ? S.faculty.filter((f) => f.deact_request && !offF(f)) : [];
+    const note = (cls, txt, act, btn) => `<div class="panel row noprint" style="margin-bottom:8px;padding:8px 14px;align-items:center;gap:10px;border-inline-start:4px solid var(--${cls})"><span class="grow">${txt}</span><button class="btn sm" onclick="${act}">${btn}</button></div>`;
+    const helpers = (miss.length ? note('wait', `<b>${miss.length}</b> عضوًا ينقصهم شيء من: البريد، الجوال، القسم، الجنس، المقر.`, "C.fq('miss'," + !FQ.miss + ')', FQ.miss ? 'عرض الكل' : 'عرض الناقصين فقط') : '') +
+      (dups.length ? note('late', `<b>${dups.length}</b> ${dups.length === 1 ? 'سجل يبدو مكررًا' : 'سجلات تبدو مكررة'} (الاسم نفسه بعد تجاهل اللقب و«بن»).`, 'C.facDupes()', 'مراجعة ودمج') : '') +
+      (reqs.length ? note('late', `<b>${reqs.length}</b> ${reqs.length === 1 ? 'طلب إيقاف' : 'طلبات إيقاف'} من رؤساء الأقسام بانتظار قرارك.`, "C.fq('req'," + !FQ.req + ')', FQ.req ? 'عرض الكل' : 'عرض الطلبات') : '');
+    const canSel = list.some(canEditFac);
+    const act = (f) => { const b = (fn, t, cls) => `<button class="btn sm ${cls || ''}" onclick="event.stopPropagation();${fn}('${f.id}')">${t}</button>`;
+      return (canEditFac(f) ? b('C.facEdit', 'تعديل') : myFac() === f.id ? b('C.facEdit', 'جوالي') : '') +
+        (isAdmin() ? (offF(f) ? b('C.facActivate', 'تنشيط') : '') + b('C.facDel', 'حذف', 'danger') : canEditFac(f) && !offF(f) && !f.deact_request && f.id !== myFac() ? b('C.facReq', 'طلب إيقاف') : ''); };
     return `<div class="row noprint" style="margin-bottom:12px">
-        <input class="inp" id="fq" placeholder="ابحث بالاسم أو البريد أو الرقم الوظيفي…" value="${attr(FQ.q)}" oninput="C.fq('q',this.value)" style="width:260px" aria-label="بحث">
+        <input class="inp" id="fq" placeholder="ابحث بالاسم أو البريد أو الرقم الوظيفي…" value="${attr(FQ.q)}" oninput="C.fq('q',this.value)" style="width:240px" aria-label="بحث">
+        <select class="inp" onchange="C.fq('st',this.value)" aria-label="الحالة">${[['active', 'النشطون'], ['inactive', 'غير النشطين'], ['all', 'الكل']].map(([v, l]) => opt(v, l, FQ.st)).join('')}</select>
         <select class="inp" onchange="C.fq('dept',this.value)" aria-label="القسم"><option value="">كل الأقسام</option>${deptUnits().map((d) => opt(d.id, d.name, FQ.dept)).join('')}</select>
         <select class="inp" onchange="C.fq('rank',this.value)" aria-label="الرتبة"><option value="">كل الرتب</option>${ranks().map((r) => opt(r, r, FQ.rank)).join('')}</select>
-        <select class="inp" onchange="C.fq('status',this.value)" aria-label="الحالة"><option value="">كل الحالات</option>${statuses().map((r) => opt(r, r, FQ.status)).join('')}</select>
         <span class="grow"></span>
         <button class="btn sm" onclick="C.facExport()">تصدير Excel</button>
         ${canAddFac() ? `<button class="btn sm" onclick="C.facImport()">استيراد من Excel</button><button class="btn pri sm" onclick="C.facEdit()">إضافة عضو</button>` : ''}
@@ -713,15 +744,82 @@
       ${isAdmin() ? `<div class="row noprint" style="margin-bottom:12px;gap:8px;align-items:center"><b class="small">التكليفات (مصدر صلاحيات الجهات وبرامجها):</b>
         <button class="btn sm pri" onclick="C.go('matrix')">${icon('list')}مصفوفة التكليفات والصلاحيات</button><button class="btn sm" onclick="C.asExport()">${icon('upload')}تصدير التكليفات</button><button class="btn sm" onclick="C.asImport()">${icon('list')}استيراد التكليفات من Excel</button>
         <span class="small muted">${S.faculty.filter((f) => f.profile_app_id).length} من ${S.faculty.length} عضوًا مرتبطون بحساب دخول؛ يُربط الحساب تلقائيًا بالبريد عند أول دخول.</span></div>` : ''}
+      ${helpers}<div id="fBulk">${bulkBar()}</div>
       <p class="small muted">${list.length} من ${S.faculty.length} عضو. هذه القاعدة هي المصدر الوحيد لبيانات الأعضاء في كل الوحدات واللجان والجداول.</p>
-      ${list.length ? `<div class="tw"><table><tr><th>الاسم</th><th>الرتبة</th><th>التخصص</th><th>القسم</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
-      ${list.map((f) => `<tr class="click" tabindex="0" onclick="C.facView('${f.id}')" onkeydown="if(event.key==='Enter')C.facView('${f.id}')"><td><b>${esc(f.name_ar)}</b>${f.name_en ? `<div class="tiny muted" dir="ltr" style="text-align:end">${esc(f.name_en)}</div>` : ''}</td><td>${esc(f.rank)}</td><td>${esc(f.specialty)}</td>
-        <td>${esc(uName(f.department_id))}</td><td dir="ltr" style="text-align:end">${esc(f.email || '')}</td>${showMob ? `<td dir="ltr" style="text-align:end">${esc(S.privates[f.id] || '')}</td>` : ''}
-        <td>${chip(f.status, f.status === 'نشط' ? 'ok' : 'wait')}</td><td>${f.profile_app_id ? chip((prof(f.profile_app_id) || {}).active === false ? 'معطل' : 'مرتبط', (prof(f.profile_app_id) || {}).active === false ? 'bad' : 'ok') : '<span class="small muted">—</span>'}</td></tr>`).join('')}</table></div>`
+      ${list.length ? `<style>.ftab td{white-space:nowrap;font-size:13.5px}.ftab td.nm{white-space:normal;min-width:200px}.ftab th{white-space:nowrap}</style><div class="tw"><table class="ftab"><tr>${canSel ? `<th class="noprint"><input type="checkbox" aria-label="تحديد الكل" onchange="C.fSelAll(this.checked)" ${list.filter(canEditFac).every((f) => FQ.sel.has(f.id)) && FQ.sel.size ? 'checked' : ''}></th>` : ''}<th>الاسم</th><th class="noprint"></th><th>الرتبة</th><th>القسم</th><th>الجنس</th><th>المقر</th><th>الخدمة</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}${FQ.miss ? '<th>الناقص</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
+      ${list.map((f) => { const y = svcYears(f.service_start); return `<tr${offF(f) ? ' style="opacity:.6"' : ''}>${canSel ? `<td class="noprint">${canEditFac(f) ? `<input type="checkbox" aria-label="تحديد" ${FQ.sel.has(f.id) ? 'checked' : ''} onchange="C.fSel('${f.id}',this.checked)">` : ''}</td>` : ''}
+        <td class="nm"><a href="#" onclick="C.facView('${f.id}');return false"><b>${esc(f.name_ar)}</b></a>${f.name_en ? `<div class="tiny muted" dir="ltr" style="text-align:end">${esc(f.name_en)}</div>` : ''}</td>
+        <td class="noprint">${act(f)}</td><td>${esc(f.rank)}</td><td>${esc(uName(f.department_id))}</td><td>${esc(f.gender || '')}</td><td>${esc(f.campus || '')}</td><td class="small" title="${attr(f.service_start ? 'منذ ' + fmtD(f.service_start) : '')}">${esc(yrsTxt(y))}</td>
+        <td dir="ltr" style="text-align:end">${esc(f.email || '')}</td>${showMob ? `<td dir="ltr" style="text-align:end">${esc(S.privates[f.id] || '')}</td>` : ''}${FQ.miss ? `<td class="small bad">${esc(facMissing(f).join('، '))}</td>` : ''}
+        <td>${chip(f.status, f.status === 'نشط' ? 'ok' : offF(f) ? 'bad' : 'wait')}${f.deact_request ? ' ' + chip('طلب إيقاف', 'bad') : ''}</td><td>${f.profile_app_id ? chip((prof(f.profile_app_id) || {}).active === false ? 'معطل' : 'مرتبط', (prof(f.profile_app_id) || {}).active === false ? 'bad' : 'ok') : '<span class="small muted">—</span>'}</td></tr>`; }).join('')}</table></div>`
       : `<div class="empty">لا يوجد أعضاء مطابقون.${S.faculty.length ? '' : (isAdmin() ? ' ابدأ بإضافة الأعضاء أو استيرادهم من Excel.' : '')}</div>`}
 `;
   }
   C.fq = (k, v) => { FQ[k] = v; FQ._focus = k === 'q'; refresh(); };
+  /* التعديل الجماعي: يظهر شريطه حين يُحدَّد عضو أو أكثر */
+  function bulkBar() {
+    const n = FQ.sel.size; if (!n) return '';
+    const deps = deptUnits().filter((d) => isAdmin() || cap(d.id, 'manage'));
+    return `<div class="panel row noprint" style="margin-bottom:8px;padding:8px 14px;gap:8px;align-items:center;flex-wrap:wrap;border-inline-start:4px solid var(--ledger)"><b>${n} محدد</b>
+      <select class="inp" id="bkDept" aria-label="القسم">${deps.map((d) => opt(d.id, d.name, '')).join('')}</select><button class="btn sm" onclick="C.bulk('dept',this)">نقل إلى القسم</button>
+      <select class="inp" id="bkCamp" aria-label="المقر">${CAMPUSES().map((c) => opt(c, c, '')).join('')}</select><button class="btn sm" onclick="C.bulk('campus',this)">تغيير المقر</button>
+      ${isAdmin() ? `<select class="inp" id="bkSt" aria-label="الحالة">${statuses().map((s) => opt(s, s, '')).join('')}</select><button class="btn sm" onclick="C.bulk('status',this)">تغيير الحالة</button>` : ''}
+      <span class="grow"></span><button class="btn sm" onclick="C.fSelAll(false)">إلغاء التحديد</button></div>`;
+  }
+  const bulkRedraw = () => { const b = $('#fBulk'); if (b) b.innerHTML = bulkBar(); };
+  C.fSel = (id, on) => { if (on) FQ.sel.add(id); else FQ.sel.delete(id); bulkRedraw(); };
+  C.fSelAll = (on) => { FQ.sel.clear(); if (on) facFiltered().filter(canEditFac).forEach((f) => FQ.sel.add(f.id)); refresh(); };
+  const reloadPeople = async () => { await reloadFaculty(); S.members = await D.select('org_members');
+    if (isAdmin()) S.profiles = await D.select('profiles', { cols: 'app_id,username,name,email,is_admin,college_role,active' }).catch(() => S.profiles); };
+  /* الإيقاف وإعادة التنشيط (مدير النظام): الحالة والحساب والتكليفات السارية في القاعدة (الملف 17) */
+  const setActive = async (f, on, note) => { await D.rpc('faculty_set_active', { p_id: f.id, p_active: on, p_note: note || '' });
+    if (f.profile_app_id) { try { await D.fn({ action: 'update', appId: f.profile_app_id, active: on }); } catch (e) { console.warn(e); } } };
+  C.bulk = (k, btn) => { const ids = [...FQ.sel], v = val({ dept: 'bkDept', campus: 'bkCamp', status: 'bkSt' }[k]);
+    const L = { dept: 'نقل ' + ids.length + ' إلى ' + uName(v), campus: 'تغيير مقر ' + ids.length + ' إلى ' + v, status: 'تغيير حالة ' + ids.length + ' إلى «' + v + '»' }[k];
+    if (!window.confirm(L + '؟' + (k === 'status' && v === 'غير نشط' ? '\nالإيقاف يغلق حساباتهم وينهي تكليفاتهم السارية.' : ''))) return;
+    busy(btn, async () => { const fails = [];
+      for (const id of ids) { const f = fac(id); try {
+        if (k === 'dept') await D.update('faculty', { department_id: v }, { eq: { id } });
+        else if (k === 'campus') await D.update('faculty', { campus: v }, { eq: { id } });
+        else if (v === 'غير نشط') { if (!offF(f)) await setActive(f, false, 'تغيير جماعي'); }
+        else { if (offF(f)) await setActive(f, true, 'تغيير جماعي'); if (v !== 'نشط') await D.update('faculty', { status: v }, { eq: { id } }); }
+      } catch (e) { fails.push(f.name_ar + ': ' + pgErr(e)); } }
+      FQ.sel.clear(); await reloadPeople(); refresh();
+      if (fails.length) modal('تعذّر بعض التعديلات', `<ul>${fails.map((x) => `<li class="small bad">${esc(x)}</li>`).join('')}</ul>`, '<button class="btn" onclick="C.close()">إغلاق</button>');
+      else toast('تم: ' + L + '.'); }); };
+  /* الحذف الآمن: يُحذف نهائيًا من لا ارتباط له، ومن له ارتباطات يُعرض عليه الإيقاف */
+  const linksTxt = (l) => [l.sections && (l.sections === 1 ? 'شعبة' : l.sections === 2 ? 'شعبتان' : l.sections + ' شعب') + ' في جداول الفصول', l.coords && `تنسيق ${l.coords} مقرر`, l.programs && 'تنسيق برنامج',
+    l.members_active.length ? 'تكليف في ' + l.members_active.join(' و') : l.members && `${l.members} تكليف سابق`, l.account && 'حساب دخول', l.apps && 'بيانات في البرامج', l.requests && (l.requests === 1 ? 'مهمة أو استفسار' : l.requests + ' مهام واستفسارات')].filter(Boolean);
+  C.facDel = (id) => busy(null, async () => { const f = fac(id), l = await D.rpc('faculty_links', { p_id: id }), t = linksTxt(l);
+    if (!t.length) {
+      modal('حذف ' + f.name_ar, `<p>لا يرتبط هذا العضو بأي شعبة أو تكليف أو حساب أو بيانات في البرامج.</p><p><b>سيُحذف سجله نهائيًا.</b> هل أنت متأكد؟</p><div class="err"></div>`,
+        `<button class="btn danger" id="fdOk">حذف نهائي</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+      $('#fdOk').onclick = (ev) => busy(ev.target, async () => { await D.remove('faculty', { eq: { id } }); await reloadPeople(); C.close(); refresh(); toast('حُذف العضو.'); });
+      return;
+    }
+    modal('لا يمكن حذف ' + f.name_ar, `<p>له ${esc(t.join('، و'))}.</p><p>الحذف يضيّع هذا التاريخ، لذلك لا يُحذف.</p>
+      ${offF(f) ? '<p class="small muted">العضو موقوف من قبل.</p>' : `<div class="panel" style="background:var(--paper)"><b>بدلًا من الحذف: إيقاف</b><p class="small" style="margin:6px 0 0">تصبح حالته «غير نشط»، ويُغلق حسابه في الدخول، وتُنهى تكليفاته السارية بتاريخ اليوم، ويختفي من القوائم والمراقبات والاقتراحات. يبقى سجله وتاريخه للتقارير، ويمكن إعادة تنشيطه.</p>
+      <label class="f" style="margin-top:8px">السبب (اختياري)<input id="fdNote" maxlength="200"></label></div>`}<div class="err"></div>`,
+      `${offF(f) ? '' : '<button class="btn pri" id="fdStop">إيقاف العضو</button>'}<button class="btn" onclick="C.close()">إغلاق</button>`, true);
+    if ($('#fdStop')) $('#fdStop').onclick = (ev) => busy(ev.target, async () => { await setActive(f, false, val('fdNote')); await reloadPeople(); C.close(); refresh(); toast('أُوقف العضو.'); }); });
+  C.facActivate = (id) => { const f = fac(id); if (!window.confirm('إعادة تنشيط ' + f.name_ar + '؟ يُفتح حسابه، ولا تعود تكليفاته المنتهية تلقائيًا.')) return;
+    busy(null, async () => { await setActive(f, true); await reloadPeople(); refresh(); toast('أُعيد تنشيط العضو.'); }); };
+  /* رئيس القسم: يطلب الإيقاف، ويعتمده مدير النظام */
+  C.facReq = (id) => { const f = fac(id);
+    modal('طلب إيقاف ' + f.name_ar, `<p class="small">يُرسل الطلب لمدير النظام ليعتمده. لا يتغير شيء في سجل العضو حتى يعتمده.</p><label class="f">السبب<textarea id="frR" rows="3" maxlength="500"></textarea></label><div class="err"></div>`,
+      `<button class="btn pri" id="frOk">إرسال الطلب</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#frOk').onclick = (ev) => busy(ev.target, async () => { await D.rpc('faculty_deact_request', { p_id: id, p_reason: val('frR') }); await reloadFaculty(); C.close(); refresh(); toast('أُرسل طلب الإيقاف لمدير النظام.'); }); };
+  /* السجلات المكررة والدمج (مدير النظام) */
+  const facScore = (f) => (f.email ? 4 : 0) + (f.employee_no ? 3 : 0) + (f.profile_app_id ? 5 : 0) + (f.name_en ? 1 : 0) + nameKey(f.name_ar).length;
+  C.facDupes = () => { const ds = facDups();
+    const card = (f) => `<div class="small"><b>${esc(f.name_ar)}</b>${offF(f) ? ' ' + chip('غير نشط', 'bad') : ''}<div class="muted">${esc(uName(f.department_id))} · <span dir="ltr">${esc(f.email || 'بلا بريد')}</span>${f.employee_no ? ' · ' + esc(f.employee_no) : ''}${f.profile_app_id ? ' · له حساب' : ''}</div></div>`;
+    modal('سجلات تبدو مكررة', ds.length ? `<p class="small">اختر السجل الصحيح في كل زوج. تُنقل تكليفات الآخر وشعبه وبياناته إليه، وتُكمَّل حقوله الفارغة، ثم يُحذف المكرر. يُسجَّل الدمج في سجل العمليات.</p>
+      <div class="tw"><table><tr><th>السجل الأول</th><th>السجل الثاني</th><th>الإجراء</th></tr>${ds.map(([a, b]) => { const [keep, drop] = facScore(a) >= facScore(b) ? [a, b] : [b, a];
+        return `<tr><td>${card(a)}</td><td>${card(b)}</td><td style="white-space:nowrap"><button class="btn sm pri" onclick="C.facMerge('${drop.id}','${keep.id}')">أبقِ «${esc(keep.name_ar)}»</button><br><button class="btn sm" style="margin-top:4px" onclick="C.facMerge('${keep.id}','${drop.id}')">أبقِ الآخر</button></td></tr>`; }).join('')}</table></div>`
+      : '<div class="okmsg">لا توجد سجلات مكررة.</div>', '<button class="btn" onclick="C.close()">إغلاق</button>', true); };
+  C.facMerge = (from, to) => busy(null, async () => { const a = fac(from), b = fac(to), t = linksTxt(await D.rpc('faculty_links', { p_id: from }));
+    if (!window.confirm(`دمج «${a.name_ar}» في «${b.name_ar}»؟\n${t.length ? 'يُنقل: ' + t.join('، ') + '.\n' : ''}ثم يُحذف «${a.name_ar}» نهائيًا.`)) return;
+    await D.rpc('faculty_merge', { p_from: from, p_to: to }); await reloadPeople(); toast('تم الدمج.'); refresh(); if (facDups().length) setTimeout(C.facDupes, 300); else C.close(); });
   /* جدولي الدراسي: شعب العضو في الفصل الحالي من الجدول المعتمد */
   /* الأيام في الجدول قد تُكتب «الأحد» أو «أحد» أو «الإثنين»: تُوحَّد للمقارنة والترتيب */
   const dayKey = (d) => String(d || '').trim().replace(/^ال/, '').replace(/^إثنين$/, 'اثنين');
@@ -912,54 +1010,81 @@
         <dt>البريد الجامعي</dt><dd dir="ltr" style="text-align:end">${esc(f.email || '—')}</dd>
         ${S.privates[id] !== undefined ? `<dt>الجوال</dt><dd dir="ltr" style="text-align:end">${esc(S.privates[id] || '—')}</dd>` : ''}
         <dt>الرتبة</dt><dd>${esc(f.rank || '—')}</dd><dt>التخصص</dt><dd>${esc(f.specialty || '—')}</dd><dt>القسم</dt><dd>${esc(uName(f.department_id))}</dd>
-        <dt>الحالة</dt><dd>${esc(f.status)}</dd><dt>الحساب</dt><dd>${p ? esc(p.username) + (p.active ? '' : ' (معطل)') : 'لا يوجد حساب'}</dd>
+        <dt>الجنس</dt><dd>${esc(f.gender || '—')}</dd><dt>المقر</dt><dd>${esc(f.campus || '—')}</dd>
+        <dt>بداية الخدمة</dt><dd>${f.service_start ? esc(fmtD(f.service_start)) + ' (' + esc(yrsTxt(svcYears(f.service_start))) + ')' : '—'}</dd>
+        <dt>الحالة</dt><dd>${esc(f.status)}${f.deact_request ? ` <span class="small bad">· طلب إيقاف من ${esc(f.deact_request.by_name || '')}: ${esc(f.deact_request.reason || '')}</span>` : ''}</dd><dt>الحساب</dt><dd>${p ? esc(p.username) + (p.active ? '' : ' (معطل)') : 'لا يوجد حساب'}</dd>
         ${f.notes ? `<dt>ملاحظات</dt><dd>${esc(f.notes)}</dd>` : ''}</dl>
       <h3 style="margin:18px 0 6px">التكليفات</h3>
       ${ass.length ? `<div class="mlist">${ass.map((m) => `<div class="${activeM(m) ? '' : 'past'}"><span class="grow">${esc(uName(m.unit_id))} ${chip(POS[m.position])}</span><span class="small muted">${fmtD(m.start_date)} ← ${m.end_date ? fmtD(m.end_date) : 'مستمر'}</span></div>`).join('')}</div>` : '<p class="small muted">لا توجد تكليفات.</p>'}
       <h3 style="margin:18px 0 6px">مقرراته في ${esc(t ? t.name : 'الفصل الحالي')} (من الجدول المعتمد)</h3>
       ${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td>${esc(c.code)} ${esc(c.name)}</td><td>${esc(c.section)} ${esc(c.gender)}</td><td>${esc(c.days)}</td><td class="num">${esc(c.from)}–${esc(c.to)}</td><td>${esc(c.room)}</td></tr>`).join('')}</table></div>` : '<p class="small muted">لا توجد شعب مسندة.</p>'}`,
-      `${canEditFac(f) || (myFac() === id) ? `<button class="btn pri" onclick="C.facEdit('${id}')">تعديل البيانات</button>` : ''}${isAdmin() ? `<button class="btn" onclick="C.close();C.perms('${id}')">الصلاحيات</button>` : ''}<button class="btn" onclick="C.close()">إغلاق</button>`, true);
+      `${canEditFac(f) ? `<button class="btn pri" onclick="C.facEdit('${id}')">تعديل البيانات</button>` : myFac() === id ? `<button class="btn pri" onclick="C.facEdit('${id}')">تعديل جوالي</button>` : ''}${isAdmin() ? `<button class="btn" onclick="C.close();C.perms('${id}')">الصلاحيات</button>` : ''}<button class="btn" onclick="C.close()">إغلاق</button>`, true);
   };
   C.facEdit = (id) => {
-    const f = id ? fac(id) : { name_ar: '', name_en: '', employee_no: '', email: '', rank: '', specialty: '', department_id: '', status: 'نشط', notes: '' };
+    const f = id ? fac(id) : { name_ar: '', name_en: '', employee_no: '', email: '', rank: '', specialty: '', department_id: '', status: 'نشط', notes: '', gender: '', campus: '', service_start: null };
     const full = !id || canEditFac(f);
-    const mobOk = isAdmin() || (id && myFac() === id);
+    /* الجوال: المدير، ورئيس القسم لأعضاء قسمه، والعضو نفسه (الملف 17) */
+    const mobOk = isAdmin() || (id && myFac() === id) || (full && f.department_id && cap(f.department_id, 'manage'));
+    if (!full && !mobOk) return;
     const rk = ranks().includes(f.rank) || !f.rank ? ranks() : ranks().concat([f.rank]);
+    const cps = CAMPUSES().includes(f.campus) || !f.campus ? CAMPUSES() : CAMPUSES().concat([f.campus]);
     const depOpts = deptUnits().filter((d) => isAdmin() || cap(d.id, 'manage'));
-    const dis = full ? '' : 'disabled';
-    modal(id ? 'تعديل بيانات ' + f.name_ar : 'إضافة عضو هيئة تدريس', `<div class="formgrid">
-      <label class="f">الاسم الكامل بالعربية<input id="fa" value="${attr(f.name_ar)}" ${dis} maxlength="150"></label>
-      <label class="f">الاسم بالإنجليزية (اختياري)<input id="fe" value="${attr(f.name_en)}" dir="ltr" ${dis} maxlength="150"></label>
-      <label class="f">الرقم الوظيفي<input id="fn" value="${attr(f.employee_no || '')}" dir="ltr" ${dis} maxlength="30"></label>
-      <label class="f">البريد الجامعي<input id="fm" type="email" value="${attr(f.email || '')}" dir="ltr" ${dis} maxlength="120"></label>
-      <label class="f">الرتبة الأكاديمية<select id="fr" ${dis}><option value="">—</option>${rk.map((r) => opt(r, r, f.rank)).join('')}</select></label>
-      <label class="f">التخصص<input id="fs" value="${attr(f.specialty)}" ${dis} maxlength="120"></label>
-      <label class="f">القسم العلمي<select id="fd" ${dis}>${isAdmin() ? '<option value="">—</option>' : ''}${(isAdmin() || !id ? depOpts : deptUnits()).map((d) => opt(d.id, d.name, f.department_id)).join('')}</select></label>
-      <label class="f">الحالة<select id="ft" ${dis}>${statuses().map((s) => opt(s, s, f.status)).join('')}</select></label>
-      ${mobOk ? `<label class="f">رقم الجوال (مقيد الاطلاع)<input id="fp" value="${attr(S.privates[id] || '')}" dir="ltr" inputmode="tel" maxlength="20"></label>` : ''}
-      <label class="f full">ملاحظات<textarea id="fo" ${dis} maxlength="1000">${esc(f.notes || '')}</textarea></label></div><div class="err"></div>`,
+    const mob = mobOk ? `<label class="f">رقم الجوال (مقيد الاطلاع)<input id="fp" value="${attr(S.privates[id] || '')}" dir="ltr" inputmode="tel" maxlength="20"></label>` : '';
+    modal(!id ? 'إضافة عضو هيئة تدريس' : full ? 'تعديل بيانات ' + f.name_ar : 'تعديل جوالي', !full ? `<div class="formgrid">${mob}</div><p class="small muted">بقية بياناتك يعدّلها رئيس القسم أو مدير النظام.</p><div class="err"></div>` : `<div class="formgrid">
+      <label class="f">الاسم الكامل بالعربية<input id="fa" value="${attr(f.name_ar)}" maxlength="150"></label>
+      <label class="f">الاسم بالإنجليزية (اختياري)<input id="fe" value="${attr(f.name_en)}" dir="ltr" maxlength="150"></label>
+      <label class="f">الرقم الوظيفي<input id="fn" value="${attr(f.employee_no || '')}" dir="ltr" maxlength="30"></label>
+      <label class="f">البريد الجامعي<input id="fm" type="email" value="${attr(f.email || '')}" dir="ltr" maxlength="120"></label>
+      ${mob}
+      <label class="f">القسم العلمي<select id="fd">${isAdmin() ? '<option value="">—</option>' : ''}${depOpts.map((d) => opt(d.id, d.name, f.department_id)).join('')}</select></label>
+      <label class="f">الرتبة الأكاديمية<select id="fr"><option value="">—</option>${rk.map((r) => opt(r, r, f.rank)).join('')}</select></label>
+      <label class="f">التخصص<input id="fs" value="${attr(f.specialty)}" maxlength="120"></label>
+      <label class="f">الجنس<select id="fg"><option value="">—</option>${GENDERS.map((g) => opt(g, g, f.gender)).join('')}</select></label>
+      <label class="f">المقر<select id="fc"><option value="">—</option>${cps.map((c) => opt(c, c, f.campus)).join('')}</select></label>
+      <label class="f">تاريخ بداية الخدمة<span class="row" style="gap:8px;align-items:center"><input id="fv" type="date" value="${attr(f.service_start || '')}" oninput="document.getElementById('fvY').textContent=C.yrs(this.value)"><span id="fvY" class="small muted">${esc(yrsTxt(svcYears(f.service_start)))}</span></span></label>
+      <label class="f">الحالة<select id="ft" ${isAdmin() ? '' : 'disabled'}>${statuses().map((s) => opt(s, s, f.status)).join('')}</select>${isAdmin() || !id ? '' : '<span class="tiny muted">الإيقاف بطلب لمدير النظام.</span>'}</label>
+      <label class="f full">ملاحظات<textarea id="fo" maxlength="1000">${esc(f.notes || '')}</textarea></label></div><div class="err"></div>`,
       `<button class="btn pri" id="fOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
     $('#fOk').onclick = (ev) => busy(ev.target, async () => {
       let fid = id;
+      if (mobOk && $('#fp') && val('fp') && !/^[0-9+\s-]{7,20}$/.test(val('fp'))) throw new Error('رقم الجوال غير صحيح.');
       if (full) {
-        const row = { name_ar: val('fa'), name_en: val('fe'), employee_no: val('fn') || null, email: val('fm').toLowerCase() || null, rank: val('fr'), specialty: val('fs'), department_id: val('fd') || null, status: val('ft'), notes: val('fo') };
+        const row = { name_ar: val('fa'), name_en: val('fe'), employee_no: val('fn') || null, email: val('fm').toLowerCase() || null, rank: val('fr'), specialty: val('fs'), department_id: val('fd') || null,
+          gender: val('fg'), campus: val('fc'), service_start: val('fv') || null, notes: val('fo') };
         if (!row.name_ar) throw new Error('الاسم بالعربية مطلوب.');
         if (row.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.email)) throw new Error('البريد الجامعي غير صحيح.');
-        if (id) await D.update('faculty', row, { eq: { id } }); else fid = (await D.insert('faculty', row))[0].id;
+        const twin = row.email && S.faculty.find((x) => x.id !== id && (x.email || '').toLowerCase() === row.email);
+        if (twin) throw new Error('البريد مسجل لعضو آخر: ' + twin.name_ar + '.');
+        const empTwin = row.employee_no && S.faculty.find((x) => x.id !== id && x.employee_no === row.employee_no);
+        if (empTwin) throw new Error('الرقم الوظيفي مسجل لعضو آخر: ' + empTwin.name_ar + '.');
+        if (row.service_start && row.service_start > today()) throw new Error('تاريخ بداية الخدمة في المستقبل.');
+        const st = val('ft');
+        if (!id) fid = (await D.insert('faculty', row))[0].id;
+        else {
+          if (isAdmin() && st !== f.status) { if (st === 'غير نشط') await setActive(f, false, 'من نافذة التعديل'); else { if (offF(f)) await setActive(f, true); if (st !== 'نشط') row.status = st; } }
+          await D.update('faculty', row, { eq: { id } });
+        }
       }
-      if (mobOk && $('#fp') && val('fp') !== (S.privates[id] || '')) {
-        if (val('fp') && !/^[0-9+\s-]{7,20}$/.test(val('fp'))) throw new Error('رقم الجوال غير صحيح.');
-        await D.upsert('faculty_private', { faculty_id: fid, mobile: val('fp') });
-      }
-      await reloadFaculty(); C.close(); refresh(); toast('حُفظت بيانات العضو.');
+      if (mobOk && $('#fp') && val('fp') !== (S.privates[id] || '')) await D.upsert('faculty_private', { faculty_id: fid, mobile: val('fp') });
+      await reloadPeople(); C.close(); refresh(); toast('حُفظت بيانات العضو.');
     });
   };
+  C.yrs = (d) => yrsTxt(svcYears(d));
   const reloadFaculty = async () => { S.faculty = await D.select('faculty'); const pv = await D.select('faculty_private').catch(() => []); S.privates = Object.fromEntries(pv.map((p) => [p.faculty_id, p.mobile])); };
-  const FAC_HEAD = ['الاسم بالعربية', 'الاسم بالإنجليزية', 'الرقم الوظيفي', 'البريد الجامعي', 'الرتبة', 'التخصص', 'القسم', 'الحالة', 'الجوال'];
+  const FAC_HEAD = ['الاسم بالعربية', 'الاسم بالإنجليزية', 'الرقم الوظيفي', 'البريد الجامعي', 'الرتبة', 'التخصص', 'القسم', 'الحالة', 'الجوال', 'الجنس', 'المقر', 'تاريخ بداية الخدمة'];
+  /* تاريخ من Excel: رقم تسلسلي، أو 2010-05-14، أو 14/05/2010 (يوم/شهر/سنة)؛ الميلادي فقط */
+  const xlDate = (s) => { s = String(s || '').trim(); if (!s) return ''; let m;
+    if (/^\d{4,5}(\.\d+)?$/.test(s)) return new Date(Math.round((+s - 25569) * 864e5)).toISOString().slice(0, 10);
+    if ((m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) return +m[1] > 1900 ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : null;
+    if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/))) return +m[3] > 1900 ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+    return null; };
+  const xlGender = (s) => { s = normAr(s); return !s ? '' : /^(ذكر|m|male|رجل)$/i.test(s) ? 'ذكر' : /^(انثي|انثى|f|female|امراه)$/i.test(s) ? 'أنثى' : null; };
+  const xlCampus = (s) => { const k = normAr(s); if (!k) return ''; const c = CAMPUSES().find((x) => normAr(x) === k || normAr(x).includes(k) || k.includes(normAr(x))); return c || null; };
   const FAC_MAP = { 'الاسم بالعربية': 'name_ar', 'الاسم': 'name_ar', 'name_ar': 'name_ar', 'الاسم بالإنجليزية': 'name_en', 'name_en': 'name_en', 'الرقم الوظيفي': 'employee_no', 'employee_no': 'employee_no',
-    'البريد الجامعي': 'email', 'البريد': 'email', 'email': 'email', 'الرتبة': 'rank', 'الرتبة الأكاديمية': 'rank', 'rank': 'rank', 'التخصص': 'specialty', 'specialty': 'specialty', 'القسم': 'department', 'القسم العلمي': 'department', 'department': 'department', 'الحالة': 'status', 'status': 'status', 'الجوال': 'mobile', 'رقم الجوال': 'mobile', 'mobile': 'mobile' };
+    'البريد الجامعي': 'email', 'البريد': 'email', 'email': 'email', 'الرتبة': 'rank', 'الرتبة الأكاديمية': 'rank', 'rank': 'rank', 'التخصص': 'specialty', 'specialty': 'specialty', 'القسم': 'department', 'القسم العلمي': 'department', 'department': 'department', 'الحالة': 'status', 'status': 'status', 'الجوال': 'mobile', 'رقم الجوال': 'mobile', 'mobile': 'mobile',
+    'الجنس': 'gender', 'gender': 'gender', 'المقر': 'campus', 'campus': 'campus', 'تاريخ بداية الخدمة': 'service_start', 'بداية الخدمة': 'service_start', 'service_start': 'service_start' };
   C.facExport = () => xlsxOut('أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD.concat(['الحساب', 'التكليفات السارية']),
-    rows: facFiltered().map((f) => [f.name_ar, f.name_en, f.employee_no || '', f.email || '', f.rank, f.specialty, uName(f.department_id) === '—' ? '' : uName(f.department_id), f.status, S.privates[f.id] || '',
+    rows: facFiltered().map((f) => [f.name_ar, f.name_en, f.employee_no || '', f.email || '', f.rank, f.specialty, uName(f.department_id) === '—' ? '' : uName(f.department_id), f.status, S.privates[f.id] || '', f.gender || '', f.campus || '', f.service_start || '',
       f.profile_app_id ? 'مرتبط' : '', S.members.filter((m) => m.faculty_id === f.id && activeM(m)).map((m) => uName(m.unit_id) + ' (' + POS[m.position] + ')').join('، ')]) }]);
   C.facImport = () => {
     modal('استيراد أعضاء هيئة التدريس من Excel', `<p>الملف يحتوي صفًا للعناوين ثم صفًا لكل عضو. يُطابق العضو الموجود بالرقم الوظيفي ثم بالبريد الجامعي (لا بالاسم وحده)، فيُحدَّث، ومن لا يطابق يُضاف جديدًا.</p>
@@ -967,8 +1092,8 @@
       <label class="f" style="margin-top:12px">ملف Excel<input type="file" id="fiF" accept=".xlsx,.xls,.csv" onchange="C.facParse(this)"></label>
       <div id="fiOut"></div><div class="err"></div>`, `<button class="btn pri" id="fiOk" disabled>اعتماد الاستيراد</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
   };
-  C.facTemplate = () => xlsxOut('قالب أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD, rows: [['د. مثال الاسم الكامل', 'Example Name', '40000', 'name@ju.edu.sa', 'أستاذ مساعد', 'محاسبة مالية', (deptUnits()[0] || {}).name || 'قسم المحاسبة', 'نشط', '05xxxxxxxx']] },
-    { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['الاسم بالعربية', 'إلزامي'], ['الرقم الوظيفي أو البريد الجامعي', 'يُستخدم للمطابقة مع الموجود؛ يُفضل تعبئة أحدهما على الأقل'], ['القسم', 'اسم القسم كما هو في الهيكل التنظيمي: ' + deptUnits().map((d) => d.name).join('، ')], ['الرتبة', ranks().join('، ')], ['الحالة', statuses().join('، ') + ' (الافتراضي: نشط)'], ['الجوال', 'اختياري؛ يُحفظ في جدول مقيد الاطلاع (يحتاج صلاحية مدير النظام)']] }]);
+  C.facTemplate = () => xlsxOut('قالب أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD, rows: [['د. مثال الاسم الكامل', 'Example Name', '40000', 'name@ju.edu.sa', 'أستاذ مساعد', 'محاسبة مالية', (deptUnits()[0] || {}).name || 'قسم المحاسبة', 'نشط', '05xxxxxxxx', 'ذكر', CAMPUSES()[0], '2015-09-01']] },
+    { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['الاسم بالعربية', 'إلزامي'], ['الرقم الوظيفي أو البريد الجامعي', 'يُستخدم للمطابقة مع الموجود؛ يُفضل تعبئة أحدهما على الأقل'], ['القسم', 'اسم القسم كما هو في الهيكل التنظيمي: ' + deptUnits().map((d) => d.name).join('، ')], ['الرتبة', ranks().join('، ')], ['الحالة', statuses().join('، ') + ' (الافتراضي: نشط)'], ['الجوال', 'اختياري؛ يُحفظ في جدول مقيد الاطلاع (يحتاج صلاحية مدير النظام)'], ['الجنس', 'ذكر أو أنثى'], ['المقر', CAMPUSES().join('، ')], ['تاريخ بداية الخدمة', 'ميلادي، مثل 2015-09-01؛ تُحسب سنوات الخدمة تلقائيًا']] }]);
   let FI = null;
   /* مطابقة اسم القسم بمرونة: دون «قسم» والهمزات، أو جزء من الاسم إن دلّ على قسم واحد («التمويل والاستثمار» = «قسم التمويل») */
   const deptKey = (s) => normAr(s).replace(/^قسم\s+/, '').replace(/^ال(?=\S)/, '');
@@ -976,7 +1101,7 @@
     const eq = ds.filter((d) => deptKey(d.name) === k); if (eq.length === 1) return eq[0];
     const part = ds.filter((d) => { const dk = deptKey(d.name); return dk && (dk.includes(k) || k.includes(dk)); }); return part.length === 1 ? part[0] : null; };
   C.facParse =(input) => busy(null, async () => {
-    const raw = await xlsxIn(input.files[0]); const rows = raw.map((r) => mapRow(r, FAC_MAP));
+    const raw = await xlsxIn(input.files[0], { dateNF: 'yyyy-mm-dd' }); const rows = raw.map((r) => mapRow(r, FAC_MAP));
     const out = { add: [], upd: [], err: [], unk: {} }; const seenE = new Set(), seenN = new Set();
     rows.forEach((r, i) => {
       const n = i + 2;
@@ -991,7 +1116,13 @@
       if (dep && !isAdmin() && !cap(dep, 'manage')) return out.err.push([n, 'لا تملك صلاحية على ' + uName(dep)]);
       const ex = (r.employee_no && S.faculty.find((f) => f.employee_no === r.employee_no)) || (email && S.faculty.find((f) => (f.email || '').toLowerCase() === email));
       if (ex && email && ex.email && ex.email.toLowerCase() !== email && S.faculty.some((f) => f.id !== ex.id && (f.email || '').toLowerCase() === email)) return out.err.push([n, 'البريد مسجل لعضو آخر: ' + email]);
+      const g = xlGender(r.gender), cp = xlCampus(r.campus), sv = xlDate(r.service_start);
+      if (g === null) return out.err.push([n, 'الجنس غير معروف: ' + r.gender]);
+      if (cp === null) return out.err.push([n, 'المقر غير معروف: ' + r.campus + ' (المقرات: ' + CAMPUSES().join('، ') + ')']);
+      if (sv === null) return out.err.push([n, 'تاريخ بداية الخدمة غير مفهوم (ميلادي): ' + r.service_start]);
       const row = { name_ar: r.name_ar, name_en: r.name_en || '', employee_no: r.employee_no || null, email: email || null, rank: r.rank || '', specialty: r.specialty || '', department_id: dep, status: r.status || 'نشط' };
+      /* الحقول الجديدة لا تُفرَّغ إن تُركت فارغة في الملف */
+      if (g) row.gender = g; if (cp) row.campus = cp; if (sv) row.service_start = sv;
       if (ex) { const ch = Object.keys(row).filter((k) => (row[k] || '') !== (ex[k] || '') && !(k === 'department_id' && !row[k])); if (unk && !ch.includes('department_id')) ch.push('department_id'); if (ch.length || (r.mobile && r.mobile !== S.privates[ex.id])) out.upd.push({ n, id: ex.id, row, ch, mobile: r.mobile, unk }); }
       else out.add.push({ n, row, mobile: r.mobile, unk });
     });
@@ -1270,13 +1401,14 @@
   /* المحاضر في البرش باسمه الرباعي دون لقب؛ يُطابق بالاسم كاملًا، أو بأن يكون كل اسم السجل (الأول أولًا) ضمن اسم البرش إن لم يتكرر */
   let ALIAS = new Map();   /* اسم المحاضر كما في النظام الأكاديمي ← سجل العضو (faculty_aliases، الملف 13) */
   const matchLect = (name) => { const k = nameKey(name); if (k.length < 2) return null;
-    const al = ALIAS.get(k.join(' ')); if (al && fac(al)) return fac(al);
-    const full = S.faculty.filter((f) => nameKey(f.name_ar).join(' ') === k.join(' ')); if (full.length === 1) return full[0];
-    const fl = S.faculty.filter((f) => { const t = nameKey(f.name_ar); return t.length >= 2 && t[0] === k[0] && t.slice(1).every((w) => k.includes(w)); });
+    const al = ALIAS.get(k.join(' ')); if (al && fac(al) && !offF(fac(al))) return fac(al);
+    const FL = S.faculty.filter((f) => !offF(f));   /* الموقوف لا يُطابق في جدول جديد */
+    const full = FL.filter((f) => nameKey(f.name_ar).join(' ') === k.join(' ')); if (full.length === 1) return full[0];
+    const fl = FL.filter((f) => { const t = nameKey(f.name_ar); return t.length >= 2 && t[0] === k[0] && t.slice(1).every((w) => k.includes(w)); });
     if (fl.length === 1) return fl[0];
     /* والعكس: اسم البرش ناقص («مختار معزوز معزوز» = «مختار عبدالله معزوز») */
     const ks = [...new Set(k)]; if (ks.length < 2) return null;
-    const rv = S.faculty.filter((f) => { const t = nameKey(f.name_ar); return t[0] === k[0] && ks.every((w) => t.includes(w)); });
+    const rv = FL.filter((f) => { const t = nameKey(f.name_ar); return t[0] === k[0] && ks.every((w) => t.includes(w)); });
     return rv.length === 1 ? rv[0] : null; };
   /* المصدر: ملف البرش الأصلي (ArrayBuffer)، أو مستند HTML من ورقة Excel إن فتحه أحد في Excel وحفظه xlsx */
   function parseBarsh(src) {
@@ -2183,7 +2315,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     <h3>الصلاحيات</h3><p>ترى ما يخص جهاتك فقط. إن احتجت صلاحية إضافية فاطلبها من مدير النظام.</p>`);
   C.userMenu = () => modal(S.me.name, `<dl class="kv"><dt>الحساب</dt><dd>${esc(S.me.app_id)}</dd><dt>الدور</dt><dd>${isAdmin() ? 'مدير النظام' : esc(S.me.college_role || 'مستخدم')}</dd>
     <dt>السجل في القاعدة</dt><dd>${myFac() ? esc(fName(myFac())) : 'غير مرتبط'}</dd></dl>`,
-    `${!DEMO ? '<button class="btn" onclick="C.changePass()">تغيير كلمة المرور</button>' : ''}<button class="btn danger" onclick="C.close();C.logout()">${icon('logout')}خروج</button><button class="btn" onclick="C.close()">إغلاق</button>`);
+    `${myFac() ? `<button class="btn" onclick="C.close();C.facView('${myFac()}')">${icon('user')}بطاقتي</button>` : ''}${!DEMO ? '<button class="btn" onclick="C.changePass()">تغيير كلمة المرور</button>' : ''}<button class="btn danger" onclick="C.close();C.logout()">${icon('logout')}خروج</button><button class="btn" onclick="C.close()">إغلاق</button>`);
   C.changePass = () => {
     modal('تغيير كلمة المرور', `<div class="formgrid"><label class="f">كلمة المرور الجديدة<input type="password" id="cp1" dir="ltr" autocomplete="new-password"></label><label class="f">تأكيدها<input type="password" id="cp2" dir="ltr" autocomplete="new-password"></label></div><div class="err"></div>`,
       `<button class="btn pri" id="cpOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);

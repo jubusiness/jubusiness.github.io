@@ -11,7 +11,8 @@
   let ME = 'uadmin';
 
   const F = (id, name, en, email, rank, spec, dept, empno, status) =>
-    ({ id, name_ar: name, name_en: en, email, rank, specialty: spec, department_id: dept, employee_no: empno, status: status || 'نشط', profile_app_id: null, notes: '' });
+    ({ id, name_ar: name, name_en: en, email, rank, specialty: spec, department_id: dept, employee_no: empno, status: status || 'نشط', profile_app_id: null, notes: '',
+      gender: / بنت /.test(name) ? 'أنثى' : 'ذكر', campus: 'سكاكا', service_start: '20' + String(10 + (parseInt(empno || '0', 10) % 13)).padStart(2, '0') + '-09-01', deact_request: null });
   const T = {
     departments: [{ id: 'acct', name: 'قسم المحاسبة' }, { id: 'fin', name: 'قسم التمويل' }, { id: 'ba', name: 'قسم إدارة الأعمال' }],
     dept_settings: [],
@@ -71,7 +72,10 @@
       F('f09', 'د. طارق بن عوض الشراري', 'Tariq Alsharari', 't.alsharari@ju.edu.sa', 'أستاذ', 'موارد بشرية', 'dept-ba', '40099'),
       F('f10', 'د. لطيفة بنت حمد الدوسري', 'Latifa Aldosari', 'l.aldosari@ju.edu.sa', 'أستاذ مساعد', 'اقتصاد مالي', 'dept-fin', '40344', 'إجازة'),
       F('f11', 'أ. يوسف بن مرزوق العتيبي', 'Yousef Alotaibi', 'y.alotaibi@ju.edu.sa', 'محاضر', 'ريادة أعمال', 'dept-ba', '40401'),
-      F('f12', 'د. أمل بنت راشد الخالدي', 'Amal Alkhalidi', 'a.alkhalidi@ju.edu.sa', 'أستاذ مشارك', 'زكاة وضريبة', 'dept-acct', '40205')
+      F('f12', 'د. أمل بنت راشد الخالدي', 'Amal Alkhalidi', 'a.alkhalidi@ju.edu.sa', 'أستاذ مشارك', 'زكاة وضريبة', 'dept-acct', '40205'),
+      /* سجل مكرر باسم مختصر بلا بريد (مثل ما أضافه ملف بيانات_الكلية_1446.sql)، وعضو بلا ارتباطات */
+      F('f13', 'د. سامي المطيري', '', null, '', '', 'dept-fin', null),
+      F('f14', 'أ. خالد بن فهد الزهراني', 'Khalid Alzahrani', 'k.alzahrani@ju.edu.sa', 'معيد', 'إدارة أعمال', 'dept-ba', '40455')
     ],
     faculty_private: [{ faculty_id: 'f03', mobile: '0551234567' }, { faculty_id: 'f04', mobile: '0569876543' }, { faculty_id: 'f06', mobile: '0533344455' }],
     org_members: [], org_grants: [], org_exclusions: [], org_changes: [], audit_log: [], notifs: [],
@@ -83,12 +87,13 @@
       { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 }],
     course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: []
   };
+  Object.assign(T.faculty[12], { gender: '', campus: '', service_start: null }); Object.assign(T.faculty[9], { campus: 'القريات' }); Object.assign(T.faculty[10], { gender: '' });
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
   mem('deanship', 'f01', 'head'); mem('vice', 'f02', 'head'); mem('u-exams', 'f03', 'head'); mem('u-exams', 'f08', 'member'); mem('u-exams', 'f11', 'secretary');
   mem('c-plans', 'f04', 'head'); mem('c-plans', 'f12', 'member'); mem('c-plans', 'f05', 'member'); mem('c-training', 'f07', 'head'); mem('c-training', 'f06', 'member');
   mem('u-quality', 'f12', 'head'); mem('u-quality', 'f06', 'member'); mem('dept-acct', 'f06', 'head', '2023-09-01', '2025-08-31'); mem('dept-acct', 'f12', 'head', '2025-09-01');
-  mem('dept-fin', 'f05', 'head'); mem('dept-ba', 'f09', 'head'); mem('u-academic', 'f09', 'member');
+  mem('dept-fin', 'f05', 'head'); mem('dept-ba', 'f09', 'head'); mem('u-academic', 'f09', 'member'); mem('c-3', 'f13', 'member');
   T.org_grants.push({ id: 'g1', profile_app_id: 'uvice', role_key: 'vice', unit_id: 'vice', include_children: true, start_date: '2025-09-01', end_date: null, note: '' });
   T.org_grants.push({ id: 'g2', profile_app_id: 'uexam', role_key: 'schedule_officer', unit_id: 'u-academic', include_children: false, start_date: null, end_date: null, note: '' });
   T.org_grants.push({ id: 'g4', profile_app_id: 'uexam', role_key: 'college_admin', unit_id: 'vice-edu', include_children: true, start_date: null, end_date: null, note: 'مثال لمراجعة الصلاحيات عند النقل' });
@@ -154,6 +159,10 @@
       const before = clone(r);
       if (t === 'org_requests' && patch.archived && !r.archived) patch = Object.assign({}, patch, { archived_at: nowISO() });
       if (t === 'org_units' && 'parent_id' in patch && patch.parent_id !== r.parent_id) DEMO._checkCycle(r.id, patch.parent_id);
+      if (t === 'faculty') { /* مثل faculty_guard والفهرس الفريد للبريد (الملفان 2 و17) */
+        if (patch.email && T.faculty.some((f) => f.id !== r.id && (f.email || '').toLowerCase() === String(patch.email).toLowerCase())) throw new Error('البريد الجامعي مسجل لعضو آخر (faculty_email_uq)');
+        if (!(prof(ME) || {}).is_admin) { patch = Object.assign({}, patch); delete patch.status; delete patch.deact_request; delete patch.profile_app_id;
+          if (!(capsFor(ME, r.department_id).manage && (!patch.department_id || capsFor(ME, patch.department_id).manage))) throw new Error('new row violates row-level security policy for table "faculty"'); } }
       Object.assign(r, patch); touch(r); out.push(clone(r)); audit(t, r[pk(t)], 'UPDATE', before, r);
     });
     return out;
@@ -163,6 +172,9 @@
     T[t].forEach((r) => (matches(r, q) ? gone : keep).push(r));
     if (t === 'org_units' && gone.some((u) => u.is_fixed)) throw new Error('لا يمكن حذف جهة ثابتة. يمكن تعطيلها أو أرشفتها.');
     if (t === 'org_members' && gone.length) throw new Error('لا تُحذف التكليفات؛ أنهِ التكليف بتاريخ نهاية للاحتفاظ بالسجل.');
+    if (t === 'faculty') { if (!(prof(ME) || {}).is_admin) throw new Error('حذف الأعضاء لمدير النظام فقط.');
+      const b = gone.find((f) => facLinkN(f.id)); if (b) throw new Error('للعضو ' + b.name_ar + ' ارتباطات (شعب أو تكليفات أو حساب أو بيانات في البرامج)؛ لا يُحذف، ويمكن إيقافه.');
+      gone.forEach((f) => { T.faculty_private = T.faculty_private.filter((x) => x.faculty_id !== f.id); T.faculty_aliases = T.faculty_aliases.filter((x) => x.faculty_id !== f.id); }); }
     T[t] = keep; gone.forEach((r) => audit(t, r[pk(t)], 'DELETE', r, null));
     return gone;
   };
@@ -352,7 +364,7 @@
   R.suggest_coords = ({ p_term }) => {
     const v = approvedV(p_term); if (!v) return []; const n = new Map();
     T.teaching.filter((t) => t.version_id === v.id).forEach((t) => { const s = T.sections.find((x) => x.id === t.section_id), o = T.offerings.find((x) => x.id === s.offering_id); const k = o.course_id + '|' + t.faculty_id; n.set(k, (n.get(k) || 0) + 1); });
-    const best = new Map(); [...n].forEach(([k, c]) => { const [course_id, faculty_id] = k.split('|'); const f = T.faculty.find((x) => x.id === faculty_id) || {}; const b = best.get(course_id);
+    const best = new Map(); [...n].forEach(([k, c]) => { const [course_id, faculty_id] = k.split('|'); const f = T.faculty.find((x) => x.id === faculty_id) || {}; if (f.status === 'غير نشط') return; const b = best.get(course_id);
       if (!b || c > b.sections || (c === b.sections && String(f.employee_no || '~') < String(b.emp || '~'))) best.set(course_id, { course_id, faculty_id, sections: c, emp: f.employee_no }); });
     return [...best.values()].map(({ course_id, faculty_id, sections }) => ({ course_id, faculty_id, sections }));
   };
@@ -426,6 +438,39 @@
   R.org_link_me = () => { const own = T.faculty.find((f) => f.profile_app_id === ME); if (own) return own.id;
     const em = String((prof(ME) || {}).email || '').toLowerCase(); const l = T.faculty.filter((f) => em && (f.email || '').toLowerCase() === em);
     if (l.length !== 1 || l[0].profile_app_id) return null; const b = clone(l[0]); l[0].profile_app_id = ME; audit('faculty', l[0].id, 'UPDATE', b, l[0]); return l[0].id; };
+
+  /* إدارة الأعضاء (مثل الملف 17) */
+  const facLinks = (id) => { const f = T.faculty.find((x) => x.id === id) || {};
+    return { sections: T.teaching.filter((t) => t.faculty_id === id).length, coords: T.course_coords.filter((c) => c.faculty_id === id).length, programs: T.programs.filter((p) => p.coordinator_id === id).length,
+      members: T.org_members.filter((m) => m.faculty_id === id).length, members_active: T.org_members.filter((m) => m.faculty_id === id && (!m.end_date || m.end_date >= today())).map((m) => (unit(m.unit_id) || {}).name).sort(),
+      account: !!f.profile_app_id, apps: T.org_app_fac.filter((x) => x.faculty_id === id).length + T.org_app_duties.filter((x) => x.faculty_id === id).length + T.course_status.filter((x) => x.faculty_id === id).length,
+      requests: T.org_requests.filter((q) => q.assignee_faculty === id).length }; };
+  const facLinkN = (id) => { const l = facLinks(id); return l.sections + l.coords + l.programs + l.members + l.apps + l.requests + (l.account ? 1 : 0); };
+  const facCan = (id) => { const f = T.faculty.find((x) => x.id === id); if (!f) throw new Error('العضو غير موجود.'); if (!((prof(ME) || {}).is_admin || (f.department_id && capsFor(ME, f.department_id).manage))) throw new Error('لا تملك صلاحية على هذا العضو.'); return f; };
+  const adminOnly = (m) => { if (!(prof(ME) || {}).is_admin) throw new Error(m); };
+  R.faculty_links = ({ p_id }) => { facCan(p_id); return facLinks(p_id); };
+  R.faculty_set_active = ({ p_id, p_active, p_note }) => { adminOnly('الإيقاف وإعادة التنشيط لمدير النظام فقط.'); const f = facCan(p_id), b = clone(f); let n = 0;
+    f.status = p_active ? 'نشط' : 'غير نشط'; f.deact_request = null; touch(f); audit('faculty', f.id, 'UPDATE', b, f);
+    if (f.profile_app_id && prof(f.profile_app_id)) prof(f.profile_app_id).active = !!p_active;
+    if (!p_active) T.org_members.filter((m) => m.faculty_id === p_id && (!m.end_date || m.end_date >= today())).forEach((m) => { const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10); m.end_date = m.start_date > y ? m.start_date : y; m.note = (m.note + ' إيقاف العضو').trim(); n++; });
+    audit('faculty', p_id, p_active ? 'REACTIVATE' : 'DEACTIVATE', { status: b.status }, { note: p_note || '', closed_assignments: n }); return { closed: n }; };
+  R.faculty_deact_request = ({ p_id, p_reason }) => { const f = facCan(p_id); if (!String(p_reason || '').trim()) throw new Error('اكتب سبب طلب الإيقاف.'); const p = prof(ME), b = clone(f);
+    f.deact_request = { by: ME, by_name: p.name, at: nowISO(), reason: String(p_reason).slice(0, 500) }; audit('faculty', f.id, 'UPDATE', b, f);
+    T.profiles.filter((x) => x.is_admin && x.active).forEach((x) => { const id = 'n' + uuid().replace(/-/g, ''); T.notifs.push({ id, to_user: x.app_id, created_by: ME, created_at: nowISO(), data: { id, to: x.app_id, ref: null, by: ME, at: nowISO(), read: false, text: 'طلب إيقاف العضو ' + f.name_ar + ' من ' + p.name + ': ' + String(p_reason).slice(0, 200) } }); });
+    audit('faculty', f.id, 'DEACT_REQUEST', null, { reason: p_reason }); return null; };
+  R.faculty_merge = ({ p_from, p_to }) => { adminOnly('الدمج لمدير النظام فقط.'); if (p_from === p_to) throw new Error('اختر سجلين مختلفين.');
+    const a = T.faculty.find((x) => x.id === p_from), b = T.faculty.find((x) => x.id === p_to); if (!a || !b) throw new Error('أحد السجلين غير موجود.');
+    if (a.profile_app_id && b.profile_app_id) throw new Error('لكل من السجلين حساب دخول؛ عطّل أحد الحسابين وافصله أولًا.');
+    T.teaching = T.teaching.filter((t) => !(t.faculty_id === p_from && T.teaching.some((x) => x.section_id === t.section_id && x.faculty_id === p_to)));
+    T.teaching.forEach((t) => { if (t.faculty_id === p_from) t.faculty_id = p_to; }); T.course_coords.forEach((c) => { if (c.faculty_id === p_from) c.faculty_id = p_to; });
+    T.programs.forEach((p) => { if (p.coordinator_id === p_from) p.coordinator_id = p_to; }); T.org_members.forEach((m) => { if (m.faculty_id === p_from) m.faculty_id = p_to; });
+    T.org_app_fac = T.org_app_fac.filter((x) => !(x.faculty_id === p_from && T.org_app_fac.some((y) => y.app_id === x.app_id && y.faculty_id === p_to))); T.org_app_fac.forEach((x) => { if (x.faculty_id === p_from) x.faculty_id = p_to; });
+    [T.org_app_duties, T.course_status, T.faculty_aliases].forEach((L) => L.forEach((x) => { if (x.faculty_id === p_from) x.faculty_id = p_to; })); T.org_requests.forEach((q) => { if (q.assignee_faculty === p_from) q.assignee_faculty = p_to; });
+    const ma = T.faculty_private.find((x) => x.faculty_id === p_from), mb = T.faculty_private.find((x) => x.faculty_id === p_to);
+    if (ma && ma.mobile) { if (!mb) T.faculty_private.push({ faculty_id: p_to, mobile: ma.mobile }); else if (!mb.mobile) mb.mobile = ma.mobile; }
+    const bb = clone(b); ['email', 'employee_no', 'name_en', 'rank', 'specialty', 'department_id', 'gender', 'campus', 'service_start', 'profile_app_id'].forEach((k) => { if (!b[k] && a[k]) b[k] = a[k]; });
+    touch(b); audit('faculty', b.id, 'UPDATE', bb, b); T.faculty = T.faculty.filter((x) => x.id !== p_from); T.faculty_private = T.faculty_private.filter((x) => x.faculty_id !== p_from);
+    audit('faculty', p_from, 'DELETE', a, null); audit('faculty', p_to, 'MERGE', a, { into: p_to, name: b.name_ar }); return { ok: true }; };
 
   DEMO.fn = async (name, body) => {
     if (body.action === 'create') {
