@@ -1346,7 +1346,7 @@
       ${pid ? '' : `<label class="f">المعرّف (بالإنجليزية، ثابت)<input id="pgI" dir="ltr" placeholder="dip-acct"></label>`}
       <label class="f">اسم البرنامج<input id="pgN" value="${attr(p.name)}"></label>
       <label class="f">مستوى الدرجة كما في البرش<input id="pgD" value="${attr(p.degree)}" placeholder="البكالوريوس / الدبلوم المتوسط / ماجستير ؛ فارغ = الكل"></label>
-      <label class="f">بادئات رموز المقررات (بفاصلة)<input id="pgP" dir="ltr" value="${attr((p.prefixes || []).join(', '))}" placeholder="ACCT, AACT"></label>
+      <label class="f">بادئات رموز المقررات (بفاصلة)<input id="pgP" dir="ltr" value="${attr((p.prefixes || []).join(', '))}" placeholder="ACCT, AACT أو بشر، دار"></label>
       <label class="f">القسم<select id="pgS"><option value="">—</option>${deptUnits().map((d) => opt(d.id, d.name, p.department_id)).join('')}</select></label>
       <label class="f">الحالة<select id="pgA">${opt('1', 'نشط', p.active === false ? '0' : '1')}${opt('0', 'موقوف', p.active === false ? '0' : '1')}</select></label></div><div class="err"></div>`,
       `<button class="btn pri" id="pgOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
@@ -1403,6 +1403,9 @@
     { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['رمز المقرر', 'إلزامي؛ يُوحَّد تلقائيًا (ACCT 101 = ACCT101)'], ['اسم المقرر', 'إلزامي للمقرر الجديد غير الموجود في القاعدة'], ['الشعبة', 'إلزامي'],
       ['عضو هيئة التدريس', 'يُطابق بالبريد الجامعي، ثم الرقم الوظيفي، ثم الاسم إن لم يتكرر. يجب أن يكون مسجلًا في قاعدة الأعضاء'], ['الشعبة بأكثر من عضو', 'كرر صف الشعبة لكل عضو مع «نوع التكليف» (رئيسي، مشارك، عملي)'], ['القسم', deptUnits().map((d) => d.name).join('، ')]] }]);
   const norm = (c) => String(c || '').toUpperCase().replace(/[\s\-_]+/g, '');
+  /* بادئة المقرر: حروفه الأولى لاتينية أو عربية (ACCT 101، بشر 521)، كدالة code_prefix في الملف 19 */
+  const codePfx = (c) => (norm(c).match(/^([A-Z]+|[ء-ي]+)/) || ['', ''])[1];
+  const CODE_RE = /^([A-Z]{2,6}|[ء-ي]{2,5})\s?\d{3,4}[A-Z]?$/i;
   const findFac = (r) => {
     if (r.faculty_email) return S.faculty.find((f) => (f.email || '').toLowerCase() === r.faculty_email.toLowerCase()) || null;
     if (r.faculty_empno) return S.faculty.find((f) => f.employee_no === r.faculty_empno) || null;
@@ -1451,7 +1454,7 @@
       const ci = L.indexOf('المقر :'); if (ci >= 0) { const di = L.indexOf('الدرجة العلمية :'); ctx = { campus: L[ci + 1] || '', degree: di >= 0 ? (L[di + 1] || '') : '' }; return; }
       if (L[0] === 'الشعبة' || L[0] === 'الأيام') return;
       const ti = L.findIndex(isTime);
-      if (/^\d+$/.test(L[0]) && /^[A-Z]{2,6}\s?\d{3,4}[A-Z]?$/i.test(L[1] || '')) {
+      if (/^\d+$/.test(L[0]) && CODE_RE.test(L[1] || '')) {
         const key = L[0] + '|' + norm(L[1]);
         cur = byKey.get(key) || { crn: L[0], code: L[1], name: L[2] || '', hours: L[3] || '', act: L[5] || '', campus: ctx.campus, degree: ctx.degree, meet: [], lect: '' };
         if (!byKey.has(key)) { byKey.set(key, cur); secs.push(cur); }
@@ -1468,7 +1471,7 @@
       const m0 = s.meet[0] || {}, sameT = new Set(s.meet.map((m) => m.from + m.to)).size <= 1;
       const days = sameT ? [...new Set(s.meet.map((m) => BR_DAY[m.day]))].join(' ') : s.meet.map((m) => `${BR_DAY[m.day]} ${m.from}-${m.to}`).join('، ');
       /* قسم المقرر من برنامجه (رمز المقرر + مستوى الدرجة، جدول programs)، وإلا من البادئة */
-      const pre = (norm(s.code).match(/^[A-Z]+/) || [''])[0], pg = progOf(pre, s.degree), dn = BR_DEPT[pre];
+      const pre = codePfx(s.code), pg = progOf(pre, s.degree), dn = BR_DEPT[pre];
       const dep = (pg && deptUnits().find((d) => d.id === pg.department_id)) || (dn && deptUnits().find((d) => d.name.includes(dn)));
       const f = s.lect ? matchLect(s.lect) : null;
       return { course_code: s.code, course_name: s.name, credit_hours: s.hours, program: s.degree, department: dep ? dep.name : '', section: s.crn, campus: s.campus, _lect: s.lect || '',
@@ -1490,10 +1493,10 @@
     const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(buf), 'application/xml');
     if (doc.querySelector('parsererror')) throw new Error('تعذرت قراءة ملف XML.');
     const tx = (el, tag) => ((el.getElementsByTagName(tag)[0] || {}).textContent || '').replace(/\s+/g, ' ').trim();
-    const codeOk = (c) => /^[A-Z]{2,6}\s?\d{3,4}[A-Z]?$/i.test(c), pfx = (c) => (norm(c).match(/^[A-Z]+/) || [''])[0];
+    const codeOk = (c) => CODE_RE.test(c), pfx = codePfx;
     const progPfx = new Set((S.programs || []).flatMap((p) => p.prefixes || []).concat(Object.keys(BR_DEPT)));
     const byKey = new Map(), skipped = new Map(), warn = [], noId = new Map();   /* رقم وظيفي غير موجود ← طوبق بالاسم أم لا */
-    const skipKey = (c) => (/^[A-Z]/i.test(c) ? pfx(c) : String(c).trim().split(/[\s\d]/)[0]) || c;
+    const skipKey = (c) => pfx(c) || String(c).trim().split(/[\s\d]/)[0] || c;
     [...doc.getElementsByTagName('G_INSTRUCTOR_NAME')].forEach((ins) => {
       const empno = tx(ins, 'INSTRUCTOR_ID'), lect = tx(ins, 'INSTRUCTOR_NAME'), campus = tx(ins, 'CAMPUS_NAME');
       const byNo = empno && S.faculty.find((f) => f.employee_no === empno && !offF(f)), f = byNo || (lect ? matchLect(lect) : null);
@@ -1522,9 +1525,7 @@
         teaching_kind: s.act.has('محاضرة') || !s.act.has('عملي') ? 'رئيسي' : 'عملي' };
     });
     const sum = (L) => L.reduce((a, x) => a + x[1], 0), lst = (L) => L.sort((a, b) => b[1] - a[1]).map(([p, n]) => p + ': ' + n).join('، ');
-    const skL = [...skipped].filter(([p]) => /^[A-Z]/i.test(p)), skA = [...skipped].filter(([p]) => !/^[A-Z]/i.test(p));
-    if (skL.length) warn.push('تُركت ' + sum(skL) + ' شعبة لمقررات ليست ضمن مقررات الكلية ولا بادئات برامجها (' + lst(skL) + '). لإدخالها أضف بادئتها إلى برنامج في «البرامج والمنسقون».');
-    if (skA.length) warn.push('تُركت ' + sum(skA) + ' شعبة لمقررات رموزها بالحروف العربية (' + lst(skA) + ')، والموقع لا يقبل حاليًا إلا الرموز اللاتينية.');
+    if (skipped.size) warn.push('تُركت ' + sum([...skipped]) + ' شعبة لمقررات ليست ضمن مقررات الكلية ولا بادئات برامجها (' + lst([...skipped]) + '). لإدخالها أضف بادئتها إلى برنامج في «البرامج والمنسقون» (عربية كانت مثل «بشر» أو لاتينية).');
     const byName = [...noId.values()].filter(Boolean).length;
     if (noId.size) warn.push(noId.size + ' عضوًا في الملف ليس رقمهم الوظيفي في قاعدة الأعضاء' + (byName ? '؛ طوبق ' + byName + ' منهم بالاسم' : '') + (noId.size - byName ? '، والباقون (' + (noId.size - byName) + ') في «محاضرون لم يتطابقوا»' : '') + '.');
     return { rows, warn };
