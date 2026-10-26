@@ -895,8 +895,9 @@
       else if ((r.teacher || r.coordinator) && !f.some((x) => x.status === 'complete')) { const n = daysTo(al.fileDue);
         if (n != null && n <= lead) out.push({ k: 'file', t: 'ملف المقرر لم يُسلَّم', sub: cn, n, late: n < 0, btn: 'فتح', act: openApp('file', c) }); }
       if (r.coordinator) stOf(c, 'exam').forEach((x) => { const d = x.details || {}; if (d.questions !== 'pending') return;
-        const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = nx ? daysTo(nx.date) : null;
-        if (n == null || n <= lead) out.push({ k: 'exam', t: 'أسئلة الاختبار لم تُسلَّم' + (nx ? ' — ' + nx.name : ''), sub: cn, n, late: n != null && n < 0, btn: 'فتح', act: openApp('exam', c) }); });
+        /* آخر موعد للأسئلة (qDue) يرسله نظام الاختبارات: قبل الاختبار بعدد أيام إعداداته؛ وإلا فموعد الاختبار */
+        const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = d.qDue ? daysTo(d.qDue) : nx ? daysTo(nx.date) : null;
+        if (n == null || n <= lead) out.push({ k: 'exam', t: 'أسئلة الاختبار لم تُسلَّم' + (nx ? ' — ' + nx.name : ''), sub: cn + (d.qDue ? ' · آخر موعد ' + dShort(d.qDue) : ''), n, late: n != null && n < 0, btn: 'فتح', act: openApp('exam', c) }); });
       /* إعادة الأوراق المصححة لوحدة الاختبارات (موعدها من إعدادات نظام الاختبارات) */
       if (r.teacher || r.coordinator) stOf(c, 'exam').forEach((x) => { const g = (x.details || {}).graded; if (!g || !g.due) return; const n = daysTo(g.due);
         if (n <= lead) out.push({ k: 'exam', t: 'إعادة الأوراق المصححة لوحدة الاختبارات' + (g.pending > 1 ? ' (' + g.pending + ' شعب)' : ''), sub: cn, n, late: n < 0, btn: 'فتح', act: openApp('exam', c) }); }); });
