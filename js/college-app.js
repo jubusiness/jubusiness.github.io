@@ -2165,7 +2165,7 @@
     const v = VERS[a.current_version];
     return `<div class="ws" style="cursor:default;border-inline-start-color:var(--k-${(unit(a.unit_id) || {}).kind || 'unit'})"><div class="row">${icon(a.icon || 'app')}<h3 class="grow">${esc(a.name)}</h3></div>
       <span class="meta">${esc(a.description || '')}</span><span class="meta">${esc(uName(a.unit_id))} · ${AK[a.kind]}${v ? ' · الإصدار ' + esc(v.version || '—') : ''}</span>
-      <span class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح البرنامج</button>${a.kind === 'html' && appLv(a) === 'manage' ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</span></div>`;
+      <span class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح البرنامج</button>${a.kind === 'html' && isAdmin() ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</span></div>`;
   }
   /* ربط أزرار «مقرراتي» بالبرامج، والأدوار العامة للبرامج (مراجعة/تدقيق/إشعار) — كلها في القاعدة (الملف 14) */
   const DUTY = { review: 'مراجعة', audit: 'تدقيق', notify: 'إشعار (إرسال الملاحظات)' };
@@ -2220,12 +2220,13 @@
       ${list.length ? `<div class="tw"><table><tr><th>البرنامج</th><th>الجهة</th><th>النوع</th><th>الإصدار الحالي</th><th>آخر رفع</th><th></th></tr>${list.map((a) => { const v = VERS[a.current_version], m = appLv(a) === 'manage';
         return `<tr><td><b>${esc(a.name)}</b>${a.active ? '' : ' ' + chip('موقوف', 'wait')}${a.everyone && a.everyone !== 'none' ? ' ' + chip('لكل الأعضاء: ' + LV[a.everyone], 'ok') : ''}<div class="tiny muted">${esc(a.description || '')}</div></td><td>${esc(uName(a.unit_id))}</td><td class="small">${AK[a.kind]}${a.kind !== 'html' ? `<div class="tiny muted" dir="ltr">${esc(a.target)}</div>` : ''}</td>
         <td>${v ? esc(v.version || '—') : '—'}</td><td class="small">${v ? fmtDT(v.uploaded_at) + '<br>' + esc(pName(v.uploaded_by)) : '—'}</td>
-        <td class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح</button>${a.kind === 'html' && m ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button><button class="btn sm" onclick="C.appVers('${a.id}')">الإصدارات</button>` : ''}${m ? `<button class="btn sm" onclick="C.appEdit('${a.id}')">تعديل</button>` : ''}</td></tr>`; }).join('')}</table></div>` : '<div class="empty">لا توجد برامج. أضف أول برنامج لجهتك من الزر أعلاه.</div>'}`;
+        <td class="row"><button class="btn sm pri" onclick="C.appOpen('${a.id}')">فتح</button>${a.kind === 'html' && isAdmin() ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button><button class="btn sm" onclick="C.appVers('${a.id}')">الإصدارات</button>` : ''}${m ? `<button class="btn sm" onclick="C.appEdit('${a.id}')">تعديل</button>` : ''}</td></tr>`; }).join('')}</table></div>` : '<div class="empty">لا توجد برامج. أضف أول برنامج لجهتك من الزر أعلاه.</div>'}`;
   }
   const detectVer = (name, text) => { const m = (name || '').match(/v?\s*(\d+(?:[._]\d+){0,3})(?!.*\d)/i) || ((text || '').match(/(?:الإصدار|version)\s*[:\-]?\s*v?(\d+(?:\.\d+){1,3})/i)); return m ? m[1].replace(/_/g, '.') : ''; };
   const readHtml = (file) => new Promise((res, rej) => { if (!file) return rej(new Error('اختر ملف البرنامج.')); if (!/\.html?$/i.test(file.name)) return rej(new Error('الملف يجب أن يكون بصيغة HTML.'));
     if (file.size > 25 * 1048576) return rej(new Error('حجم الملف أكبر من 25 م.ب.')); const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('تعذرت قراءة الملف.')); r.readAsText(file, 'utf-8'); });
   async function pushVersion(appId, file, text, ver, notes) {
+    if (!isAdmin()) throw new Error('رفع إصدارات البرامج لمدير النظام فقط.');
     const vid = crypto.randomUUID ? crypto.randomUUID() : uid('v');
     const path = appId + '/' + vid + '.html';
     await D.uploadApp(path, new Blob([text], { type: 'text/html' }));
@@ -2234,17 +2235,19 @@
   }
   C.appNew = (unitId) => {
     const units = S.units.filter((u) => cap(u.id, 'manage') && u.status !== 'archived');
+    const ad = isAdmin(), kinds = ad ? Object.keys(AK) : ['link'];   /* برنامج HTML يرفع إصدارًا: لمدير النظام فقط؛ ومدير الجهة يضيف روابط */
     modal('إضافة برنامج', `<div class="formgrid"><label class="f">اسم البرنامج<input id="apN" maxlength="120"></label>
       <label class="f">الجهة<select id="apU">${units.map((u) => opt(u.id, u.name, unitId)).join('')}</select></label>
       <label class="f full">الوصف<input id="apD" maxlength="300"></label>
-      <label class="f">نوع البرنامج<select id="apK" onchange="document.getElementById('apHtml').classList.toggle('hidden',this.value!=='html');document.getElementById('apT').parentElement.classList.toggle('hidden',this.value==='html')">${Object.keys(AK).map((k) => opt(k, AK[k], 'html')).join('')}</select></label>
-      <label class="f hidden">الرابط<input id="apT" dir="ltr" placeholder="https://…"></label>
-      <div id="apHtml" class="full formgrid" style="grid-column:1/-1"><label class="f">ملف البرنامج (HTML)<input type="file" id="apF" accept=".html,.htm"></label>
+      <label class="f">نوع البرنامج<select id="apK" onchange="document.getElementById('apHtml').classList.toggle('hidden',this.value!=='html');document.getElementById('apT').parentElement.classList.toggle('hidden',this.value==='html')">${kinds.map((k) => opt(k, AK[k], kinds[0])).join('')}</select></label>
+      <label class="f${ad ? ' hidden' : ''}">الرابط<input id="apT" dir="ltr" placeholder="https://…"></label>
+      <div id="apHtml" class="full formgrid${ad ? '' : ' hidden'}" style="grid-column:1/-1"><label class="f">ملف البرنامج (HTML)<input type="file" id="apF" accept=".html,.htm"></label>
         <label class="f">رقم الإصدار<input id="apV" placeholder="يُستخرج من اسم الملف إن وُجد"></label><label class="f full">ملاحظات الإصدار<input id="apNo"></label></div></div>
       <p class="small muted">أنشئ برنامجًا لكل جهة تستخدمه؛ لكل جهة بياناتها المستقلة في البرنامج.</p><div class="err"></div>`,
       `<button class="btn pri" id="apOk">إضافة</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
     $('#apOk').onclick = (ev) => busy(ev.target, async () => {
       const k = val('apK'), name = val('apN'); if (!name) throw new Error('اسم البرنامج مطلوب.'); if (!val('apU')) throw new Error('اختر الجهة.');
+      if (k === 'html' && !isAdmin()) throw new Error('رفع برنامج HTML لمدير النظام فقط. يمكنك إضافة رابط خارجي.');
       let text = null, file = null; if (k === 'html') { file = $('#apF').files[0]; text = await readHtml(file); } else if (!val('apT')) throw new Error('اكتب الرابط.');
       if (k === 'link' && !/^https:\/\//i.test(val('apT'))) throw new Error('الرابط يبدأ بـ https://');
       const id = 'a-' + uid().slice(0, 12);
@@ -2253,7 +2256,10 @@
       S.apps = await D.select('org_apps'); C.close(); refresh(); toast('أُضيف البرنامج.');
     });
   };
-  C.appUpload = (id) => {
+  /* المالك = مدير النظام فقط: تنزيل البرنامج، ورفع التحديث، والإصدارات واعتمادها (الملف 23 يفرضه في القاعدة).
+     صاحب «إدارة» والأعضاء يديرون العمل داخل البرنامج دون تنزيله أو نسخه أو تحديثه. */
+  const ownerOnly = () => { if (isAdmin()) return true; toast('تنزيل البرامج ورفع تحديثاتها وإصداراتها لمدير النظام فقط.', true); return false; };
+  C.appUpload = (id) => { if (!ownerOnly()) return;
     const a = S.apps.find((x) => x.id === id); const v = VERS[a.current_version];
     modal('رفع تحديث: ' + a.name, `<div class="formgrid"><label class="f full">ملف الإصدار الجديد (HTML)<input type="file" id="upF" accept=".html,.htm" onchange="C.upPick(this)"></label>
       <label class="f">رقم الإصدار<input id="upV"></label><label class="f">الإصدار الحالي<input value="${attr(v ? v.version : '—')}" disabled></label>
@@ -2263,13 +2269,13 @@
       S.apps = await D.select('org_apps'); await loadVers(); C.close(); refresh(); toast('رُفع الإصدار الجديد واعتُمد.'); });
   };
   C.upPick = (inp) => { const f = inp.files[0]; if (f && !val('upV')) $('#upV').value = detectVer(f.name, ''); };
-  C.appVers = async (id) => {
+  C.appVers = async (id) => { if (!ownerOnly()) return;
     const a = S.apps.find((x) => x.id === id); const vs = (await loadVers()).filter((v) => v.app_id === id).sort((x, y) => String(y.uploaded_at).localeCompare(String(x.uploaded_at)));
     modal('إصدارات ' + a.name, vs.length ? `<div class="tw"><table><tr><th>الإصدار</th><th>رُفع</th><th>الحجم</th><th>ملاحظات</th><th></th></tr>${vs.map((v) => `<tr><td>${esc(v.version || '—')} ${v.id === a.current_version ? chip('الحالي', 'ok') : ''}</td><td class="small">${fmtDT(v.uploaded_at)}<br>${esc(pName(v.uploaded_by))}</td><td class="num">${(v.size / 1024).toFixed(0)} ك.ب</td><td class="small">${esc(v.notes)}</td>
       <td class="row">${v.id !== a.current_version ? `<button class="btn sm" onclick="C.appUse('${id}','${v.id}')">اعتماده</button>` : ''}<button class="btn sm" onclick="C.appDl('${id}','${v.id}')">تنزيل</button></td></tr>`).join('')}</table></div>` : '<div class="empty">لا توجد إصدارات.</div>', null, true);
   };
-  C.appUse = (id, vid) => busy(null, async () => { await D.update('org_apps', { current_version: vid }, { eq: { id } }); S.apps = await D.select('org_apps'); C.close(); refresh(); toast('اعتُمد الإصدار المختار.'); });
-  C.appDl = (id, vid) => busy(null, async () => { const a = S.apps.find((x) => x.id === id); const v = VERS[vid || a.current_version]; const b = await D.downloadApp(v.path);
+  C.appUse = (id, vid) => { if (ownerOnly()) busy(null, async () => { await D.update('org_apps', { current_version: vid }, { eq: { id } }); S.apps = await D.select('org_apps'); C.close(); refresh(); toast('اعتُمد الإصدار المختار.'); }); };
+  C.appDl = (id, vid) => ownerOnly() && busy(null, async () => { const a = S.apps.find((x) => x.id === id); const v = VERS[vid || a.current_version]; const b = await D.downloadApp(v.path);
     const x = document.createElement('a'); x.href = URL.createObjectURL(b); x.download = a.name + (v.version ? ' ' + v.version : '') + '.html'; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1000); });
   C.appEdit = (id) => {
     const a = S.apps.find((x) => x.id === id); const units = S.units.filter((u) => cap(u.id, 'manage'));
@@ -2294,7 +2300,7 @@
 
   /* ---- تشغيل البرنامج: ذاكرة المتصفح تتحول إلى قاعدة البيانات ----
      البرنامج في إطار معزول (sandbox دون allow-same-origin، الملف 22): لا يصل إلى جلسة الدخول ولا إلى D ولا إلى الموقع.
-     الوسيط داخل الإطار يضع window.parent بديلًا بالأسماء نفسها (CS، __CAPP، COLLEGE، C.go) فلا تتغير البرامج،
+     الوسيط داخل الإطار يضع window.parent بديلًا بالأسماء نفسها (CS، __CAPP {app, ctx, ro, owner, level}، COLLEGE، C.go) فلا تتغير البرامج،
      وكل طلب منه رسالة يتحقق منها الموقع (appMsg): مصدرها الإطار المفتوح، ورمز الجلسة، ومستوى المستخدم. */
   const APP_SANDBOX = 'allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads';
   const APP_GO = ['home', 'courses', 'unit', 'mine', 'alerts', 'memberships', 'faculty'];
@@ -2306,7 +2312,7 @@
 var RP=window.parent,seq=0,W={};function post(t,a){RP.postMessage({__capp:B.tok,t:t,a:a},'*')}
 function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,rej];RP.postMessage({__capp:B.tok,id:id,t:t,a:a},'*')})}
 window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
-var P={app:B.app,ctx:B.ctx,ro:B.ro,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
+var P={app:B.app,ctx:B.ctx,ro:B.ro,owner:B.owner,level:B.level,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
 var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)}},
 C:{go:function(p,o){post('go',{p:p,o:o})}},postMessage:function(){}};
 try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
@@ -2425,13 +2431,14 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     await loadSched();
     const R = (window.__CAPP = makeRuntime(a.id, ro)); R.ctx = VIEW.ctx || null;
     R.tok = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    const boot = { tok: R.tok, app: a.id, ctx: R.ctx, ro, cs: appCS(a.id) };
+    /* owner = مدير النظام فقط (تنزيل البرنامج والنسخة الاحتياطية الشاملة واستعادتها داخل البرامج)؛ level = مستوى المستخدم في البرنامج */
+    const boot = { tok: R.tok, app: a.id, ctx: R.ctx, ro, owner: isAdmin(), level: appLv(a), cs: appCS(a.id) };
     VIEW.after = () => { const f = $('#appFrame'); f.setAttribute('sandbox', APP_SANDBOX); f.srcdoc = injectShim(html, data, boot); setSync(ro ? 'ro' : 'ok'); };
-    const m = appLv(a) === 'manage'; await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
+    await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
     return `<div id="apphost"><div class="bar"><button class="btn sm" onclick="C.go('unit',{id:'${a.unit_id}',tab:'apps'})">${icon('back')}${esc(uName(a.unit_id))}</button>
       <b>${esc(a.name)}</b><span class="small muted">الإصدار ${esc(v.version || '—')}</span><span id="appSync" class="small muted"></span><span class="grow"></span>
       <button class="btn sm" onclick="C.refresh()">إعادة تحميل</button><button class="btn sm" onclick="document.getElementById('apphost').classList.toggle('full')">ملء الشاشة</button>
-      ${tl.length ? `<button class="btn sm pri" onclick="C.appForms('${a.id}')">${icon('form')}النماذج (${tl.length})</button>` : ''}<button class="btn sm" onclick="C.appDl('${a.id}')">تنزيل النسخة</button>${m ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</div>
+      ${tl.length ? `<button class="btn sm pri" onclick="C.appForms('${a.id}')">${icon('form')}النماذج (${tl.length})</button>` : ''}${isAdmin() ? `<button class="btn sm" onclick="C.appDl('${a.id}')">تنزيل النسخة</button><button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</div>
       <iframe id="appFrame" title="${attr(a.name)}" sandbox="${APP_SANDBOX}" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>`;
   }
 
