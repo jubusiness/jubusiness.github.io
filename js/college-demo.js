@@ -139,6 +139,8 @@
 
   DEMO.select = async (t, q) => {
     let rows = (T[t] || []).filter((r) => matches(r, q)).map(clone);
+    /* الملف 22: مفاتيح priv.* لا يقرؤها إلا «استخدام» أو «إدارة» */
+    if (t === 'org_app_data') rows = rows.filter((r) => !String(r.key).startsWith('priv.') || ['use', 'manage'].includes(appLvMe(r.app_id)));
     if (q && q.order) { const [c, asc] = q.order; rows.sort((a, b) => (a[c] > b[c] ? 1 : a[c] < b[c] ? -1 : 0) * (asc === false ? -1 : 1)); }
     if (q && q.limit) rows = rows.slice(0, q.limit);
     return rows;

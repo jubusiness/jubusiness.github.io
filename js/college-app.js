@@ -2292,15 +2292,40 @@
     go('app', { id });
   };
 
-  /* ---- تشغيل البرنامج: ذاكرة المتصفح تتحول إلى قاعدة البيانات ---- */
-  const shimFor = (data) => `<script>(function(){var D=${JSON.stringify(data).replace(/</g, '\\u003c')};var P=window.parent.__CAPP;var m=new Map(Object.keys(D).map(function(k){return [k,D[k]]}));
+  /* ---- تشغيل البرنامج: ذاكرة المتصفح تتحول إلى قاعدة البيانات ----
+     البرنامج في إطار معزول (sandbox دون allow-same-origin، الملف 22): لا يصل إلى جلسة الدخول ولا إلى D ولا إلى الموقع.
+     الوسيط داخل الإطار يضع window.parent بديلًا بالأسماء نفسها (CS، __CAPP، COLLEGE، C.go) فلا تتغير البرامج،
+     وكل طلب منه رسالة يتحقق منها الموقع (appMsg): مصدرها الإطار المفتوح، ورمز الجلسة، ومستوى المستخدم. */
+  const APP_SANDBOX = 'allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads';
+  const APP_GO = ['home', 'courses', 'unit', 'mine', 'alerts', 'memberships', 'faculty'];
+  /* ما يصل البرنامج من CS: نسخة مختصرة، ومستواه في هذا البرنامج فقط؛ لا الحسابات ولا بريدها ولا صلاحيات الآخرين */
+  const appCS = (appId) => { const sc = S.sched ? Object.assign({}, S.sched) : null; if (sc) delete sc.all;
+    const lv = (S.appLv || {})[appId]; return JSON.parse(JSON.stringify({ me: S.me, appLv: lv ? { [appId]: lv } : {}, glob: S.glob, duties: S.duties || {},
+      faculty: S.faculty, depts: S.depts, units: S.units, privates: S.privates, settings: S.settings, terms: S.terms, programs: S.programs || [], sched: sc })); };
+  const shimFor = (data, boot) => `<script>(function(){var D=${JSON.stringify(data).replace(/</g, '\\u003c')};var B=${JSON.stringify(boot).replace(/</g, '\\u003c')};
+var RP=window.parent,seq=0,W={};function post(t,a){RP.postMessage({__capp:B.tok,t:t,a:a},'*')}
+function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,rej];RP.postMessage({__capp:B.tok,id:id,t:t,a:a},'*')})}
+window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
+var P={app:B.app,ctx:B.ctx,ro:B.ro,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
+var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)}},
+C:{go:function(p,o){post('go',{p:p,o:o})}},postMessage:function(){}};
+try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
+var PH=new WeakMap(),IP=HTMLIFrameElement.prototype,sd=Object.getOwnPropertyDescriptor(IP,'srcdoc'),cw=Object.getOwnPropertyDescriptor(IP,'contentWindow');
+try{Object.defineProperty(IP,'srcdoc',{configurable:true,get:function(){return sd.get.call(this)},set:function(v){PH.set(this,String(v));sd.set.call(this,v)}});
+Object.defineProperty(IP,'contentWindow',{configurable:true,get:function(){var w=cw.get.call(this),h=PH.get(this);if(!w||h==null)return w;
+return {print:function(){post('print',{html:h})},focus:function(){},blur:function(){},close:function(){},postMessage:function(a,o){w.postMessage(a,o||'*')}}}})}catch(e){console.warn(e)}
+var WO=window.open;window.open=function(u){if(u!=null&&u!==''&&u!=='about:blank')return WO.apply(window,arguments);var buf='',fw={closed:false,opener:window,location:{href:'about:blank'},focus:function(){},blur:function(){},print:function(){},close:function(){fw.closed=true},
+document:{open:function(){buf='';return fw.document},write:function(){buf+=Array.prototype.join.call(arguments,'')},writeln:function(){buf+=Array.prototype.join.call(arguments,'')+'\\n'},close:function(){if(buf)post('print',{html:buf})}}};return fw};
+var m=new Map(Object.keys(D).map(function(k){return [k,D[k]]}));
+try{window.sessionStorage.length}catch(e){var sm=new Map();var ss={getItem:function(k){k=String(k);return sm.has(k)?sm.get(k):null},setItem:function(k,v){sm.set(String(k),String(v))},removeItem:function(k){sm.delete(String(k))},clear:function(){sm.clear()},key:function(i){return Array.from(sm.keys())[i]||null}};
+Object.defineProperty(ss,'length',{get:function(){return sm.size}});try{Object.defineProperty(window,'sessionStorage',{value:ss,configurable:true})}catch(e2){}}
 var api={getItem:function(k){k=String(k);return m.has(k)?m.get(k):null},setItem:function(k,v){k=String(k);v=String(v);m.set(k,v);P.put(k,v)},removeItem:function(k){k=String(k);if(m.has(k)){m.delete(k);P.del(k)}},clear:function(){m.forEach(function(_,k){P.del(k)});m.clear()},key:function(i){return Array.from(m.keys())[i]||null}};
 Object.defineProperty(api,'length',{get:function(){return m.size}});
 var px=new Proxy(api,{get:function(t,p){if(p in t)return t[p];return (typeof p==='string'&&m.has(p))?m.get(p):undefined},set:function(t,p,v){t.setItem(p,v);return true},deleteProperty:function(t,p){t.removeItem(p);return true},ownKeys:function(){return Array.from(m.keys())},getOwnPropertyDescriptor:function(t,p){return m.has(p)?{value:m.get(p),enumerable:true,configurable:true,writable:true}:undefined},has:function(t,p){return (p in t)||m.has(p)}});
 try{Object.defineProperty(window,'localStorage',{value:px,configurable:true})}catch(e){console.warn(e)}
 window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.get(k),shared:false}:null)},set:function(k,v){api.setItem(k,v);return Promise.resolve({key:k,value:String(v),shared:false})},delete:function(k){api.removeItem(k);return Promise.resolve({key:k,deleted:true,shared:false})},list:function(p){return Promise.resolve({keys:Array.from(m.keys()).filter(function(k){return !p||k.indexOf(p)===0}),prefix:p,shared:false})}};
 })();<\/script>`;
-  const injectShim = (html, data) => { const s = shimFor(data);
+  const injectShim = (html, data, boot) => { const s = shimFor(data, boot);
     if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + s);
     if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => m + s);
     return s + html; };
@@ -2320,6 +2345,26 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       busy() { return R.pending.size > 0 || R.flushing; } };
     return R;
   }
+  /* رسائل البرنامج المعزول: تُقبل من الإطار المفتوح فقط وبرمزه، والحفظ والنشر يمرّان بفحص المستوى نفسه */
+  window.addEventListener('message', async (e) => {
+    const R = window.__CAPP, f = $('#appFrame'), m = e.data;
+    if (!R || !f || VIEW.page !== 'app' || e.source !== f.contentWindow || !m || typeof m !== 'object' || m.__capp !== R.tok) return;
+    const a = m.a || {}, reply = (ok, v) => { if (m.id) e.source.postMessage(ok ? { __capp_r: R.tok, id: m.id, ok: true, v } : { __capp_r: R.tok, id: m.id, ok: false, err: v }, '*'); };
+    try {
+      if (m.t === 'put') { if (typeof a.k === 'string' && a.k.length <= 300) R.put(a.k, String(a.v)); return; }
+      if (m.t === 'del') { if (typeof a.k === 'string') R.del(a.k); return; }
+      if (m.t === 'go') { if (APP_GO.includes(a.p)) go(a.p, a.o && typeof a.o === 'object' ? { id: a.o.id, tab: a.o.tab } : {}); return; }
+      /* الطباعة: صفحة البرنامج تُطبع هنا في إطار بلا سكربتات (allow-same-origin دون allow-scripts)، فلا يُنفَّذ منها شيء بأصل الموقع */
+      if (m.t === 'print') { if (typeof a.html !== 'string' || a.html.length > 20e6) return;
+        const p = document.createElement('iframe'); p.setAttribute('sandbox', 'allow-same-origin allow-modals'); p.style.cssText = 'position:fixed;width:0;height:0;border:0;left:0;bottom:0';
+        document.body.appendChild(p); p.onload = () => setTimeout(() => { try { p.contentWindow.focus(); p.contentWindow.print(); } catch (x) { toast('تعذرت الطباعة.', true); } setTimeout(() => p.remove(), 3000); }, 400);
+        p.srcdoc = a.html; return; }
+      if (m.t === 'publish') return reply(true, await window.COLLEGE.publish(m.a));
+      if (m.t === 'inquire') return reply(true, await window.COLLEGE.inquire(m.a));
+      if (m.t === 'inquiries') return reply(true, await window.COLLEGE.inquiries(m.a));
+      reply(false, 'طلب غير معروف');
+    } catch (err) { reply(false, pgErr(err)); }
+  });
   window.addEventListener('beforeunload', (e) => { const R = window.__CAPP; if (R && R.busy()) { R.flush(); e.preventDefault(); e.returnValue = 'لم يكتمل الحفظ.'; return e.returnValue; } });
   /* الجدول المعتمد للبرامج (مثل قياس المخرجات): window.parent.CS.sched
      { term: {id, name}, mine: شعب المستخدم في الفصل الحالي, all(): كل الشعب ومحاضروها {id, name_ar, email},
@@ -2378,14 +2423,16 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const html = await blob.text(); const data = {}; rows.forEach((r) => { data[r.key] = r.value; });
     const ro = !['use', 'manage'].includes(appLv(a));
     await loadSched();
-    window.__CAPP = makeRuntime(a.id, ro); window.__CAPP.ctx = VIEW.ctx || null;
-    VIEW.after = () => { $('#appFrame').srcdoc = injectShim(html, data); setSync(ro ? 'ro' : 'ok'); };
+    const R = (window.__CAPP = makeRuntime(a.id, ro)); R.ctx = VIEW.ctx || null;
+    R.tok = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const boot = { tok: R.tok, app: a.id, ctx: R.ctx, ro, cs: appCS(a.id) };
+    VIEW.after = () => { const f = $('#appFrame'); f.setAttribute('sandbox', APP_SANDBOX); f.srcdoc = injectShim(html, data, boot); setSync(ro ? 'ro' : 'ok'); };
     const m = appLv(a) === 'manage'; await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
     return `<div id="apphost"><div class="bar"><button class="btn sm" onclick="C.go('unit',{id:'${a.unit_id}',tab:'apps'})">${icon('back')}${esc(uName(a.unit_id))}</button>
       <b>${esc(a.name)}</b><span class="small muted">الإصدار ${esc(v.version || '—')}</span><span id="appSync" class="small muted"></span><span class="grow"></span>
       <button class="btn sm" onclick="C.refresh()">إعادة تحميل</button><button class="btn sm" onclick="document.getElementById('apphost').classList.toggle('full')">ملء الشاشة</button>
       ${tl.length ? `<button class="btn sm pri" onclick="C.appForms('${a.id}')">${icon('form')}النماذج (${tl.length})</button>` : ''}<button class="btn sm" onclick="C.appDl('${a.id}')">تنزيل النسخة</button>${m ? `<button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</div>
-      <iframe id="appFrame" title="${attr(a.name)}" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>`;
+      <iframe id="appFrame" title="${attr(a.name)}" sandbox="${APP_SANDBOX}" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>`;
   }
 
   C.appForms = (id) => { const a = S.apps.find((x) => x.id === id); const u = unit(a.unit_id); const tl = TPLS.filter((t) => t.app_id === id && t.active);
@@ -2564,7 +2611,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       $('#dockTitle').textContent = c.chatName || 'المرشد الأكاديمي';
       $('#dockBody').innerHTML = `${c.welcome ? `<div class="small" style="padding:8px 12px;background:var(--ledger-soft)">${esc(c.welcome)}</div>` : ''}<iframe id="chatFrame" title="${attr(c.chatName || 'المرشد الأكاديمي')}" allow="clipboard-write; microphone"></iframe>`;
       if (c.chatSrc === 'url') { $('#chatFrame').src = c.chatUrl; $('#dockExtra').innerHTML = `<a class="btn ghost sm" href="${attr(c.chatUrl)}" target="_blank" rel="noopener">نافذة مستقلة</a>`; }
-      else { $('#dockExtra').innerHTML = ''; try { $('#chatFrame').srcdoc = await chatHtml(c); } catch (e) { $('#dockBody').innerHTML = `<div class="empty">${esc(e.message)}</div>`; } }
+      else { $('#dockExtra').innerHTML = ''; try { const cf = $('#chatFrame'); cf.setAttribute('sandbox', APP_SANDBOX); cf.srcdoc = await chatHtml(c); } catch (e) { $('#dockBody').innerHTML = `<div class="empty">${esc(e.message)}</div>`; } }
     } else {
       $('#dockTitle').textContent = 'الدعم الفني'; $('#dockExtra').innerHTML = '';
       const wa = String(sup.whatsapp || '').replace(/\D/g, '');
