@@ -1366,10 +1366,11 @@
       <label class="f">مستوى الدرجة كما في البرش<input id="pgD" value="${attr(p.degree)}" placeholder="البكالوريوس / الدبلوم المتوسط / ماجستير ؛ فارغ = الكل"></label>
       <label class="f">بادئات رموز المقررات (بفاصلة)<input id="pgP" dir="ltr" value="${attr((p.prefixes || []).join(', '))}" placeholder="ACCT، AACT، بشر5، دار6"><span class="tiny muted">حروف، أو حروف ثم رقم أول (بشر5 = المقررات بشر 5xx)</span></label>
       <label class="f">القسم<select id="pgS"><option value="">—</option>${deptUnits().map((d) => opt(d.id, d.name, p.department_id)).join('')}</select></label>
-      <label class="f">الحالة<select id="pgA">${opt('1', 'نشط', p.active === false ? '0' : '1')}${opt('0', 'موقوف', p.active === false ? '0' : '1')}</select></label></div><div class="err"></div>`,
+      <label class="f">الحالة<select id="pgA">${opt('1', 'نشط', p.active === false ? '0' : '1')}${opt('0', 'موقوف', p.active === false ? '0' : '1')}</select></label>
+      <label class="f">لجنة الجودة للبرنامج<select id="pgQ"><option value="">وحدة الجودة والاعتماد الأكاديمي (الافتراضي)</option>${S.units.filter((u) => (u.kind === 'unit' || u.kind === 'committee') && u.id !== 'u-quality').sort(sortU).map((u) => opt(u.id, u.name, p.quality_unit_id || '')).join('')}</select><span class="tiny muted">أعضاؤها يراجعون ملفات مقررات البرنامج ويعتمدونها مع منسق البرنامج</span></label></div><div class="err"></div>`,
       `<button class="btn pri" id="pgOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#pgOk').onclick = (ev) => busy(ev.target, async () => {
-      const row = { name: val('pgN'), degree: val('pgD'), prefixes: val('pgP').toUpperCase().split(/[\s,،]+/).filter(Boolean), department_id: val('pgS') || null, active: val('pgA') === '1' };
+      const row = { name: val('pgN'), degree: val('pgD'), prefixes: val('pgP').toUpperCase().split(/[\s,،]+/).filter(Boolean), department_id: val('pgS') || null, active: val('pgA') === '1', quality_unit_id: val('pgQ') || null };
       if (!row.name || !row.prefixes.length) throw new Error('اكتب اسم البرنامج وبادئة واحدة على الأقل.');
       if (pid) await D.update('programs', row, { eq: { id: pid } });
       else { const id = val('pgI').toLowerCase().replace(/[^a-z0-9-]/g, ''); if (!id) throw new Error('اكتب معرّفًا بالإنجليزية.'); await D.insert('programs', Object.assign({ id, sort: p.sort }, row)); }
@@ -2313,7 +2314,7 @@ var RP=window.parent,seq=0,W={};function post(t,a){RP.postMessage({__capp:B.tok,
 function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,rej];RP.postMessage({__capp:B.tok,id:id,t:t,a:a},'*')})}
 window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
 var P={app:B.app,ctx:B.ctx,ro:B.ro,owner:B.owner,level:B.level,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
-var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)}},
+var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})}},
 C:{go:function(p,o){post('go',{p:p,o:o})}},postMessage:function(){}};
 try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
 var PH=new WeakMap(),IP=HTMLIFrameElement.prototype,sd=Object.getOwnPropertyDescriptor(IP,'srcdoc'),cw=Object.getOwnPropertyDescriptor(IP,'contentWindow');
@@ -2368,6 +2369,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       if (m.t === 'publish') return reply(true, await window.COLLEGE.publish(m.a));
       if (m.t === 'inquire') return reply(true, await window.COLLEGE.inquire(m.a));
       if (m.t === 'inquiries') return reply(true, await window.COLLEGE.inquiries(m.a));
+      if (m.t === 'qa') return reply(true, await window.COLLEGE.qa(a.m, a.a));
       reply(false, 'طلب غير معروف');
     } catch (err) { reply(false, pgErr(err)); }
   });
@@ -2410,7 +2412,26 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       const f = fac(q.faculty), c = ((S.sched || {}).courses || []).find((x) => x.id === q.course);
       if (f && f.profile_app_id) notify([f.profile_app_id], 'استفسار عن ' + (c ? c.code + ' ' + c.name : 'مقررك') + ': ' + (q.title || ''));
       return id; },
-    inquiries: async (term) => { const R = appCtx(); return D.rpc('course_inquiries', { p_app: R.app, p_term: term || null }); }
+    inquiries: async (term) => { const R = appCtx(); return D.rpc('course_inquiries', { p_app: R.app, p_term: term || null }); },
+    /* مكتبة التوصيفات ومسار ملف المقرر (الملف 24): qa(method, args). الصلاحية تفرضها دوال القاعدة؛ الموقع يمرر فقط.
+       roles → [{program, level: approve|review|view|null, coordinator, quality, quality_unit}]
+       library {program} → {spec, plos, plan, matrix, courses:[{course_code,…,clos}], annual, can_edit}
+       saveProgram {program, data:{version, year, info, source, status, plos, plan, matrix}} · saveCourses {items:[{code, name, info, flags, source, clos}]}
+       deleteCourse {code} · setLevel {program, faculty, level: view|review|approve|null}
+       move {term?, course, to: prepared|draft|submitted|in_review|returned|approved, note?, reviewer?} · board {term?, program} · history {term?, course} */
+    qa: async (method, a) => { const R = appCtx(); a = a || {}; const term = a.term || (curTerm() || {}).id || null;
+      const map = {
+        roles: () => D.rpc('qa_my_roles', {}),
+        library: () => D.rpc('spec_library', { p_program: a.program }),
+        saveProgram: () => D.rpc('spec_program_save', { p_program: a.program, p_data: a.data || {} }),
+        saveCourses: () => D.rpc('course_spec_save', { p_items: Array.isArray(a.items) ? a.items : [] }),
+        deleteCourse: () => D.rpc('course_spec_delete', { p_code: a.code }),
+        setLevel: () => D.rpc('qa_level_set', { p_program: a.program, p_faculty: a.faculty, p_level: a.level || null }),
+        move: () => D.rpc('course_file_move', { p_app: R.app, p_term: term, p_course: a.course, p_to: a.to, p_note: a.note || '', p_reviewer: a.reviewer || null }),
+        board: () => D.rpc('course_file_board', { p_term: term, p_program: a.program }),
+        history: () => D.rpc('course_file_history', { p_term: term, p_course: a.course }) };
+      if (!map[method]) throw new Error('طلب غير معروف: ' + method);
+      return map[method](); }
   };
   /* فتح برنامج على مقرر: من بطاقة المقرر أو أزرار «مقرراتي» */
   C.appOpenCtx = (appId, courseId, sectionId) => {
@@ -2508,7 +2529,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     ['org_exclusions', 'grant_id,unit_id'], ['org_changes', 'id'], ['terms', 'id'], ['courses', 'id'], ['sched_versions', 'id'], ['offerings', 'id'], ['sections', 'id'], ['teaching', 'id'],
     ['course_coords', 'term_id,course_id'],
     ['org_requests', 'id'], ['org_announcements', 'id'], ['org_apps', 'id'], ['org_app_versions', 'id'], ['org_app_data', 'app_id,key'], ['org_app_fac', 'app_id,faculty_id'],
-    ['org_app_access', 'app_id,profile_app_id'], ['org_app_duties', 'id'], ['course_status', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
+    ['org_app_access', 'app_id,profile_app_id'], ['org_app_duties', 'id'], ['course_status', 'id'],
+    ['spec_programs', 'program_id'], ['spec_plos', 'program_id,code'], ['spec_plan', 'program_id,course_code'], ['spec_matrix', 'program_id,course_code,plo_code'],
+    ['course_specs', 'course_code'], ['course_clos', 'course_code,code'], ['annual_reports', 'program_id,year'], ['qa_levels', 'program_id,faculty_id'],
+    ['course_file_flow', 'term_id,course_id'], ['course_file_events', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {

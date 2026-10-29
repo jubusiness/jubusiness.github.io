@@ -91,7 +91,9 @@
       { id: 'dip-mkt', name: 'دبلوم التسويق', department_id: 'dept-ba', degree: 'الدبلوم المتوسط', prefixes: ['ACMT'], coordinator_id: null, active: true, sort: 13 },
       { id: 'dip-dmkt', name: 'دبلوم التسويق الرقمي', department_id: 'dept-ba', degree: 'الدبلوم المتوسط', prefixes: ['ACDM'], coordinator_id: null, active: true, sort: 14 },
       { id: 'hd-hr', name: 'الدبلوم العالي في إدارة الموارد البشرية', department_id: 'dept-ba', degree: 'الدبلوم العالي', prefixes: ['بشر5', 'قصد5'], coordinator_id: null, active: true, sort: 21 }],
-    course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: []
+    course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: [],
+    /* الملف 24 */
+    spec_programs: [], spec_plos: [], spec_plan: [], spec_matrix: [], course_specs: [], course_clos: [], annual_reports: [], qa_levels: [], course_file_flow: [], course_file_events: []
   };
   Object.assign(T.faculty[12], { gender: '', campus: '', service_start: null }); Object.assign(T.faculty[9], { campus: 'القريات' }); Object.assign(T.faculty[10], { gender: '' });
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
@@ -125,7 +127,10 @@
   const FILES = {};
   const audit = (table, row_id, action, before, after) => T.audit_log.unshift({ id: T.audit_log.length + 1, at: nowISO(), actor_app_id: ME, table_name: table, row_id: String(row_id || ''), action, before: before ? clone(before) : null, after: after ? clone(after) : null });
   const PK = { org_roles: 'key', org_settings: 'id', faculty_private: 'faculty_id', profiles: 'app_id', faculty_aliases: 'alias' };
-  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'] };
+  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'],
+    spec_plos: ['program_id', 'code'], spec_plan: ['program_id', 'course_code'], spec_matrix: ['program_id', 'course_code', 'plo_code'], course_clos: ['course_code', 'code'],
+    annual_reports: ['program_id', 'year'], qa_levels: ['program_id', 'faculty_id'], course_file_flow: ['term_id', 'course_id'] };
+  Object.assign(PK, { spec_programs: 'program_id', course_specs: 'course_code' });
   const pk = (t) => PK[t] || 'id';
   const matches = (r, q) => {
     if (!q) return true;
@@ -470,6 +475,99 @@
         bb_unmet: dc.filter((c) => T.course_status.some((x) => x.term_id === p_term && x.course_id === c.id && x.kind === 'bb' && x.status === 'unmet')).map(item),
         inq: T.org_requests.filter((r) => r.kind === 'inquiry' && r.term_id === p_term && !['done', 'rejected'].includes(r.status) && dc.some((c) => c.id === r.course_id) && !(r.comments || []).some((m) => m.reply))
           .map((r) => ({ id: r.id, course: r.course_id, code: (dc.find((c) => c.id === r.course_id) || {}).code, faculty: r.assignee_faculty, title: r.title, created_at: r.created_at })) }; }); };
+  /* الملف 24: مكتبة التوصيفات ومسار ملف المقرر (تحاكي دوال القاعدة وفحوصها) */
+  const unitMember = (u, f) => !!(u && f) && T.org_members.some((m) => m.unit_id === u && m.faculty_id === f && activeR(m));
+  const qaUnitOf = (pg) => (T.programs.find((p) => p.id === pg) || {}).quality_unit_id || 'u-quality';
+  const qaLevel = (pg) => { const p = prof(ME), me = myFacId(), g = T.programs.find((x) => x.id === pg); if (!p) return null; if (p.is_admin) return 'approve'; if (!g) return null;
+    if (me && g.coordinator_id === me) return 'approve';
+    if (unitMember(qaUnitOf(pg), me)) return (T.qa_levels.find((x) => x.program_id === pg && x.faculty_id === me) || {}).level || 'approve';
+    if (p.college_role) return 'view';
+    if (me && g.department_id && T.org_members.some((m) => m.unit_id === g.department_id && m.faculty_id === me && m.position === 'head' && activeR(m))) return 'view';
+    return null; };
+  const isProgCoord = (pg) => { const p = prof(ME); return !!(p && p.is_admin) || T.programs.some((g) => g.id === pg && g.coordinator_id && g.coordinator_id === myFacId()); };
+  const dom = (d) => ['k', 's', 'v'].includes(d) ? d : '';
+  R.qa_my_roles = () => T.programs.filter((g) => g.active).sort((a, b) => a.sort - b.sort).map((g) => ({ program: g.id, level: qaLevel(g.id),
+    coordinator: !!g.coordinator_id && g.coordinator_id === myFacId(), quality: unitMember(qaUnitOf(g.id), myFacId()), quality_unit: qaUnitOf(g.id) }));
+  R.spec_library = ({ p_program }) => { const plan = T.spec_plan.filter((x) => x.program_id === p_program);
+    const codes = new Set(plan.map((x) => x.course_code)), strip = (o, k) => { const r = clone(o); delete r[k]; return r; };
+    return { program: p_program, spec: clone(T.spec_programs.find((s) => s.program_id === p_program) || null),
+      plos: T.spec_plos.filter((x) => x.program_id === p_program).sort((a, b) => a.sort - b.sort).map((x) => strip(x, 'program_id')),
+      plan: plan.sort((a, b) => a.sort - b.sort).map((x) => strip(x, 'program_id')),
+      matrix: T.spec_matrix.filter((x) => x.program_id === p_program).map((x) => ({ course_code: x.course_code, plo_code: x.plo_code, level: x.level })),
+      courses: T.course_specs.filter((c) => c.program_id === p_program || codes.has(c.course_code)).sort((a, b) => a.course_code.localeCompare(b.course_code))
+        .map((c) => Object.assign(clone(c), { clos: T.course_clos.filter((o) => o.course_code === c.course_code).sort((a, b) => a.sort - b.sort).map((o) => strip(o, 'course_code')) })),
+      annual: clone(T.annual_reports.filter((a) => a.program_id === p_program)), can_edit: isProgCoord(p_program) }; };
+  R.spec_program_save = ({ p_program, p_data }) => { const d = p_data || {};
+    if (!isProgCoord(p_program)) throw new Error('توصيف البرنامج يحفظه منسق البرنامج أو مدير النظام.'); if (!T.programs.some((p) => p.id === p_program)) throw new Error('البرنامج غير موجود.');
+    let s = T.spec_programs.find((x) => x.program_id === p_program); if (!s) T.spec_programs.push(s = { program_id: p_program, version: '', year: '', info: {}, source: {}, status: 'draft' });
+    ['version', 'year', 'info', 'source'].forEach((k) => { if (d[k] !== undefined) s[k] = clone(d[k]); }); if ('status' in d) s.status = d.status === 'approved' ? 'approved' : 'draft';
+    s.updated_at = nowISO(); s.updated_by = ME;
+    if (Array.isArray(d.plos)) { T.spec_plos = T.spec_plos.filter((x) => x.program_id !== p_program);
+      d.plos.forEach((o, i) => { const c = String(o.code || '').trim(); if (c) T.spec_plos.push({ program_id: p_program, code: c, domain: dom(o.domain), text: o.text || '', sort: i + 1 }); }); }
+    if (Array.isArray(d.plan)) { T.spec_plan = T.spec_plan.filter((x) => x.program_id !== p_program);
+      d.plan.forEach((o, i) => { const c = norm(o.course_code || o.code); if (c) T.spec_plan.push({ program_id: p_program, course_code: c, name: o.name || '', level: o.level || '', req: o.req || '', prereq: o.prereq || '', hours: String(o.hours || ''), kind: o.kind || '', sort: i + 1 }); }); }
+    if (Array.isArray(d.matrix)) { T.spec_matrix = T.spec_matrix.filter((x) => x.program_id !== p_program);
+      d.matrix.forEach((o) => { const c = norm(o.course_code || o.code), p = String(o.plo_code || '').trim(); if (c && p) T.spec_matrix.push({ program_id: p_program, course_code: c, plo_code: p, level: /^[123]$/.test(String(o.level)) ? Number(o.level) : null }); }); }
+    return R.spec_library({ p_program }); };
+  R.course_spec_save = ({ p_items }) => { if (!Array.isArray(p_items)) throw new Error('العناصر يجب أن تكون مصفوفة.'); const p = prof(ME); let n = 0;
+    p_items.forEach((it) => { const k = norm(it.code); if (!k) return; const old = T.course_specs.find((x) => x.course_code === k);
+      const pg = it.program || (old && old.program_id) || programOf(k, null);
+      if (!pg && !p.is_admin) throw new Error('المقرر ' + k + ' بلا برنامج؛ حدّد برنامجه في «البرامج والمنسقون» أولًا.');
+      if (!p.is_admin && !isProgCoord(pg)) throw new Error('توصيف المقرر ' + k + ' يحفظه منسق برنامجه أو مدير النظام.');
+      const row = { course_code: k, program_id: pg || null, name: it.name || '', version: it.version || '', info: clone(it.info || {}), flags: clone(Array.isArray(it.flags) ? it.flags : []),
+        source: clone(it.source || {}), status: it.status === 'approved' ? 'approved' : 'draft', updated_at: nowISO(), updated_by: ME };
+      if (old) Object.assign(old, row); else T.course_specs.push(row);
+      if (Array.isArray(it.clos)) { T.course_clos = T.course_clos.filter((o) => o.course_code !== k);
+        it.clos.forEach((o, i) => { const c = String(o.code || '').trim(); if (c) T.course_clos.push({ course_code: k, code: c, domain: dom(o.domain), text: o.text || '',
+          plo_codes: (Array.isArray(o.plo_codes) ? o.plo_codes : []).map((x) => String(x).trim()).filter(Boolean), strategies: o.strategies || '', assess_methods: o.assess_methods || '', sort: i + 1 }); }); }
+      n++; });
+    return n; };
+  R.course_spec_delete = ({ p_code }) => { const k = norm(p_code), s = T.course_specs.find((x) => x.course_code === k);
+    if (!prof(ME).is_admin && !isProgCoord(s && s.program_id)) throw new Error('حذف التوصيف لمنسق البرنامج أو مدير النظام.');
+    T.course_specs = T.course_specs.filter((x) => x.course_code !== k); T.course_clos = T.course_clos.filter((x) => x.course_code !== k); return null; };
+  R.qa_level_set = ({ p_program, p_faculty, p_level }) => { if (!isProgCoord(p_program)) throw new Error('مستويات المراجعة يحددها منسق البرنامج أو مدير النظام.');
+    T.qa_levels = T.qa_levels.filter((x) => !(x.program_id === p_program && x.faculty_id === p_faculty)); if (!p_level) return null;
+    if (!['view', 'review', 'approve'].includes(p_level)) throw new Error('المستوى غير صحيح.'); T.qa_levels.push({ program_id: p_program, faculty_id: p_faculty, level: p_level, updated_at: nowISO(), updated_by: ME }); return null; };
+  const courseProgram = (cid) => { const c = T.courses.find((x) => x.id === cid); return c ? programOf(c.code, null) : null; };
+  R.course_file_move = ({ p_app, p_term, p_course, p_to, p_note, p_reviewer }) => {
+    const p = prof(ME), me = myFacId(), adm = !!p.is_admin; if (!T.terms.some((t) => t.id === p_term) || !T.courses.some((c) => c.id === p_course)) throw new Error('الفصل أو المقرر غير موجود.');
+    const prog = courseProgram(p_course); let f = T.course_file_flow.find((x) => x.term_id === p_term && x.course_id === p_course); const frm = f ? f.stage : 'draft'; let rv = f ? f.reviewer_id : null;
+    const lv = prog ? qaLevel(prog) : (adm ? 'approve' : null), pc = adm || (prog && isProgCoord(prog)); let ok = false;
+    if (['prepared', 'draft', 'submitted'].includes(p_to)) {
+      ok = (adm || T.course_coords.some((c) => c.term_id === p_term && c.course_id === p_course && c.faculty_id === me))
+        && ((p_to === 'prepared' && ['draft', 'submitted'].includes(frm)) || (p_to === 'draft' && frm === 'prepared') || (p_to === 'submitted' && ['draft', 'prepared', 'returned'].includes(frm)));
+      if (p_to === 'submitted') rv = null;
+    } else if (p_to === 'in_review') {
+      ok = pc && ['submitted', 'in_review', 'approved'].includes(frm); rv = p_reviewer || me;
+      if (ok && !adm) { const g = T.programs.find((x) => x.id === prog);
+        const rlv = g && g.coordinator_id === rv ? 'approve' : unitMember(qaUnitOf(prog), rv) ? ((T.qa_levels.find((x) => x.program_id === prog && x.faculty_id === rv) || {}).level || 'approve') : null;
+        if ((rlv || 'view') === 'view') throw new Error('المراجع يجب أن يكون منسق البرنامج أو عضوًا في لجنة الجودة بمستوى مراجعة أو اعتماد.'); }
+    } else if (p_to === 'returned') {
+      if (!String(p_note || '').trim()) throw new Error('اكتب ملاحظات الإعادة.');
+      ok = (frm === 'in_review' && ((rv && rv === me && ['review', 'approve'].includes(lv)) || pc)) || (frm === 'submitted' && pc);
+    } else if (p_to === 'approved') ok = ['in_review', 'submitted'].includes(frm) && ((frm === 'in_review' && rv && rv === me && lv === 'approve') || pc);
+    else throw new Error('مرحلة غير معروفة: ' + p_to);
+    const AR = { draft: 'مسودة', prepared: 'أعدّه المنسق', submitted: 'أُرسل للمراجعة', in_review: 'قيد المراجعة', returned: 'أُعيد بملاحظات', approved: 'اعتُمد' };
+    if (!ok) throw new Error('لا يمكنك نقل ملف هذا المقرر من «' + (AR[frm] || frm) + '» إلى «' + (AR[p_to] || p_to) + '».');
+    if (!f) T.course_file_flow.push(f = { term_id: p_term, course_id: p_course, note: '', assigned_by: null });
+    Object.assign(f, { program_id: prog, stage: p_to, reviewer_id: rv, assigned_by: p_to === 'in_review' ? ME : f.assigned_by, note: p_note ? p_note : p_to === 'approved' ? '' : f.note, stage_at: nowISO(), updated_at: nowISO(), updated_by: ME });
+    T.course_file_events.push({ id: uuid(), term_id: p_term, course_id: p_course, program_id: prog, stage_from: frm, stage_to: p_to, reviewer_id: rv, note: p_note || '', actor: ME, actor_name: p.name, at: nowISO() });
+    if (T.org_apps.some((a) => a.id === p_app)) { T.course_status = T.course_status.filter((x) => !(x.term_id === p_term && x.course_id === p_course && x.source_app === p_app && x.kind === 'flow' && !x.section_id && !x.faculty_id));
+      T.course_status.push({ id: uuid(), term_id: p_term, course_id: p_course, section_id: null, faculty_id: null, source_app: p_app, kind: 'flow', status: p_to, progress: null,
+        details: { stage: p_to, program: prog, reviewer: rv, reviewer_name: (T.faculty.find((x) => x.id === rv) || {}).name_ar || null, note: f.note, at: nowISO() }, updated_at: nowISO(), updated_by: ME }); }
+    return clone(f); };
+  R.course_file_board = ({ p_term, p_program }) => { const v = approvedV(p_term); if (!v) return [];
+    const offs = T.offerings.filter((o) => o.version_id === v.id), ids = [...new Set(offs.filter((o) => { const c = T.courses.find((x) => x.id === o.course_id); return programOf(c.code, o.program) === p_program; }).map((o) => o.course_id))];
+    const all = qaLevel(p_program) !== null;
+    return ids.filter((id) => all || myCourseOn(p_term, id)).map((id) => { const c = T.courses.find((x) => x.id === id), f = T.course_file_flow.find((x) => x.term_id === p_term && x.course_id === id) || {};
+      const secs = T.sections.filter((s) => offs.some((o) => o.id === s.offering_id && o.course_id === id)); const fs = T.course_status.filter((x) => x.term_id === p_term && x.course_id === id && x.kind === 'file' && !x.section_id);
+      return { id, code: c.code, name: c.name_ar, coordinator_id: (T.course_coords.find((x) => x.term_id === p_term && x.course_id === id) || {}).faculty_id || null, sections: secs.length,
+        teachers: [...new Set(T.teaching.filter((t) => secs.some((s) => s.id === t.section_id)).map((t) => t.faculty_id))], stage: f.stage || 'draft', reviewer_id: f.reviewer_id || null,
+        note: f.note || '', stage_at: f.stage_at || null, progress: fs.length ? Math.max(...fs.map((x) => Number(x.progress) || 0)) : null, file_status: fs.length ? fs[0].status : null }; })
+      .sort((a, b) => a.code.localeCompare(b.code)); };
+  R.course_file_history = ({ p_term, p_course }) => { const f = T.course_file_flow.find((x) => x.term_id === p_term && x.course_id === p_course);
+    if (!(qaLevel(courseProgram(p_course)) !== null || myCourseOn(p_term, p_course) || (f && f.reviewer_id === myFacId()))) return [];
+    return clone(T.course_file_events.filter((e) => e.term_id === p_term && e.course_id === p_course)); };
   R.org_app_del = ({ p_app, p_key }) => { T.org_app_data = T.org_app_data.filter((x) => !(x.app_id === p_app && x.key === p_key)); return null; };
   /* ربط الحساب بسجل العضو بالبريد عند أول دخول (مثل الملف 9) */
   R.org_link_me = () => { const own = T.faculty.find((f) => f.profile_app_id === ME); if (own) return own.id;
