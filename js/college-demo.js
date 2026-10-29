@@ -511,9 +511,11 @@
     return R.spec_library({ p_program }); };
   R.course_spec_save = ({ p_items }) => { if (!Array.isArray(p_items)) throw new Error('العناصر يجب أن تكون مصفوفة.'); const p = prof(ME); let n = 0;
     p_items.forEach((it) => { const k = norm(it.code); if (!k) return; const old = T.course_specs.find((x) => x.course_code === k);
-      const pg = it.program || (old && old.program_id) || programOf(k, null);
+      const pgOld = old && old.program_id, pgDef = programOf(k, null), pg = it.program || pgOld || pgDef;
       if (!pg && !p.is_admin) throw new Error('المقرر ' + k + ' بلا برنامج؛ حدّد برنامجه في «البرامج والمنسقون» أولًا.');
       if (!p.is_admin && !isProgCoord(pg)) throw new Error('توصيف المقرر ' + k + ' يحفظه منسق برنامجه أو مدير النظام.');
+      if (!p.is_admin && pgOld && pg !== pgOld) throw new Error('توصيف المقرر ' + k + ' يملكه برنامج آخر؛ نقله لمدير النظام.');
+      if (!p.is_admin && !pgOld && pgDef && pg !== pgDef) throw new Error('المقرر ' + k + ' تابع لبرنامج آخر؛ توصيفه لمنسق ذلك البرنامج.');
       const row = { course_code: k, program_id: pg || null, name: it.name || '', version: it.version || '', info: clone(it.info || {}), flags: clone(Array.isArray(it.flags) ? it.flags : []),
         source: clone(it.source || {}), status: it.status === 'approved' ? 'approved' : 'draft', updated_at: nowISO(), updated_by: ME };
       if (old) Object.assign(old, row); else T.course_specs.push(row);
