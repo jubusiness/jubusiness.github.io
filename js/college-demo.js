@@ -86,7 +86,7 @@
     org_members: [], org_grants: [], org_exclusions: [], org_changes: [], audit_log: [], notifs: [],
     org_settings: [{ id: 1, data: { ranks: ['أستاذ', 'أستاذ مشارك', 'أستاذ مساعد', 'محاضر', 'معيد'], statuses: ['نشط', 'غير نشط', 'إجازة', 'إعارة', 'ابتعاث'], university: 'جامعة الجوف', universityEn: 'Jouf University', slogan: 'معًا .. نحو مستقبل أكثر إبداعًا', footer: 'رؤية . تطوير . تميز', programs: ['بكالوريوس المحاسبة', 'بكالوريوس التمويل', 'بكالوريوس إدارة الأعمال'], maxFileMB: 10 } }],
     terms: [{ id: '1447-2', year: '1447', term: 'الثاني', name: 'الفصل الثاني 1447هـ', is_current: false }, { id: '1448-1', year: '1448', term: 'الأول', name: 'الفصل الأول 1448هـ', is_current: true }],
-    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: [],
+    courses: [], sched_versions: [], offerings: [], sections: [], teaching: [], org_requests: [], org_apps: [], org_app_fac: [], org_app_versions: [], faculty_extra: [], org_app_data: [], org_announcements: [], org_templates: [], org_report_log: [], org_app_access: [],
     programs: [{ id: 'acct', name: 'بكالوريوس المحاسبة', department_id: 'dept-acct', degree: '', prefixes: ['ACCT'], coordinator_id: null, active: true, sort: 1 },
       { id: 'fin', name: 'بكالوريوس التمويل والاستثمار', department_id: 'dept-fin', degree: '', prefixes: ['FIN'], coordinator_id: null, active: true, sort: 2 },
       { id: 'ba', name: 'بكالوريوس إدارة الأعمال', department_id: 'dept-ba', degree: '', prefixes: ['BUS', 'MGT', 'MKT'], coordinator_id: null, active: true, sort: 3 },
@@ -182,7 +182,7 @@
   const FILES = {};
   const audit = (table, row_id, action, before, after) => T.audit_log.unshift({ id: T.audit_log.length + 1, at: nowISO(), actor_app_id: ME, table_name: table, row_id: String(row_id || ''), action, before: before ? clone(before) : null, after: after ? clone(after) : null });
   const PK = { org_roles: 'key', org_settings: 'id', faculty_private: 'faculty_id', profiles: 'app_id', faculty_aliases: 'alias' };
-  const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'],
+  const PKS = { faculty_extra: ['faculty_id'], org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'],
     spec_plos: ['program_id', 'code'], spec_plan: ['program_id', 'course_code'], spec_matrix: ['program_id', 'course_code', 'plo_code'], course_clos: ['course_code', 'code'],
     annual_reports: ['program_id', 'year'], qa_levels: ['program_id', 'faculty_id'], course_file_flow: ['term_id', 'course_id'] };
   Object.assign(PK, { spec_programs: 'program_id', course_specs: 'course_code', data_elements: 'code' }); PKS.program_kpis = ['program_id', 'kpi_id'];
@@ -287,13 +287,20 @@
   };
   const leadershipOf = (app, root) => { const f = T.faculty.find((x) => x.profile_app_id === app); return !!f && T.org_members.some((m) => { const u = T.org_units.find((x) => x.id === m.unit_id); return u && m.faculty_id === f.id && m.position === 'head' && activeR(m) && (root ? !u.parent_id : u.kind === 'leadership'); }); };
   const leaderOver = (u) => { const me = myFacId(); return !!u && !!me && ancestors(u).some((a) => T.org_members.some((m) => m.unit_id === a.id && m.faculty_id === me && m.position === 'head' && activeR(m))); };
+  /* الملف 33 */
+  const dashHead = (app) => { const f = T.faculty.find((x) => x.profile_app_id === app); return !!f && T.org_members.some((m) => { const u = T.org_units.find((x) => x.id === m.unit_id); return u && u.kind === 'department' && m.faculty_id === f.id && m.position === 'head' && activeR(m); }); };
+  const dashLevel = (a, app) => { const id = ((T.org_settings[0] || {}).data || {}).facultyDashApp; if (!id || a !== id) return null; const p = prof(app) || {}; return p.is_admin ? 'manage' : leadershipOf(app, true) ? 'use' : (leadershipOf(app, false) || dashHead(app)) ? 'view' : 'none'; };
+  R.faculty_dash = () => { const p = prof(ME) || {}, wide = p.is_admin || leadershipOf(ME, false); if (!wide && !dashHead(ME)) throw new Error('لوحة أعضاء هيئة التدريس للعميد والوكلاء ورؤساء الأقسام.'); const me = myFacId(), phones = globalFor(ME).faculty_private;
+    const rows = T.faculty.filter((f) => wide || T.org_members.some((m) => m.unit_id === f.department_id && m.faculty_id === me && m.position === 'head' && activeR(m))).map((f) => { const x = T.faculty_extra.find((e) => e.faculty_id === f.id) || {}, m = T.faculty_private.find((e) => e.faculty_id === f.id) || {};
+      return { id: f.id, name_ar: f.name_ar, name_en: f.name_en, employee_no: f.employee_no, email: f.email, rank: f.rank, specialty: f.specialty, department_id: f.department_id, status: f.status, gender: f.gender || '', campus: f.campus || '', service_start: f.service_start || null, contract_type: f.contract_type || '', nationality: x.nationality || '', work_status: x.work_status || '', specialty_fine: x.specialty_fine || '', scopus: x.scopus || '', orcid: x.orcid || '', wos: x.wos || '', scholar: x.scholar || '', mobile: phones ? (m.mobile || '') : '' }; });
+    return { scope: wide ? 'all' : 'dept', phones: !!phones, depts: T.org_units.filter((u) => u.kind === 'department' && u.status === 'active').map((u) => ({ id: u.id, name: u.name })), rows: clone(rows) }; };
   const globalFor = (app) => { const p = prof(app); const out = {}; ['reports', 'audit', 'import_schedule', 'approve_import', 'faculty_private'].forEach((c) => {
     out[c] = !!(p.is_admin || (c === 'audit' && leadershipOf(app, true)) || (c === 'faculty_private' && leadershipOf(app, false)) || T.org_grants.some((g) => g.profile_app_id === app && activeR(g) && ((role(g.role_key) || {}).caps || {})[c])
       || (c === 'reports' && T.faculty.some((f) => f.profile_app_id === app && T.org_members.some((m) => m.faculty_id === f.id && m.position === 'head' && activeR(m))))); }); return out; };
   R.org_my_access = () => { const p = prof(ME); const f = T.faculty.find((x) => x.profile_app_id === ME);
     const units = Object.fromEntries(T.org_units.map((u) => [u.id, capsFor(ME, u.id)]));
     return { me: { app_id: ME, name: p.name, is_admin: p.is_admin, college_role: p.college_role, faculty_id: f ? f.id : null }, units,
-      apps: Object.fromEntries(T.org_apps.map((a) => { const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
+      apps: Object.fromEntries(T.org_apps.map((a) => { const dl = dashLevel(a.id, ME); if (dl) return [a.id, dl]; const o = T.org_app_access.find((x) => x.app_id === a.id && x.profile_app_id === ME) || (f && T.org_app_fac.find((x) => x.app_id === a.id && x.faculty_id === f.id)); const c = units[a.unit_id] || {};
         const base = c.manage ? 'manage' : c.write ? 'use' : c.read ? 'view' : 'none', ent = entryLevel(a.id, f, units);
         if (p.is_admin) return [a.id, 'manage']; if (o) return [a.id, o.level]; if (base === 'manage' || ent === 'manage') return [a.id, 'manage']; if (base === 'use' || ent === 'use') return [a.id, 'use'];
         /* الملف 14: «لكل الأعضاء»، والدور العام على البرنامج، والدور في مقرر لبرنامج مربوط بأزرار «مقرراتي» */
