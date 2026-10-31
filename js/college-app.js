@@ -245,11 +245,12 @@
 
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
-    ['home', 'الرئيسية', 'home'], ['lead', 'واجهة القيادة', 'chart', () => isAdmin() && isLeader()], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
+    ['home', 'الرئيسية', 'home'], ['lead', 'واجهة القيادة', 'chart', () => isAdmin() && isLeader()], ['approvals', 'بانتظار اعتمادي', 'clipboard', () => isLeader()], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
     ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'], ['annual', 'الجودة والمؤشرات', 'chart', () => annualSeen()],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear', () => canSettings()]
   ];
-  const TITLES = { lead: 'واجهة القيادة', positions: 'المناصب', home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
+  const PAGE_DESC = { mine: 'مقرراتي ومتطلباتها هذا الفصل', myschedule: 'مقرراتي ومتطلباتها هذا الفصل', memberships: 'الجهات التي لي فيها دور', mycomms: 'الجهات التي لي فيها دور', alerts: 'ما يحتاج إجراءً مني', approvals: 'ما ينتظر اعتمادي' };
+  const TITLES = { approvals: 'بانتظار اعتمادي', lead: 'واجهة القيادة', positions: 'المناصب', home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
     files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'الجودة والمؤشرات' };
@@ -274,11 +275,12 @@
     const mine = myDirect();
     /* عضو هيئة التدريس: أربعة عناصر فقط */
     const nb = (p, ic, t) => `<button class="nav" data-p="${p}" onclick="C.go('${p}')">${icon(ic)}${t}</button>`;
-    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') + (annualSeen() ? nb('annual', 'chart', 'الجودة والمؤشرات') : '') +
+    const qsB = `<button class="side-q" onclick="C.qs()">${icon('search')}بحث سريع<kbd>Ctrl K</kbd></button>`;
+    $('#side').innerHTML = qsB + (staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') + (annualSeen() ? nb('annual', 'chart', 'الجودة والمؤشرات') : '') +
       `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>` : NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
-      `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>`;
+      `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>`);
     $('#menuBtn').onclick = (e) => { e.stopPropagation(); $('#side').classList.toggle('open'); };
     document.addEventListener('click', (e) => { if ($('#side').classList.contains('open') && !$('#side').contains(e.target)) $('#side').classList.remove('open'); });
     bellCount(); refreshUrgent(); renderDock(S.settings.assist, true);
@@ -298,11 +300,11 @@
     $('#main').classList.toggle('flush', flush);
     const v = $('#view');
     v.innerHTML = (DEMO && !flush ? '<div class="banner">نسخة تجريبية ببيانات وهمية: جرّب كل الشاشات، ولا يُحفظ شيء بعد إعادة تحميل الصفحة.</div>' : '') +
-      (flush ? '' : `<div class="pghead"><h1>${esc(title)}</h1>${NAV_OF[page] === 'settings' && viewRole() !== 'staff' ? `<button class="btn sm noprint" onclick="C.go('settings')">${icon('back')}الإعدادات</button>` : ''}</div>`) +
+      (flush ? '' : `<div class="pghead page-hero"><div class="ph-t"><h1>${esc(title)}</h1>${PAGE_DESC[page] ? `<p>${esc(PAGE_DESC[page])}</p>` : ''}<div class="ph-chips">${PAGE_DESC[page] ? heroChips() : ''}</div></div>${NAV_OF[page] === 'settings' && viewRole() !== 'staff' ? `<button class="btn sm noprint" onclick="C.go('settings')">${icon('back')}الإعدادات</button>` : ''}</div>`) +
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, approvals: pgApprovals, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -919,7 +921,7 @@
     const reqs = [...new Map([...(await D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => [])), ...(units.length ? await D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [])].map((q) => [q.id, q])).values()];
     const urg = buildUrgent(sc.my, reqs.filter((q) => q.assignee_faculty === mf || mem.some((m) => m.unit_id === q.unit_id && ['head', 'deputy'].includes(m.position))));
     const an = await anUrgent().catch(() => ({ items: [], open: [], nm: String })); urg.push(...an.items); urg.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
-    S.urgentN = urg.length; S._anOpen = an;
+    S.urgentN = urg.length; S._anOpen = an; S.mineN = (sc.my || []).reduce((t, c) => t + reqCols().filter((col) => colState(c, col).t !== 'ok').length, 0); S._appr = await approvalsOf(urg).catch(() => []);
     return { sc, reqs, mem, urg };
   }
   async function refreshUrgent() { if (!myFac()) return; try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); } }
@@ -944,29 +946,50 @@
   const lampHtml = () => { const n = S.urgentN || 0;
     return `<button class="lamp ${n ? 'on' : 'off'}" id="lamp" onclick="C.go('alerts')" aria-label="تنبيهاتي">${'<span class="bulb">' + icon('bell') + '</span>'}${n ? `${n} ${n === 1 ? 'تنبيه' : n === 2 ? 'تنبيهان' : n <= 10 ? 'تنبيهات' : 'تنبيهًا'}` : 'لا تنبيهات'}</button>`; };
   function lampSet() { const l = $('#lamp'); if (l) l.outerHTML = lampHtml(); }
+  /* ===== مكونات موحدة لصفحات ما بعد الدخول (الأسلوب من أداة الجداول لد. عماد الطحان): page-hero وstat-card وitem-card وnav-badge وquick-search ===== */
+  const termWeek = () => { const cal = ((S.settings || {}).publicInfo || {}).calendar || [], now = today();
+    const st = cal.filter((x) => x && x.d && /(بد[ءا]|بداية).*(الدراسة|الفصل)/.test(x.t || '') && x.d <= now).map((x) => x.d).sort().pop(); if (!st) return null;
+    const w = Math.floor((new Date(now + 'T00:00:00') - new Date(st + 'T00:00:00')) / (7 * 864e5)) + 1; return w >= 1 && w <= 24 ? w : null; };
+  const heroChips = () => { const t = curTerm(), w = termWeek(); return (t ? `<span class="ph-chip">${esc(t.name)}</span>` : '') + (w ? `<span class="ph-chip">الأسبوع ${w}</span>` : ''); };
+  const pageHero = (title, desc, big, side) => `<div class="page-hero${big ? ' big' : ''}"><div class="ph-t"><h1>${esc(title)}</h1>${desc ? `<p>${esc(desc)}</p>` : ''}<div class="ph-chips">${heroChips()}</div></div>${side || ''}</div>`;
+  const statCard = (n, label, hint, tone, act) => `<${act ? 'button' : 'div'} class="stat-card ${tone || 'violet'}"${act ? ` onclick="${act}"` : ''}><b>${esc(n)}</b><span>${esc(label)}</span>${hint ? `<small>${esc(hint)}</small>` : ''}</${act ? 'button' : 'div'}>`;
+  const numBox = (n, l, tone) => `<span class="num-box ${tone || ''}"><b>${esc(n)}</b><i>${esc(l)}</i></span>`;
+  const itemCard = (o) => `<${o.act ? 'button' : 'div'} class="item-card ${o.tone || ''}"${o.act ? ` onclick="${o.act}"` : ''}><div class="ic-h">${o.code ? `<span class="ic-code" dir="ltr">${esc(o.code)}</span>` : ''}<b>${esc(o.title)}</b>${o.chips || ''}</div>${o.sub ? `<div class="small muted">${esc(o.sub)}</div>` : ''}${o.nums ? `<div class="ic-nums">${o.nums}</div>` : ''}${o.badges ? `<div class="ic-badges">${o.badges}</div>` : ''}</${o.act ? 'button' : 'div'}>`;
+  const WELCOME = () => 'مرحبًا، ' + String((S.me || {}).name || '').trim();
+  /* إحصاء عضو هيئة التدريس: مطلوبة، متأخرة، اختبارات قادمة، تنبيهات */
+  function homeStats(sc, urg) { const now = today(); let ex = 0; (sc.my || []).forEach((c) => stOf(c, 'exam').forEach((x) => { ex += ((x.details || {}).items || []).filter((i) => i.date && String(i.date) >= now).length; }));
+    const late = urg.filter((x) => x.late).length;
+    return `<div class="stat-row">${statCard(S.mineN || 0, 'مطلوبة', 'متطلبات لم تكتمل في مقرراتي', 'violet', "C.go('mine')")}${statCard(late, 'متأخرة', 'تحتاج إجراءً الآن', late ? 'red' : 'green', "C.go('alerts')")}${statCard(ex, 'اختبارات قادمة', 'في مقرراتي', 'orange', "C.go('mine')")}${statCard(urg.length, 'تنبيهات جديدة', '', urg.length ? 'orange' : 'green', "C.go('alerts')")}</div>`; }
+  /* شريط محاضرات اليوم، وإن لم يكن اليوم محاضرات فأقرب يوم */
+  function todayStrip(cs) { const by = {}; (cs || []).forEach((c) => meetsOf(c).forEach((m) => (by[m.d] = by[m.d] || []).push({ c, from: m.from, to: m.to })));
+    if (!Object.keys(by).length) return ''; const td = todayKey(), i0 = DAYS_ORDER.indexOf(td); let d = td, off = 0; for (; off < 7; off++) { d = DAYS_ORDER[(i0 + off) % 7]; if (by[d]) break; }
+    return `<div class="today-strip"><h3>${off === 0 ? 'محاضرات اليوم' : 'لا محاضرات اليوم · الأقرب: ' + esc(d)}</h3><div class="ts-row">${by[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((x) => `<div class="ts-item"><span dir="ltr" class="ts-t">${esc(x.from)}–${esc(x.to)}</span><b dir="ltr">${esc(x.c.code)}</b><span class="small">شعبة ${esc(x.c.section)}${x.c.room ? ' · <span dir="ltr">' + esc(x.c.room) + '</span>' : ''}</span></div>`).join('')}</div></div>`; }
   async function staffHome() {
-    mineCss(); const { sc } = await mineData(); navBadge(); bellCount(); const t = curTerm(), cs = sc.mine;
-    const byDay = {}; cs.forEach((c) => meetsOf(c).forEach((m) => (byDay[m.d] = byDay[m.d] || []).push(Object.assign({}, c, { from: m.from, to: m.to }))));
-    const days = Object.keys(byDay).sort((a, b) => DAYS_ORDER.indexOf(a) - DAYS_ORDER.indexOf(b)), td = todayKey();
+    mineCss(); const { sc, urg } = await mineData(); navBadge(); bellCount(); const cs = sc.mine;
     const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية.</div>' : '';
-    return `<div class="homebody">${banner}<div class="row" style="align-items:center;margin-bottom:14px"><div class="grow"><h2 style="margin:0">جدولي الدراسي</h2>
-        <div class="small muted">${esc(t ? t.name : '')} · ${cs.length} شعبة · ${cs.reduce((s, c) => s + (+c.hours || 0), 0)} ساعة</div></div>${lampHtml()}</div>
-      ${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)}</td><td>${esc(c.days)}</td><td><span dir="ltr" style="white-space:nowrap">${esc(c.from)}–${esc(c.to)}</span></td><td><span dir="ltr">${esc(c.room || '')}</span></td></tr>`).join('')}</table></div>
-        <h3 style="margin:18px 0 8px">حسب اليوم</h3><div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${days.map((d) => `<div class="box"${d === td ? ' style="outline:2px solid var(--ledger)"' : ''}><b>${esc(d)}${d === td ? ' · اليوم' : ''}</b>${byDay[d].sort((a, b) => String(a.from).localeCompare(String(b.from))).map((c) => `<div class="small" style="margin-top:6px"><span dir="ltr">${esc(c.from)}–${esc(c.to)}</span> · ${esc(c.code)} (${esc(c.section)})${c.room ? ` · <span dir="ltr">${esc(c.room)}</span>` : ''}</div>`).join('')}</div>`).join('')}</div>`
+    return `<div class="homebody">${banner}${pageHero(WELCOME(), `${cs.length} شعبة · ${cs.reduce((s, c) => s + (+c.hours || 0), 0)} ساعة`, true)}${homeStats(sc, urg)}${todayStrip(cs)}
+      <h3 style="margin:18px 0 8px">جدولي الدراسي</h3>${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)}</td><td>${esc(c.days)}</td><td><span dir="ltr" style="white-space:nowrap">${esc(c.from)}–${esc(c.to)}</span></td><td><span dir="ltr">${esc(c.room || '')}</span></td></tr>`).join('')}</table></div>`
         : `<div class="empty">${myFac() ? 'لا توجد شعب مسندة إليك في الجدول المعتمد لهذا الفصل.' : 'حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.'}</div>`}</div>`;
   }
-  /* ٢ «مهامي»: جدول واحد — المقرر، والشعب، وعمود لكل متطلب؛ الضغط على الخانة يفتح البرنامج على المقرر */
+  /* ٢ «مهامي»: بطاقات الحالة، وبطاقة لكل مقرر بشارات متطلباته؛ الضغط على الشارة يفتح البرنامج المعني على المقرر */
+  const MF = { f: 'all' };
+  C.mineF = (f) => { MF.f = f; refresh(); };
   async function pgMine() {
     mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
     const { sc } = await mineData(); navBadge(); bellCount(); const cols = reqCols();
-    const head = `<tr><th style="background:var(--line2)">المقرر</th><th style="background:var(--line2)">الشعب</th>${cols.map((c) => `<th style="background:${tint(c.color, 14)};color:${c.color}">${esc(c.name)}</th>`).join('')}</tr>`;
-    const rows = sc.my.map((c) => { const r = c.role, secs = (r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections).map((x) => x.no).join('، ');
-      const pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
-      return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}${pn ? `<div class="tiny muted">${esc(pn)}</div>` : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
-        return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}${s.test ? '<span class="tiny" style="display:block;color:#9A6B00">بيانات تجريبية</span>' : ''}</td>`; }).join('')}</tr>`; }).join('');
+    const v = sc.term ? await approvedOf(sc.term.id).catch(() => null) : null, secs0 = v ? await D.select('sections', { eq: { version_id: v.id }, cols: 'id,students' }).catch(() => []) : [], stu = Object.fromEntries(secs0.map((x) => [x.id, x.students]));
+    const cards = sc.my.map((c) => { const r = c.role, secs = r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections, st = cols.map((col) => ({ col, s: colState(c, col), a: colApp(col) }));
+      const ok = st.filter((x) => x.s.t === 'ok').length, late = st.some((x) => x.s.t === 'late'), n = secs.reduce((a, x) => a + (+stu[x.id] || 0), 0), pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
+      return { c, r, late, done: st.length && ok === st.length, html: itemCard({ code: c.code, title: c.name, tone: late ? 'bad' : '', sub: pn || '',
+        chips: (r.coordinator ? chip('منسق', 'ok') : '') + (r.teacher ? chip('أستاذ') : ''),
+        nums: numBox(secs.length, 'شعب') + numBox(n || '—', 'طلاب') + numBox(st.length ? Math.round(ok / st.length * 100) + '%' : '—', 'الإنجاز', late ? 'bad' : ok === st.length ? 'ok' : ''),
+        badges: st.map((x) => `<button class="sb ${x.s.t}" style="border:0;cursor:pointer;font:inherit;font-size:12.5px" ${x.a ? `onclick="C.appOpenCtx('${x.a.id}','${c.id}')" title="فتح ${attr(x.a.name)}"` : 'disabled title="لم يُربط برنامج بهذا العمود"'}><span aria-hidden="true">${SB[x.s.t]}</span>${esc(x.col.name)}: ${esc(x.s.text)}${x.s.test ? ' · تجريبية' : ''}</button>`).join('') }) }; });
+    const list = cards.filter((x) => MF.f === 'late' ? x.late : MF.f === 'coord' ? x.r.coordinator : MF.f === 'teach' ? x.r.teacher : true);
+    const fb = (k, t, n) => `<button class="btn sm ${MF.f === k ? 'pri' : ''}" onclick="C.mineF('${k}')">${t} (${n})</button>`;
     const follow = (viewRole() !== 'staff' ? await followBoard(sc) : '') + anMine();
-    return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
-      ${sc.my.length ? `<table class="req"><thead>${head}</thead><tbody>${rows}</tbody></table>` : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}${follow}`;
+    return `<div class="stat-row">${statCard(cards.length, 'مقرراتي', (sc.term || {}).name || '', 'violet')}${statCard(cards.filter((x) => x.done).length, 'مكتملة', '', 'green')}${statCard(cards.filter((x) => !x.done && !x.late).length, 'قيد العمل', '', 'orange')}${statCard(cards.filter((x) => x.late).length, 'فيها نقص', '', cards.some((x) => x.late) ? 'red' : 'green', "C.mineF('late')")}</div>
+      <div class="row noprint" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">${fb('all', 'الكل', cards.length)}${fb('late', 'المتأخر', cards.filter((x) => x.late).length)}${fb('coord', 'بصفتي منسقًا', cards.filter((x) => x.r.coordinator).length)}${fb('teach', 'بصفتي أستاذًا', cards.filter((x) => x.r.teacher).length)}</div>
+      ${!sc.my.length ? '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>' : list.length ? `<div class="item-grid">${list.map((x) => x.html).join('')}</div>` : '<div class="okmsg">لا توجد مقررات في هذا التصنيف ✓</div>'}${follow}`;
   }
   /* ٣ «العضوية في الوحدات واللجان»: كل جهة لي فيها دور، بلا فصل بين وحدة ولجنة وقسم ووكالة.
      الضغط يفتح وجهة الدخول التي حددها مدير النظام للجهة (org_units.entry_app، الملف 18) بمستوى دوري فيها، وإلا مساحة عمل الجهة.
@@ -978,14 +1001,14 @@
     if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس، فلا تظهر عضوياتك. يربطه مدير النظام من «الحسابات والصلاحيات» (أو يُربط تلقائيًا إن تطابق بريد الحساب مع بريدك في قاعدة الأعضاء).</div>';
     const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; })
       .sort((a, b) => ((ROLE_ORD[a.position] ?? 9) - (ROLE_ORD[b.position] ?? 9)) || uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar'));
-    const [reqs, fac, acc] = await Promise.all([D.select('org_requests', { eq: { assignee_faculty: myFac() } }).catch(() => []),
-      D.select('org_app_fac', { eq: { faculty_id: myFac() } }).catch(() => []), D.select('org_app_access', { eq: { profile_app_id: S.me.app_id } }).catch(() => [])]);
+    const [reqs, fac, acc, vals, els] = await Promise.all([mem.length ? D.select('org_requests', { in: { unit_id: mem.map((m) => m.unit_id) } }).catch(() => []) : [],
+      D.select('org_app_fac', { eq: { faculty_id: myFac() } }).catch(() => []), D.select('org_app_access', { eq: { profile_app_id: S.me.app_id } }).catch(() => []), D.select('data_values', { eq: { status: 'draft' } }).catch(() => []), D.select('data_elements').catch(() => [])]);
+    const waitN = (uid) => vals.filter((v) => { const e = els.find((x) => x.code === v.element_code); return e && anOwner(e, v.program_id, v.department_id) === uid; }).length;
     const openN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status)).length;
     const entry = (u) => { const a = u.entry_app && S.apps.find((x) => x.id === u.entry_app && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
-    const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''];
-      return `<button onclick="${a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`}">${kindDot(u.kind)}<span class="grow"><b>${esc(u.name)}</b>
-        <span class="small muted" style="display:block">${a ? 'يفتح: ' + esc(a.name) : 'مساحة عمل الجهة'}</span></span>
-        ${n ? `<span class="chip wait">${n} ${n === 1 ? 'مهمة مفتوحة' : n === 2 ? 'مهمتان مفتوحتان' : 'مهام مفتوحة'}</span>` : ''}${chip(r[0], r[1])}${icon('chev')}</button>`; }).join('');
+    const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''], w = m.position === 'head' ? waitN(u.id) : 0;
+      return itemCard({ title: u.name, sub: a ? 'يفتح: ' + a.name : 'مساحة عمل الجهة', act: a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`, chips: chip(r[0], r[1]),
+        nums: numBox(S.members.filter((x) => x.unit_id === u.id && activeM(x)).length, 'الأعضاء') + numBox(n, 'مهام مفتوحة', n ? 'wait' : '') + (m.position === 'head' ? numBox(w, 'بانتظار الاعتماد', w ? 'wait' : '') : '') }); }).join('');
     /* صلاحيات خاصة: فردية (org_app_access / org_app_fac) أو دور عام (org_app_duties) على برنامج ليست لي عضوية في جهته ولا هو وجهة دخول لجهة من جهاتي */
     const mine = new Set(mem.map((m) => m.unit_id)), viaEntry = new Set(mem.map((m) => (unit(m.unit_id) || {}).entry_app).filter(Boolean));
     const ids = new Set([...fac, ...acc].filter((x) => x.level && x.level !== 'none').map((x) => x.app_id).concat(Object.keys(S.duties || {})));
@@ -993,7 +1016,7 @@
       .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     const LVL = { manage: ['إدارة', 'brass'], use: ['استخدام', 'ok'], view: ['اطلاع', ''] };
     if (!mem.length && !special.length) return '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>';
-    return (mem.length ? `<div class="clist">${cards}</div>` : '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>') +
+    return (mem.length ? `<div class="item-grid">${cards}</div>` : '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>') +
       (special.length ? `<h3 style="margin:22px 0 4px;font-size:15px">صلاحيات خاصة</h3><p class="small muted" style="margin:0 0 8px">برامج لك عليها صلاحية دون عضوية في جهتها.</p>
         <div class="clist">${special.map((a) => { const l = LVL[appLv(a)] || ['اطلاع', '']; return `<button onclick="C.appOpen('${a.id}')" style="padding:9px 14px">${icon(a.icon || 'app')}<span class="grow"><b>${esc(a.name)}</b><span class="small muted" style="display:block">${esc(uName(a.unit_id))}</span></span>${chip(l[0], l[1])}${icon('chev')}</button>`; }).join('')}</div>` : '');
   }
@@ -1307,13 +1330,17 @@
   C.anRefresh = (ev) => busy(ev && ev.target, async () => { const r = await D.rpc('data_refresh_site', { p_year: ANQ.year }); toast('حُدّثت ' + r.updated + ' قيمة من الموقع.'); refresh(); });
 
   /* ٤ «تنبيهاتي»: المتأخر أولًا ثم الأقرب موعدًا؛ سطر واحد وزر واحد لكل بند */
+  /* ٤ «تنبيهاتي»: مجمعة حسب اليوم، بخط لون بحسب الأهمية وشارة المصدر */
+  const AL_SRC = { bb: 'بلاك بورد', file: 'ملف المقرر', exam: 'الاختبارات', comm: 'الوحدات واللجان' };
   async function pgAlerts() {
     mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
     const { urg } = await mineData(); navBadge(); bellCount();
-    const col = (k) => k === 'comm' ? '#B7862A' : colColor(k);
-    return urg.length ? `<div class="clist">${urg.map((x) => `<div class="aline" style="--c:${col(x.k)}"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub)}</div></div>
-        <span class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>`
-      : '<div class="okmsg">لا توجد مطلوبات عاجلة ✓</div>';
+    if (!urg.length) return '<div class="okmsg">لا توجد مطلوبات عاجلة ✓</div>';
+    const grp = (x) => x.n == null ? (x.late ? 'يحتاج إجراءً الآن' : 'دون موعد') : x.n < 0 ? 'متأخر' : x.n === 0 ? 'اليوم' : x.n === 1 ? 'غدًا' : x.n <= 7 ? 'هذا الأسبوع' : 'لاحقًا';
+    const order = ['يحتاج إجراءً الآن', 'متأخر', 'اليوم', 'غدًا', 'هذا الأسبوع', 'لاحقًا', 'دون موعد'];
+    const col = (x) => x.late || (x.n != null && x.n < 0) ? 'var(--late)' : x.n != null && x.n <= 1 ? 'var(--wait)' : 'var(--ledger)';
+    return order.filter((g) => urg.some((x) => grp(x) === g)).map((g) => `<h3 class="al-day">${esc(g)} <small>${urg.filter((x) => grp(x) === g).length}</small></h3><div class="clist">${urg.filter((x) => grp(x) === g).map((x) => `<div class="aline" style="--c:${col(x)}"><div><b>${esc(x.t)}</b> ${chip(AL_SRC[x.k] || 'أخرى')}<div class="small muted">${esc(x.sub)}</div></div>
+        <span class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>`).join('');
   }
   /* الرد على استفسار: نافذة صغيرة بالسؤال والرد، وتُسجَّل القراءة عند فتحها */
   C.inqOpen = (qid) => busy(null, async () => { const q = CX.inq.find((x) => x.id === qid); if (!q) return;
@@ -1332,9 +1359,9 @@
     let fb; try { fb = await D.rpc('dept_followup', { p_term: t.id }); } catch (e) { fb = null; }
     if (!fb || !fb.length) return '';
     S._fb = Object.fromEntries(fb.map((x) => [x.dept, x]));
-    const n = (x, k, v, lab, color) => `<div class="box" style="border-inline-start:4px solid ${color}"><div class="small muted">${lab}</div><a href="#" style="font-size:26px;font-weight:800;color:${color}" onclick="C.fbList('${x.dept}','${k}');return false">${v}</a></div>`;
+    const n = (x, k, v, lab) => statCard(v, lab, '', v ? 'orange' : 'green', `C.fbList('${x.dept}','${k}')`);
     return `<h3 style="margin:22px 0 8px">لوحة المتابعة</h3>${fb.map((x) => `<div style="margin-bottom:12px"><b>${esc(uName(x.dept))}</b> <span class="small muted">· ${x.courses} مقرر</span>
-      <div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:6px">${n(x, 'no_file', x.no_file.length, 'ملفات مقررات لم تُسلَّم', colColor('file'))}${n(x, 'bb_unmet', x.bb_unmet.length, 'لم تستوفِ البلاك بورد', colColor('bb'))}${n(x, 'inq', x.inq.length, 'استفسارات بلا رد', colColor('bb'))}</div></div>`).join('')}`;
+      <div class="stat-row" style="margin-top:6px">${n(x, 'no_file', x.no_file.length, 'ملفات مقررات لم تُسلَّم', colColor('file'))}${n(x, 'bb_unmet', x.bb_unmet.length, 'لم تستوفِ البلاك بورد', colColor('bb'))}${n(x, 'inq', x.inq.length, 'استفسارات بلا رد', colColor('bb'))}</div></div>`).join('')}`;
   }
   C.fbList = (dep, k) => { const x = (S._fb || {})[dep]; if (!x) return;
     const names = (ids) => (ids || []).map(fName).join('، ') || '—';
@@ -1343,8 +1370,8 @@
       : x[k].map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="small">${esc(names(c.fac))}</td><td class="small">${esc(c.coord ? fName(c.coord) : '—')}</td></tr>`).join('');
     modal(T[k] + ' — ' + uName(dep), `<div class="tw"><table>${k === 'inq' ? '<tr><th>المقرر</th><th>العضو</th><th>الاستفسار</th></tr>' : '<tr><th>المقرر</th><th>الأساتذة</th><th>المنسق</th></tr>'}${body || '<tr><td colspan="3" class="muted">لا شيء.</td></tr>'}</table></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true); };
   /* عدد التنبيهات بجانب «تنبيهاتي» في القائمة الجانبية */
-  function navBadge() { const b = $('#side .nav[data-p="alerts"]'); if (!b) return; let s = b.querySelector('.ubadge'); if (!S.urgentN) { if (s) s.remove(); return; }
-    if (!s) { s = document.createElement('span'); s.className = 'ubadge'; s.style.cssText = 'margin-inline-start:auto;background:#C0392B;color:#fff;border-radius:999px;padding:0 8px;font-size:12px;font-weight:800'; b.appendChild(s); } s.textContent = S.urgentN; }
+  function navBadge() { [['mine', S.mineN, false], ['alerts', S.urgentN, true], ['approvals', (S._appr || []).length, true]].forEach(([p, n, hot]) => { const b = $('#side .nav[data-p="' + p + '"]'); if (!b) return; let s = b.querySelector('.nav-badge'); if (!n) { if (s) s.remove(); return; }
+    if (!s) { s = document.createElement('span'); s.className = 'nav-badge' + (hot ? ' hot' : ''); b.appendChild(s); } s.textContent = n; }); }
   C.facView = async (id) => {
     const f = fac(id);
     const ass = S.members.filter((m) => m.faculty_id === id).sort((a, b) => activeM(b) - activeM(a) || b.start_date.localeCompare(a.start_date));
@@ -3526,6 +3553,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const st = S.settings, role = viewRole();
     if (role === 'staff') return staffHome();
     if (isLeader() && !isAdmin()) return pgLead();
+    const adminTop = pageHero(WELCOME(), isAdmin() ? 'مدير النظام' : '', true);
     const [anns, courses, reqs] = await Promise.all([D.select('org_announcements').catch(() => []), D.select('courses', { cols: 'id' }).catch(() => []),
       D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,priority,assignee_faculty,due_date' }).catch(() => [])]);
     await loadTpl().catch(() => {});
@@ -3540,7 +3568,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const n = (k) => vis.filter((u) => u.kind === k).length;
     const vices = vis.filter((u) => u.kind === 'leadership' && u.parent_id).length;
     const tile = (p, ic, num, t) => `<button onclick="C.go('${p}')">${icon(ic)}<b>${num}</b><span>${esc(t)}</span></button>`;
-    return `<div class="homebody">${banner}${mineHtml(reqs)}
+    return `<div class="homebody">${banner}${adminTop}${mineHtml(reqs)}
       <div class="hstrip">${tile('depts', 'sitemap', n('department'), full ? 'الأقسام العلمية' : 'أقسامي')}${tile('units', 'cubes', n('unit'), full ? 'الوحدات' : 'وحداتي')}
         ${tile('committees', 'users', n('committee'), full ? 'اللجان' : 'لجاني')}${vices ? tile('vices', 'bank', vices, 'الوكالات') : ''}
         ${tile('courses', 'book', courses.length, 'المقررات')}${tile('faculty', 'user', S.faculty.filter((f) => f.status === 'نشط').length, 'أعضاء هيئة التدريس')}</div>
@@ -3566,39 +3594,47 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const LEAD_ST = { complete: 'مكتمل', in_progress: 'قيد العمل', not_started: 'لم يبدأ', notes: 'عليه ملاحظات', met: 'مستوفٍ', unmet: 'غير مستوفٍ', draft: 'مسودة', prepared: 'أُعدّ', submitted: 'أُرسل', in_review: 'قيد المراجعة', returned: 'أُعيد', approved: 'معتمد' };
   const LEAD_KIND = { file: 'ملفات وتقارير المقررات', exam: 'الاختبارات', bb: 'البلاك بورد', flow: 'مسار اعتماد الملف' };
   C.leadKpi = (id) => { ANQ.prog = id; ANQ.tab = 'kpi'; ANQ.mode = 'program'; go('annual'); };
+  /* ما ينتظر اعتمادي: القيم (من التنبيهات)، وتقارير البرامج المرسلة لوحدة الجودة */
+  async function approvalsOf(urg) { const list = urg.filter((x) => /اعتمادك/.test(x.t)).map((x) => Object.assign({}, x));
+    if (isLeader() && (anMem('u-quality') || isAdmin())) { const reports = await D.select('annual_reports').catch(() => []), sc = leadScope();
+      reports.filter((r) => r.status === 'in_review' && sc.progs.some((p) => p.id === r.program_id)).forEach((r) => list.push({ t: 'تقرير البرنامج السنوي بانتظار المراجعة: ' + ((anProg(r.program_id) || {}).name || r.program_id), sub: 'العام ' + r.year, btn: 'فتح', act: `C.leadKpi('${r.program_id}')` })); }
+    return list; }
+  const apprList = (L) => L.length ? `<div class="clist">${L.map((x) => `<div class="aline" style="--c:#23826A"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub || '')}</div></div><span></span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>` : '<div class="okmsg">لا شيء ينتظر اعتمادك ✓</div>';
+  async function pgApprovals() { mineCss(); await mineData().catch(() => {}); navBadge(); return apprList(S._appr || []); }
   async function pgLead() {
     mineCss(); const t = curTerm(), year = String((t || {}).year || '');
     const [reqs, stAll, reports, results, links, vals, els] = await Promise.all([D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,kind,due_date' }).catch(() => []),
       t ? D.select('course_status', { eq: { term_id: t.id } }).catch(() => []) : [], D.select('annual_reports').catch(() => []), D.select('kpi_results').catch(() => []), D.select('program_kpis').catch(() => []), D.select('data_values').catch(() => []), D.select('data_elements').catch(() => [])]);
     await loadTpl().catch(() => {});
-    let urg = []; try { urg = (await mineData()).urg; } catch (e) { await loadSched().catch(() => {}); }
+    let urg = [], sc0 = { my: [], mine: [] }; try { const md = await mineData(); urg = md.urg; sc0 = md.sc; } catch (e) { await loadSched().catch(() => {}); } navBadge();
     const sc = leadScope(), ids = new Set(sc.units.map((u) => u.id));
     const open = reqs.filter((q) => ids.has(q.unit_id) && q.kind !== 'inquiry' && !['done', 'rejected'].includes(q.status)), lateOf = (q) => q.due_date && q.due_date < today();
     const pend = (u) => TPLS.filter((x) => x.required && x.active && tplTargets(x).some((k) => k.id === u) && !RLOG.some((r) => r.template_id === x.id && r.unit_id === u)).length;
-    /* ما ينتظر اعتماده: القيم (من التنبيهات) وتقارير البرامج المرسلة لوحدة الجودة */
-    const toApprove = urg.filter((x) => /اعتمادك/.test(x.t));
-    if (anMem('u-quality') || isAdmin()) reports.filter((r) => r.status === 'in_review' && sc.progs.some((p) => p.id === r.program_id)).forEach((r) => toApprove.push({ t: 'تقرير البرنامج السنوي بانتظار المراجعة: ' + ((anProg(r.program_id) || {}).name || r.program_id), sub: 'العام ' + r.year, btn: 'فتح', act: `C.leadKpi('${r.program_id}')` }));
-    const tile = (n, l, c) => `<div class="box" style="border-inline-start:4px solid ${c}"><div class="small muted">${l}</div><b style="font-size:26px;color:${c}">${n}</b></div>`;
-    const heads = myHeads().map((m) => chip(uName(m.unit_id), 'brass')).join(' ');
-    const unitRows = sc.units.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)).map((u) => { const q = open.filter((x) => x.unit_id === u.id), h = headOf(u.id), l = q.filter(lateOf).length, p = pend(u.id);
-      return `<tr style="cursor:pointer" onclick="C.go('unit',{id:'${u.id}'})"><td><b>${esc(u.name)}</b></td><td class="small">${h ? esc(fName(h.faculty_id)) : '<span class="muted">شاغر</span>'}</td><td>${S.members.filter((m) => m.unit_id === u.id && activeM(m)).length}</td><td>${q.length}</td><td>${l ? chip(String(l), 'bad') : '0'}</td><td>${p ? chip(String(p), 'wait') : '0'}</td></tr>`; }).join('');
+    const toApprove = S._appr || [];
+    const units = sc.units.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)), lateUnits = units.filter((u) => open.some((q) => q.unit_id === u.id && lateOf(q))).length;
+    const unitCards = units.map((u) => { const q = open.filter((x) => x.unit_id === u.id), h = headOf(u.id), l = q.filter(lateOf).length, p = pend(u.id);
+      return itemCard({ title: u.name, tone: l ? 'bad' : '', sub: h ? fName(h.faculty_id) : 'شاغر', act: `C.go('unit',{id:'${u.id}'})`, chips: chip(KIND[u.kind] || ''),
+        nums: numBox(S.members.filter((m) => m.unit_id === u.id && activeM(m)).length, 'الأعضاء') + numBox(q.length, 'مفتوحة') + numBox(l, 'متأخرة', l ? 'bad' : '') + numBox(p, 'نماذج', p ? 'wait' : '') }); }).join('');
     /* التقارير: حالة المقررات بحسب النوع */
     const st = stAll.filter((x) => sc.course(x) && LEAD_KIND[x.kind]), bySt = {};
     st.forEach((x) => { const s = x.kind === 'exam' ? (((x.details || {}).questions === 'pending') ? 'الأسئلة لم تُسلَّم' : 'الأسئلة سُلِّمت') : (LEAD_ST[x.status] || x.status || '—'); ((bySt[x.kind] = bySt[x.kind] || {})[s] = (bySt[x.kind][s] || 0) + 1); });
-    const repRows = Object.keys(bySt).map((k) => `<tr><td><b>${esc(LEAD_KIND[k])}</b></td><td>${Object.keys(bySt[k]).map((s) => chip(s + ': ' + bySt[k][s])).join(' ')}</td></tr>`).join('');
+    const repRows = Object.keys(bySt).map((k) => itemCard({ title: LEAD_KIND[k], badges: Object.keys(bySt[k]).map((s) => chip(s + ': ' + bySt[k][s])).join(' ') })).join('');
     /* ما تنشره البرامج إلى السجل (الاستطلاعات وقياس المخرجات): من جهة البرنامج في نطاقه */
     const pub = {}; vals.forEach((v) => { const e = els.find((x) => x.code === v.element_code); if (!e || !e.source_app_id || !sc.appIn(e.source_app_id) || v.year !== year) return; const o = pub[e.source_app_id] = pub[e.source_app_id] || { a: 0, d: 0 }; if (v.status === 'approved') o.a++; else o.d++; });
-    const pubRows = Object.keys(pub).map((id) => `<tr><td><b>${esc((S.apps.find((a) => a.id === id) || {}).name || id)}</b></td><td>${chip('معتمد: ' + pub[id].a, 'ok')} ${chip('بانتظار الاعتماد: ' + pub[id].d, 'wait')}</td></tr>`).join('');
+    const pubRows = Object.keys(pub).map((id) => itemCard({ title: (S.apps.find((a) => a.id === id) || {}).name || id, badges: chip('معتمد: ' + pub[id].a, 'ok') + ' ' + chip('بانتظار الاعتماد: ' + pub[id].d, 'wait') })).join('');
     const follow = await followBoard({ term: t }).catch(() => '');
-    const kpiRows = sc.progs.map((g) => { const n = links.filter((l) => l.program_id === g.id && l.active !== false).length, r = results.filter((x) => x.program_id === g.id && x.year === year), rep = reports.find((x) => x.program_id === g.id && x.year === year), s = rep ? AR_ST[rep.status] || [rep.status, ''] : ['لم يبدأ', ''];
-      return `<tr style="cursor:pointer" onclick="C.leadKpi('${g.id}')"><td><b>${esc(g.name)}</b></td><td>${n || '—'}</td><td>${r.length}</td><td>${r.filter((x) => x.status === 'approved').length}</td><td>${chip(s[0], s[1])}</td></tr>`; }).join('');
-    return `<div class="homebody"><div class="row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px"><h1 style="margin:0;font-size:22px">واجهة القيادة</h1><span class="grow"></span>${heads}</div>
-      <div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:16px">${tile(sc.units.length, 'الجهات في نطاقك', 'var(--ink,#3B2160)')}${tile(open.length, 'أعمال مفتوحة', '#B7862A')}${tile(open.filter(lateOf).length, 'متأخرة', '#C0392B')}${tile(toApprove.length, 'بانتظار اعتمادك', '#23826A')}</div>
-      ${(() => { const a = S.apps.find((x) => x.id === S.settings.facultyDashApp); return a && a.current_version && appLv(a) !== 'none' ? `<h3 style="margin:18px 0 8px">القيادة</h3><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="C.appOpen('${a.id}')">${icon('user')}لوحة أعضاء هيئة التدريس</button></div>` : ''; })()}
-      <h3 style="margin:18px 0 8px">بانتظار اعتمادك</h3>${toApprove.length ? `<div class="clist">${toApprove.map((x) => `<div class="aline" style="--c:#23826A"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub || '')}</div></div><span></span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>` : '<div class="okmsg">لا شيء ينتظر اعتمادك ✓</div>'}
-      <h3 style="margin:18px 0 8px">الوحدات واللجان في نطاقك</h3><div class="panel tw"><table><tr><th>الجهة</th><th>رئيسها</th><th>الأعضاء</th><th>أعمال مفتوحة</th><th>متأخرة</th><th>نماذج مطلوبة</th></tr>${unitRows || '<tr><td colspan="6" class="empty">لا توجد جهات.</td></tr>'}</table></div>
-      <h3 style="margin:18px 0 8px">التقارير: ${esc((t || {}).name || '')}</h3>${repRows || pubRows ? `<div class="panel tw"><table>${repRows}${pubRows}</table></div>` : '<div class="empty">لا توجد تقارير منشورة في نطاقك لهذا الفصل.</div>'}${follow}
-      <h3 style="margin:18px 0 8px">المؤشرات: عام ${esc(year)}</h3>${kpiRows ? `<div class="panel tw"><table><tr><th>البرنامج</th><th>المؤشرات</th><th>نتائج محفوظة</th><th>معتمدة</th><th>التقرير السنوي</th></tr>${kpiRows}</table></div>` : '<div class="empty">لا توجد برامج في نطاقك.</div>'}</div>`;
+    let kN = 0, kA = 0; const kpiCards = sc.progs.map((g) => { const n = links.filter((l) => l.program_id === g.id && l.active !== false).length, r = results.filter((x) => x.program_id === g.id && x.year === year), a = r.filter((x) => x.status === 'approved').length, rep = reports.find((x) => x.program_id === g.id && x.year === year), s = rep ? AR_ST[rep.status] || [rep.status, ''] : ['لم يبدأ', '']; kN += n; kA += a;
+      return itemCard({ title: g.name, act: `C.leadKpi('${g.id}')`, chips: chip(s[0], s[1]), nums: numBox(n || '—', 'مؤشرات') + numBox(r.length, 'محفوظة') + numBox(a, 'معتمدة', a ? 'ok' : '') }); }).join('');
+    const kp = kN ? Math.round(kA / kN * 100) + '%' : '—';
+    const dash = (() => { const a = S.apps.find((x) => x.id === S.settings.facultyDashApp); return a && a.current_version && appLv(a) !== 'none' ? `<h3 style="margin:18px 0 8px">القيادة</h3><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="C.appOpen('${a.id}')">${icon('user')}لوحة أعضاء هيئة التدريس</button></div>` : ''; })();
+    const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية.</div>' : '';
+    return `<div class="homebody">${banner}${pageHero(WELCOME(), leadTitle() + ' · ' + sc.units.length + ' جهة في نطاقك', true, `<div class="ph-chips ph-side">${myHeads().map((m) => `<span class="ph-chip">${esc(uName(m.unit_id))}</span>`).join('')}</div>`)}
+      <div class="stat-row">${statCard(toApprove.length, 'بانتظار اعتمادي', '', toApprove.length ? 'orange' : 'green', "C.go('approvals')")}${statCard(lateUnits, 'جهات متأخرة', 'لديها أعمال تجاوزت موعدها', lateUnits ? 'red' : 'green')}${statCard(kp, 'اكتمال المؤشرات', 'عام ' + year, 'violet')}${statCard(open.length, 'أعمال مفتوحة', '', 'violet')}</div>
+      ${myFac() ? homeStats(sc0, urg) + todayStrip(sc0.mine) : ''}${dash}
+      <h3 style="margin:18px 0 8px">بانتظار اعتمادك</h3>${apprList(toApprove)}
+      <h3 style="margin:18px 0 8px">الوحدات واللجان في نطاقك</h3><div class="item-grid">${unitCards || '<div class="empty">لا توجد جهات.</div>'}</div>
+      <h3 style="margin:18px 0 8px">التقارير: ${esc((t || {}).name || '')}</h3>${repRows || pubRows ? `<div class="item-grid">${repRows}${pubRows}</div>` : '<div class="empty">لا توجد تقارير منشورة في نطاقك لهذا الفصل.</div>'}${follow}
+      <h3 style="margin:18px 0 8px">المؤشرات: عام ${esc(year)}</h3>${kpiCards ? `<div class="item-grid">${kpiCards}</div>` : '<div class="empty">لا توجد برامج في نطاقك.</div>'}</div>`;
   }
 
   /* صفحة المناصب للمدير: الشاغل من org_members؛ والنقل يغلق تكليف السابق (org_set_head) ويسجله التدقيق، ولا يمس الحسابات ولا الأعمال */
@@ -3633,6 +3669,24 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       <div id="saList" class="checks" style="flex-direction:column;align-items:flex-start;max-height:50vh;overflow:auto">${list.map((f) => `<label><input type="checkbox" class="saC" value="${f.id}" ${cur.includes(f.id) ? 'checked' : ''}> ${esc(f.name_ar)}</label>`).join('')}</div><div class="err"></div>`,
       `<button class="btn pri" id="saOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#saOk').onclick = (ev) => busy(ev.target, async () => { const d = Object.assign({}, S.settings, { settingsAccess: $$('.saC').filter((c) => c.checked).map((c) => c.value) }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; C.close(); toast('حُفظ.'); }); };
+  /* البحث السريع (Ctrl K): المقررات، والأعضاء، والجهات، والصفحات المتاحة للمستخدم */
+  const QS = { i: 0, res: [] };
+  const qsPages = () => { const staff = viewRole() === 'staff'; const base = staff ? ['home', 'mine', 'memberships', 'alerts', 'apps'] : ['home', 'college', 'vices', 'depts', 'units', 'committees', 'tasks', 'mine', 'memberships', 'alerts', 'apps', 'annual', 'reports'].concat(isLeader() ? ['approvals'] : []);
+    return base.concat(canSettings() ? SET_PAGES : []).filter((p) => TITLES[p]).filter((p) => p !== 'annual' || annualSeen()).filter((p) => p !== 'reports' || gcap('reports')); };
+  C.qs = async () => { if ($('#qsOv')) return; const o = document.createElement('div'); o.id = 'qsOv'; o.onclick = (e) => { if (e.target === o) o.remove(); };
+    o.innerHTML = `<div class="qs-box" role="dialog" aria-label="بحث سريع"><input id="qsI" placeholder="ابحث عن مقرر أو عضو أو جهة أو صفحة…" autocomplete="off"><div id="qsR"></div><div class="tiny muted" style="padding:6px 12px">↑↓ للتنقل · Enter للفتح · Esc للإغلاق</div></div>`; document.body.appendChild(o);
+    const i = $('#qsI'); i.focus(); i.oninput = qsRun; i.onkeydown = (e) => { if (e.key === 'Escape') o.remove(); else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); QS.i = Math.max(0, Math.min(QS.res.length - 1, QS.i + (e.key === 'ArrowDown' ? 1 : -1))); qsDraw(); } else if (e.key === 'Enter' && QS.res[QS.i]) { e.preventDefault(); C.qsGo(QS.i); } };
+    if (!S._qsC) S._qsC = await D.select('courses', { cols: 'id,code,name_ar' }).catch(() => []); qsRun(); };
+  function qsRun() { const q = (($('#qsI') || {}).value || '').trim().toLowerCase(), has = (...x) => !q || x.some((v) => String(v || '').toLowerCase().includes(q)), out = [];
+    qsPages().filter((p) => has(TITLES[p])).slice(0, q ? 6 : 8).forEach((p) => out.push({ g: 'الصفحات', t: TITLES[p], go: () => go(p) }));
+    if (q.length >= 2) { (S._qsC || []).filter((c) => has(c.code, c.name_ar)).slice(0, 6).forEach((c) => out.push({ g: 'المقررات', t: c.code + ' ' + c.name_ar, go: () => go(canSettings() ? 'courses' : 'mine') }));
+      S.faculty.filter((f) => has(f.name_ar, f.name_en, f.employee_no)).slice(0, 6).forEach((f) => out.push({ g: 'الأعضاء', t: f.name_ar, s: uName(f.department_id), go: () => C.facView(f.id) }));
+      S.units.filter((u) => u.status !== 'archived' && (isAdmin() || cap(u.id, 'read')) && has(u.name)).slice(0, 6).forEach((u) => out.push({ g: 'اللجان والوحدات', t: u.name, go: () => go('unit', { id: u.id }) })); }
+    QS.res = out; QS.i = 0; qsDraw(); }
+  function qsDraw() { const r = $('#qsR'); if (!r) return; let g = ''; r.innerHTML = QS.res.length ? QS.res.map((x, i) => (x.g !== g ? ((g = x.g), `<div class="qs-g">${esc(g)}</div>`) : '') + `<button class="qs-i${i === QS.i ? ' on' : ''}" onclick="C.qsGo(${i})"><span>${esc(x.t)}</span>${x.s ? `<small>${esc(x.s)}</small>` : ''}</button>`).join('') : '<div class="empty">لا توجد نتائج.</div>'; const on = r.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+  C.qsGo = (i) => { const x = QS.res[i]; const o = $('#qsOv'); if (o) o.remove(); if (x) x.go(); };
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.key === 'ك') && S.me) { e.preventDefault(); C.qs(); } });
+
   /* «جهاتي وصلاحياتي»: ما يخص المستخدم وحده */
   function mineHtml(reqs) {
     const mf = myFac(), me = S.me, direct = myDirect();

@@ -173,7 +173,7 @@
     ['ACCT201', '1', 'ط', 'اثنين أربعاء', '08:00', '09:15', 'A-103', 'a.alkhalidi@ju.edu.sa'], ['ACCT311', '1', 'ط', 'أحد ثلاثاء', '11:30', '12:45', 'A-104', 'm.alruwaili@ju.edu.sa'],
     ['ACCT331', '1', 'ت', 'اثنين أربعاء', '10:00', '11:15', 'B-14', 'a.alkhalidi@ju.edu.sa'], ['ACCT341', '1', 'ط', 'خميس', '08:00', '10:45', 'LAB-2', 'm.alrashidi@ju.edu.sa'],
     ['FIN201', '1', 'ط', 'أحد ثلاثاء', '13:00', '14:15', 'A-201', 's.almutairi@ju.edu.sa'], ['FIN201', '2', 'ت', 'اثنين أربعاء', '13:00', '14:15', 'B-21', 'a.alhazmi@ju.edu.sa'],
-    ['FIN321', '1', 'ط', 'اثنين أربعاء', '11:30', '12:45', 'A-202', 'a.alhazmi@ju.edu.sa'], ['MGT101', '1', 'ط', 'أحد ثلاثاء', '08:00', '09:15', 'A-301', 'y.alotaibi@ju.edu.sa'],
+    ['FIN321', '1', 'ط', 'اثنين أربعاء', '11:30', '12:45', 'A-202', 'a.alhazmi@ju.edu.sa'], ['MGT101', '1', 'ط', 'أحد ثلاثاء', '08:00', '09:15', 'A-301', 'y.alotaibi@ju.edu.sa'], ['MGT101', '2', 'ت', 'أحد ثلاثاء', '11:30', '12:45', 'B-30', 'vice@ju.edu.sa'], ['MGT231', '2', 'ت', 'اثنين أربعاء', '10:00', '11:15', 'B-31', 'vice@ju.edu.sa'],
     ['MGT101', '2', 'ت', 'أحد ثلاثاء', '08:00', '09:15', 'B-31', 'h.alsarhan@ju.edu.sa'], ['MGT231', '1', 'ط', 'اثنين أربعاء', '10:00', '11:15', 'A-302', 't.alsharari@ju.edu.sa'],
     ['MKT201', '1', 'ت', 'أحد ثلاثاء', '11:30', '12:45', 'B-32', 'h.alsarhan@ju.edu.sa']
   ].map(([c, s, g, d, a, b, room, em]) => ({ course_code: c, course_name: code(c).name_ar, section: s, gender: g === 'ط' ? 'طلاب' : 'طالبات', days: d, time_from: a, time_to: b, room, faculty_email: em }));
@@ -201,6 +201,7 @@
     let rows = (T[t] || []).filter((r) => matches(r, q)).map(clone);
     /* الملف 22: مفاتيح priv.* لا يقرؤها إلا «استخدام» أو «إدارة» */
     if (t === 'org_app_data') rows = rows.filter((r) => !String(r.key).startsWith('priv.') || ['use', 'manage'].includes(appLvMe(r.app_id)));
+    if (t === 'sections') rows.forEach((x, i) => { if (x.students == null) x.students = 18 + (i * 7) % 25; });
     /* الملف 32: سياسات القراءة (req_read وcs_read) */
     if (t === 'org_requests') { const pr = prof(ME) || {}, mf = myFacId(); rows = rows.filter((r) => pr.is_admin || capsFor(ME, r.unit_id).read || r.created_by === ME || (r.assignee_faculty && r.assignee_faculty === mf)); }
     if (t === 'course_status') rows = rows.filter((r) => { const pr = prof(ME) || {}, c = T.courses.find((x) => x.id === r.course_id) || {}, a = T.org_apps.find((x) => x.id === r.source_app); return pr.is_admin || leadershipOf(ME, true) || r.faculty_id === myFacId() || myCourseOn(r.term_id, r.course_id) || (c.department_id && (capsFor(ME, c.department_id).manage || leaderOver(c.department_id))) || (a && capsFor(ME, a.unit_id).read); });
@@ -508,6 +509,22 @@
   const appUnit = (app) => (T.org_apps.find((a) => a.id === app) || {}).unit_id || null;
   const curTermId = () => (T.terms.find((t) => t.is_current) || {}).id || null;
   const myFacId = () => (T.faculty.find((x) => x.profile_app_id === ME) || {}).id || null;
+  /* بيانات تجريبية لصفحات ما بعد الدخول: برامج، وحالات مقررات، وتقويم، وقيم تنتظر الاعتماد */
+  (() => { const set = T.org_settings[0].data, cur = (T.terms.find((x) => x.is_current) || T.terms[0]).id, day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    set.publicInfo = Object.assign({}, set.publicInfo, { calendar: [{ d: day(-69), t: 'بدء الدراسة للفصل الأول' }] });
+    [['a-clo', 'قياس المخرجات', 'u-quality'], ['a-exm', 'نظام الاختبارات', 'u-exams'], ['a-bb', 'متابعة بلاك بورد', 'u-elearn']].forEach(([id, name, unit_id]) => T.org_apps.push({ id, unit_id, name, description: '', kind: 'html', target: '', icon: 'app', sort: 50, active: true, current_version: null, everyone: 'view', created_at: nowISO() }));
+    set.courseButtons = { file: 'a-clo', exam: 'a-exm', bb: 'a-bb' };
+    const put = (code, kind, status, details, app, progress) => { const c = T.courses.find((x) => x.code === code); if (c) T.course_status.push({ id: uuid(), term_id: cur, course_id: c.id, section_id: null, faculty_id: null, source_app: app, kind, status, progress: progress == null ? null : progress, details: details || {}, updated_at: nowISO() }); };
+    put('ACCT101', 'file', 'complete', {}, 'a-clo'); put('ACCT101', 'bb', 'met', {}, 'a-bb'); put('ACCT101', 'exam', '', { questions: 'pending', qDue: day(5), items: [{ name: 'النهائي', date: day(12), period: '1', room: 'A-101' }] }, 'a-exm');
+    put('ACCT341', 'file', 'in_progress', {}, 'a-clo', 60); put('ACCT341', 'bb', 'unmet', { missing: ['خطة المقرر', 'الدرجات'] }, 'a-bb'); put('ACCT341', 'exam', '', { questions: 'submitted', items: [{ name: 'النهائي', date: day(15), period: '2', room: 'LAB-2' }] }, 'a-exm');
+    put('MGT101', 'file', 'notes', { notes: ['ينقص توزيع الدرجات'] }, 'a-clo'); put('MGT231', 'file', 'complete', {}, 'a-clo'); put('FIN201', 'file', 'in_progress', {}, 'a-clo', 30); put('MKT201', 'bb', 'met', {}, 'a-bb'); put('MKT201', 'exam', '', { questions: 'pending', items: [{ name: 'النهائي', date: day(9), period: '1', room: 'A-302' }] }, 'a-exm');
+    (T.sections || []).forEach((x, i) => { if (x.students == null) x.students = 18 + (i * 7) % 25; });
+    put('MGT101', 'exam', '', { questions: 'submitted', items: [{ name: 'النهائي', date: day(10), period: '1', room: 'B-30' }] }, 'a-exm');
+    const ac = T.courses.find((x) => x.code === 'ACCT341'), a1 = T.courses.find((x) => x.code === 'ACCT101');
+    T.course_status.filter((x) => x.kind === 'exam' && x.course_id === ac.id).forEach((x) => { x.details.graded = { due: day(-2), pending: 1 }; }); T.course_status.filter((x) => x.kind === 'exam' && x.course_id === a1.id).forEach((x) => { x.details.graded = { due: day(1), pending: 2 }; });
+    T.course_status.push({ id: uuid(), term_id: cur, course_id: a1.id, section_id: null, faculty_id: 'f08', source_app: 'a-exm', kind: 'invigilation', status: '', progress: null, details: { items: [{ name: 'الفصلي', date: day(0), period: '2', room: 'A-101', role: 'مراقب' }] }, updated_at: nowISO() });
+    const el = T.data_elements.filter((e) => e.level === 'college' || e.level === 'department').slice(0, 2); el.forEach((e) => { e.owner_unit_id = 'vice'; T.data_values.push({ id: uuid(), element_code: e.code, program_id: null, department_id: e.level === 'department' ? 'dept-acct' : null, year: String((T.terms.find((x) => x.is_current) || T.terms[0]).year), term: null, value_num: 12, value_text: '', details: {}, evidence: '', status: 'draft', note: '', entered_by: 'uvice', approved_by: null, updated_at: nowISO(), version: 1 }); });
+  })();
   R.course_status_publish = ({ p_app, p_items }) => {
     if (!['use', 'manage'].includes(appLvMe(p_app))) throw new Error('لا يملك المستخدم صلاحية النشر من هذا البرنامج.'); const strong = appStrong(p_app);
     let n = 0; (p_items || []).forEach((it) => {

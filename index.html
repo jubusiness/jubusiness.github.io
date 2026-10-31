@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>نظام إدارة كلية الأعمال — جامعة الجوف</title>
-<script src="config.js?v=20261031d"></script>
+<script src="config.js?v=20261031e"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -388,6 +388,36 @@ td.row>.btn{margin:2px}
 @media print{#side,#brand,#topbar,.noprint,#toast,.tabs,.pghead .row{display:none!important}
   #app{display:block} main{padding:0} body{background:#fff;color:#000}
   th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact} .printhead{display:block!important}}
+/* مكونات صفحات ما بعد الدخول */
+.page-hero{position:relative;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;border-radius:14px;padding:16px 20px;margin-bottom:16px;color:#fff;background:linear-gradient(120deg,#5C3779,#80519F)}
+.page-hero.big{padding:24px 24px;background:linear-gradient(100deg,rgba(61,35,84,.96),rgba(128,81,159,.86)),url(img/login-bg.jpg) center/cover}
+.page-hero h1{color:#fff;margin:0;font-size:22px;line-height:1.35}.page-hero.big h1{font-size:25px}
+.page-hero p{margin:3px 0 0;font-size:14px;color:rgba(255,255,255,.88)}.page-hero .ph-t{flex:1;min-width:0}
+.ph-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.ph-chips:empty{display:none}.ph-side{margin-top:0}
+.ph-chip{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:999px;padding:1px 11px;font-size:12.5px;font-weight:700}
+.page-hero .btn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35);color:#fff}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:1px;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--tone);border-radius:12px;padding:12px 14px;min-width:0}
+button.stat-card{cursor:pointer}button.stat-card:hover{box-shadow:0 6px 16px -10px var(--tone)}button.stat-card:focus-visible{outline:2px solid var(--tone)}
+.stat-card b{font-size:27px;font-weight:800;line-height:1.2;color:var(--tone)}.stat-card span{font-size:13.5px;font-weight:700;color:var(--ink)}.stat-card small{font-size:12px;color:var(--mute)}
+.stat-card.violet,.item-card{--tone:var(--ledger)}.stat-card.green{--tone:var(--ok)}.stat-card.orange{--tone:var(--wait)}.stat-card.red{--tone:var(--late)}
+.item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-bottom:16px}
+.item-card{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--line);border-inline-start:4px solid var(--tone);border-radius:12px;padding:12px 14px;min-width:0}
+button.item-card{cursor:pointer}button.item-card:hover{background:var(--ledger-soft)}button.item-card:focus-visible{outline:2px solid var(--ledger)}.item-card.bad{--tone:var(--late)}
+.ic-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ic-h b{flex:1 1 130px;min-width:0}.ic-code{background:var(--ledger-soft);color:var(--ledger);border-radius:6px;padding:0 7px;font-size:12.5px;font-weight:800}
+.ic-nums,.ic-badges{display:flex;gap:6px;flex-wrap:wrap}
+.num-box{display:inline-flex;flex-direction:column;align-items:center;min-width:54px;background:var(--line2);border-radius:8px;padding:3px 8px;line-height:1.25}.num-box b{font-size:15px;font-weight:800}.num-box i{font-style:normal;font-size:11px;color:var(--mute)}
+.num-box.bad b{color:var(--late)}.num-box.ok b{color:var(--ok)}.num-box.wait b{color:var(--wait)}
+.today-strip{margin-bottom:14px}.today-strip h3{margin:0 0 8px;font-size:15px}.ts-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.ts-item{flex:0 0 auto;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--ledger);border-radius:10px;padding:8px 12px;min-width:138px;text-align:start}.ts-t{font-size:12.5px;color:var(--ledger);font-weight:800;text-align:end}
+.al-day{margin:18px 0 8px;font-size:15px}.al-day small{color:var(--mute);font-weight:500}
+.nav-badge{margin-inline-start:auto;background:#fff;color:var(--bar2);border-radius:999px;padding:0 8px;font-size:12px;font-weight:800;line-height:20px}.nav-badge.hot{background:#E0483A;color:#fff}
+.side-q{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;margin:0 2px 8px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.1);color:var(--bar-ink);font-size:13.5px}.side-q:hover{background:rgba(255,255,255,.17)}.side-q kbd{margin-inline-start:auto;font:inherit;font-size:11px;opacity:.75;direction:ltr}.side-q:focus-visible{outline:2px solid var(--brass)}
+#qsOv{position:fixed;inset:0;z-index:90;background:rgba(30,20,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:9vh 12px 12px}
+.qs-box{width:100%;max-width:560px;background:var(--card);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden}.qs-box input{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--line);padding:14px 16px;font:inherit;font-size:16px;background:transparent;color:var(--ink);outline:0}
+#qsR{max-height:56vh;overflow:auto;padding:6px}.qs-g{font-size:12px;color:var(--mute);font-weight:800;padding:8px 10px 3px}.qs-i{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer;padding:7px 10px;border-radius:8px}.qs-i small{margin-inline-start:auto;color:var(--mute);font-size:12px}.qs-i:hover,.qs-i.on{background:var(--ledger-soft)}
+@media (max-width:600px){#topbar .ttl{display:none}.stat-row{grid-template-columns:1fr 1fr;gap:8px}.stat-card b{font-size:22px}.item-grid{grid-template-columns:1fr}.page-hero{padding:14px}.page-hero.big{padding:18px 16px}.page-hero.big h1{font-size:20px}.side-q kbd{display:none}}
+@media print{.page-hero{background:none!important;color:#000;padding:0}.page-hero h1,.page-hero p{color:#000}.ph-chips,.stat-row .btn,#qsOv{display:none!important}.stat-card{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -411,7 +441,7 @@ td.row>.btn{margin:2px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js"></script>
-<script src="js/college-demo.js?v=20261031d"></script>
-<script src="js/college-app.js?v=20261031d"></script>
+<script src="js/college-demo.js?v=20261031e"></script>
+<script src="js/college-app.js?v=20261031e"></script>
 </body>
 </html>
