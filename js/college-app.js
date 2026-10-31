@@ -246,13 +246,13 @@
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
     ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
-    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'], ['annual', 'التقرير السنوي', 'chart', () => annualSeen()],
+    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'], ['annual', 'الجودة والمؤشرات', 'chart', () => annualSeen()],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
   ];
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'التقرير السنوي' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'الجودة والمؤشرات' };
   const NAV_OF = { myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
@@ -274,7 +274,7 @@
     const mine = myDirect();
     /* عضو هيئة التدريس: أربعة عناصر فقط */
     const nb = (p, ic, t) => `<button class="nav" data-p="${p}" onclick="C.go('${p}')">${icon(ic)}${t}</button>`;
-    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') + (annualSeen() ? nb('annual', 'chart', 'التقرير السنوي') : '') +
+    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') + (annualSeen() ? nb('annual', 'chart', 'الجودة والمؤشرات') : '') +
       `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>` : NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
@@ -1013,23 +1013,40 @@
   const DR_ST = { new: ['جديد', 'wait'], in_progress: ['قيد العمل', ''], done: ['تم', 'ok'], rejected: ['مرفوض', 'bad'] };
   const anYears = () => [...new Set((S.terms || []).map((x) => String(x.year)))].sort().reverse();
   const anKey = (el, pg, dp, tm) => [el, pg || '', dp || '', tm || ''].join('|');
-  const anFail = (e) => /does not exist|schema cache|relation/i.test(String(e && e.message)) ? '<div class="empty">التقرير السنوي يحتاج تنفيذ الملف database/28_annual_data.sql أولًا.</div>' : `<div class="panel bad">${esc(pgErr(e))}</div>`;
+  const anFail = (e) => /does not exist|schema cache|relation/i.test(String(e && e.message)) ? '<div class="empty">هذه الصفحات تحتاج تنفيذ الملف database/28_annual_data.sql أولًا.</div>' : `<div class="panel bad">${esc(pgErr(e))}</div>`;
+  /* البرامج التي تظهر للمستخدم: الكل للمدير ووحدة الجودة والعميد والوكيل؛ وإلا برامج لجنته أو تنسيقه أو قسمه، وكل البرامج لعضو جهة تملك عنصرًا بعينه (يُدخل قيمه لكل برنامج) */
+  const anVisible = (els) => { const progs = (S.programs || []).filter((p) => p.active !== false);
+    if (anAdmin() || (S.me && S.me.college_role)) return progs;
+    const owner = (els || []).some((e) => e.active !== false && e.level === 'program' && e.owner_unit_id && anMem(e.owner_unit_id));
+    return progs.filter((p) => owner || anWork(p.id) || anHead(p.department_id)); };
+  const anSoon = (t, stage, body) => `<div class="empty"><b>${esc(t)}: قيد الإنشاء — المرحلة ${stage}</b><div class="small" style="margin-top:6px">${esc(body)}</div></div>`;
   async function pgAnnual() {
     if (!ANQ.year) ANQ.year = String((curTerm() || {}).year || anYears()[0] || '');
-    const tabs = [['data', 'سجل البيانات'], ['req', 'طلبات البيانات'], ['dict', 'القاموس']];
-    const nav = `<div class="row noprint" style="margin-bottom:12px;gap:6px;flex-wrap:wrap">${tabs.map(([k, l]) => `<button class="btn sm ${ANQ.tab === k ? 'pri' : ''}" onclick="C.anq('tab','${k}')">${l}</button>`).join('')}<span class="grow"></span>
-      ${ANQ.tab !== 'dict' ? `<label class="small">العام <select class="inp" onchange="C.anq('year',this.value)" aria-label="العام">${anYears().map((y) => opt(y, y + 'هـ', ANQ.year)).join('')}</select></label>` : ''}</div>`;
-    try { return nav + (ANQ.tab === 'req' ? await anReqTab() : ANQ.tab === 'dict' ? await anDictTab() : await anDataTab()); }
-    catch (e) { console.error(e); return nav + anFail(e); }
+    const tabs = [['data', 'سجل البيانات'], ['kpi', 'مؤشرات الأداء'], ['apr', 'تقرير البرنامج السنوي'], anAdmin() ? ['col', 'التقرير السنوي للكلية'] : null, ['req', 'طلبات البيانات']].filter(Boolean);
+    if (!tabs.some((t) => t[0] === ANQ.tab)) ANQ.tab = 'data';
+    const nav = `<div class="row noprint" style="margin-bottom:12px;gap:6px;flex-wrap:wrap">${tabs.map(([k, l]) => `<button class="btn sm ${ANQ.tab === k ? 'pri' : ''}" onclick="C.anq('tab','${k}')">${l}</button>`).join('')}</div>`;
+    try {
+      const els = await D.select('data_elements', { order: ['sort'] }), vis = anVisible(els);
+      if (!vis.some((p) => p.id === ANQ.prog)) ANQ.prog = (vis.find((p) => anWork(p.id)) || vis[0] || {}).id || '';
+      const yearSel = `<label class="f" style="margin:0;max-width:130px">العام<select onchange="C.anq('year',this.value)">${anYears().map((y) => opt(y, y + 'هـ', ANQ.year)).join('')}</select></label>`;
+      const progSel = ANQ.tab === 'col' || (ANQ.tab === 'data' && ANQ.mode === 'unit') ? '' : ANQ.tab === 'req'
+        ? `<label class="f" style="margin:0;max-width:340px">البرنامج<select onchange="C.anq('rprog',this.value)"><option value="">كل برامجي</option>${vis.map((p) => opt(p.id, p.name, ANQ.rprog)).join('')}</select></label>`
+        : `<label class="f" style="margin:0;max-width:340px">البرنامج<select onchange="C.anq('prog',this.value)">${vis.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select></label>`;
+      const head = `<div class="row noprint" style="margin-bottom:12px;gap:10px;flex-wrap:wrap;align-items:flex-end">${progSel}${yearSel}</div>`;
+      if (!vis.length && ANQ.tab !== 'req') return nav + '<div class="empty">لا توجد برامج ضمن صلاحيتك. تظهر برامج قسمك بعد إضافتك إلى لجنة جودته.</div>';
+      const body = ANQ.tab === 'req' ? await anReqTab(vis) : ANQ.tab === 'kpi' ? await anKpiTab(vis)
+        : ANQ.tab === 'apr' ? await anAprTab()
+        : ANQ.tab === 'col' ? anSoon('التقرير السنوي للكلية', 4, 'يجمع برامج الكلية مع نموذج نتائج مؤشرات الأداء (6).') : await anDataTab(vis);
+      return nav + head + body;
+    } catch (e) { console.error(e); return nav + anFail(e); }
   }
   C.anq = (k, v) => { ANQ[k] = v; if (VIEW.page === 'annual') refresh(); else C.go('annual'); };
   /* صفوف السجل: كل عنصر نشط مع كل نطاق وفترة ضمن المعروض، ومعها قيمته إن كانت ظاهرة للمستخدم وحالتها */
   async function anLoad() {
     const [els, vals, st] = await Promise.all([D.select('data_elements', { order: ['sort'] }), D.select('data_values', { eq: { year: ANQ.year } }), D.rpc('data_status', { p_year: ANQ.year })]);
     const V = new Map(vals.map((v) => [anKey(v.element_code, v.program_id, v.department_id, v.term), v])), ST = new Map((st || []).map((s) => [anKey(s.element, s.program, s.department, s.term), s.status]));
-    const progs = (S.programs || []).filter((p) => p.active !== false), terms = (S.terms || []).filter((x) => String(x.year) === ANQ.year), rows = [];
+    const progs = (S.programs || []).filter((p) => p.active !== false), vis = anVisible(els), terms = (S.terms || []).filter((x) => String(x.year) === ANQ.year), rows = [];
     const owners = [...new Set(els.filter((e) => e.active !== false).flatMap((e) => e.level === 'program' ? progs.map((p) => anOwner(e, p.id)) : e.level === 'department' ? deptUnits().map((d) => anOwner(e, null, d.id)) : [anOwner(e)]))].filter(Boolean);
-    if (!ANQ.prog || !anProg(ANQ.prog)) ANQ.prog = (progs.find((p) => anWork(p.id)) || progs[0] || {}).id || '';
     if (!ANQ.unit || !owners.includes(ANQ.unit)) ANQ.unit = owners.find(anMem) || owners[0] || '';
     els.filter((e) => e.active !== false).forEach((e) => { let sc = [];
       if (ANQ.mode === 'program') { const g = anProg(ANQ.prog); if (!g) return;
@@ -1037,7 +1054,7 @@
       else sc = e.level === 'program' ? progs.filter((p) => anOwner(e, p.id) === ANQ.unit).map((p) => ({ pg: p.id })) : e.level === 'department' ? deptUnits().filter((d) => anOwner(e, null, d.id) === ANQ.unit).map((d) => ({ dp: d.id })) : anOwner(e) === ANQ.unit ? [{}] : [];
       sc.forEach((s) => (e.period_kind === 'term' ? terms.map((x) => x.id) : [null]).forEach((tm) => { const k = anKey(e.code, s.pg, s.dp, tm), v = V.get(k), owner = anOwner(e, s.pg, s.dp);
         rows.push({ e, pg: s.pg || null, dp: s.dp || null, tm, v, status: ST.get(k) || 'none', owner, enter: e.source === 'manual' && (anAdmin() || anMem(owner)), approve: isAdmin() || anHead(owner) }); })); });
-    S._an = { els, rows, owners, progs };
+    S._an = { els, rows, owners, progs, vis };
     return S._an;
   }
   const anScope = (r) => r.pg ? (anProg(r.pg) || {}).name || r.pg : r.dp ? uName(r.dp) : 'الكلية';
@@ -1045,19 +1062,20 @@
   const anVal = (r) => !r.v ? (r.status === 'none' ? '—' : '<span class="small muted">غير معتمدة بعد</span>') : r.e.unit === 'text' ? esc(r.v.value_text) : `<b class="num">${esc(r.v.value_num)}</b>${r.e.unit === 'percent' ? '٪' : ''}`;
   async function anDataTab() {
     const { rows, owners, progs } = await anLoad();
+    const canUnit = anAdmin() || owners.some(anMem);
     const cnt = (s) => rows.filter((r) => r.status === s).length;
     const canReq = progs.some((p) => anWork(p.id)) || myDirect().length > 0;
     const acts = (r, i) => [r.enter && r.status !== 'approved' ? `<button class="btn sm pri" onclick="C.dvEdit(${i})">${r.status === 'none' ? 'إدخال' : 'تعديل'}</button>` : '',
       r.approve && r.status === 'draft' && r.v ? `<button class="btn sm" onclick="C.dvReview(${i},'approve')">اعتماد</button><button class="btn sm" onclick="C.dvReview(${i},'return')">إعادة</button>` : '',
       r.approve && r.status === 'approved' && r.v ? `<button class="btn sm" onclick="C.dvReview(${i},'reopen')">إعادته مسودة</button>` : ''].join(' ');
     return `<div class="row noprint" style="margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center">
-        <select class="inp" onchange="C.anq('mode',this.value)" aria-label="العرض">${opt('program', 'حسب البرنامج', ANQ.mode)}${opt('unit', 'حسب الجهة المالكة', ANQ.mode)}</select>
-        ${ANQ.mode === 'program' ? `<select class="inp" onchange="C.anq('prog',this.value)" aria-label="البرنامج">${progs.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select>` : `<select class="inp" onchange="C.anq('unit',this.value)" aria-label="الجهة">${owners.map((u) => opt(u, uName(u), ANQ.unit)).join('')}</select>`}
-        <span class="grow"></span>${canReq && rows.length ? '<button class="btn sm pri" onclick="C.drNew()">طلب البيانات</button>' : ''}</div>
+        ${canUnit ? `<select class="inp" onchange="C.anq('mode',this.value)" aria-label="العرض">${opt('program', 'حسب البرنامج', ANQ.mode)}${opt('unit', 'حسب الجهة المالكة', ANQ.mode)}</select>` : ''}
+        ${ANQ.mode === 'unit' && canUnit ? `<select class="inp" onchange="C.anq('unit',this.value)" aria-label="الجهة">${owners.map((u) => opt(u, uName(u), ANQ.unit)).join('')}</select>` : ''}
+        <span class="grow"></span>${anAdmin() ? '<button class="btn sm" onclick="C.anRefresh(event)">تحديث الآلي من الموقع</button>' : ''}${canReq && rows.length ? '<button class="btn sm pri" onclick="C.drNew()">طلب البيانات</button>' : ''}</div>
       <div class="stats" style="margin-bottom:12px"><div><b>${cnt('approved')}</b><span>معتمد</span></div><div><b>${cnt('draft')}</b><span>مسودة</span></div><div><b class="${cnt('returned') ? 'bad' : ''}">${cnt('returned')}</b><span>أُعيد بملاحظات</span></div><div><b>${cnt('none')}</b><span>لم يُدخل</span></div></div>
       ${rows.length ? `<div class="tw"><table><tr><th>العنصر</th><th>النطاق</th><th>الجهة المالكة</th><th>الفترة</th><th>المصدر</th><th>القيمة</th><th>الحالة</th><th class="noprint"></th></tr>
         ${rows.map((r, i) => `<tr><td><b>${esc(r.e.name_ar)}</b><div class="tiny muted" dir="ltr" style="text-align:end">${esc(r.e.code)}</div></td><td>${esc(anScope(r))}</td><td class="small">${esc(uName(r.owner))}</td><td class="small">${esc(anTerm(r.tm))}</td><td class="small">${esc(AN_SRC[r.e.source] || r.e.source)}</td><td>${anVal(r)}${r.v && r.v.evidence ? `<div class="tiny muted">الشاهد: ${esc(r.v.evidence)}</div>` : ''}${r.v && r.v.note ? `<div class="tiny ${r.status === 'returned' ? 'bad' : 'muted'}">${esc(r.v.note)}</div>` : ''}</td><td>${chip(...AN_ST[r.status])}</td><td class="noprint">${acts(r, i)}</td></tr>`).join('')}</table></div>`
-        : '<div class="empty">لا توجد عناصر لهذا العرض. يُعبَّأ القاموس بعد مراجعته (الملف 29)، أو يضيفها المدير ووحدة الجودة من تبويب «القاموس».</div>'}`;
+        : '<div class="empty">لا توجد عناصر لهذا العرض. يُعبَّأ القاموس بتنفيذ الملف 30، أو يضيفها المدير ووحدة الجودة من صفحة «مؤشرات الأداء».</div>'}`;
   }
   C.dvEdit = (i) => { const r = S._an.rows[i], e = r.e, v = r.v || {};
     modal(e.name_ar + ' — ' + anScope(r), `<p class="small muted">${esc(e.definition || '')}</p><p class="small muted">${esc(anTerm(r.tm))} · ${esc(ANQ.year)}هـ · الجهة المالكة: ${esc(uName(r.owner))}. أرقام مجمّعة فقط، دون أي بيانات شخصية.</p>
@@ -1074,13 +1092,13 @@
       <label class="f">${act === 'return' ? 'ملاحظة الإعادة (إلزامية)' : 'ملاحظة (اختيارية)'}<textarea id="drvN" rows="2"></textarea></label><div class="err"></div>`, `<button class="btn pri" id="drvOk">${T}</button><button class="btn" onclick="C.close()">إلغاء</button>`);
     $('#drvOk').onclick = (ev) => busy(ev.target, async () => { await D.rpc('data_value_review', { p_id: r.v.id, p_action: act, p_note: val('drvN'), p_version: r.v.version }); C.close(); toast('تم.'); refresh(); }); };
   /* طلب البيانات: إلى جهة مالكة، لعناصرها في برنامج */
-  C.drNew = () => { const A = S._an, mine = myDirect().map((m) => m.unit_id), froms = [];
-    A.progs.filter((p) => anWork(p.id)).forEach((p) => froms.push(['p:' + p.id, 'لجنة برنامج: ' + p.name])); mine.forEach((u) => froms.push(['u:' + u, uName(u)]));
+  C.drNew = (pre) => { const A = S._an, mine = myDirect().map((m) => m.unit_id), froms = [];
+    A.vis.filter((p) => anWork(p.id)).forEach((p) => froms.push(['p:' + p.id, 'لجنة برنامج: ' + p.name])); mine.forEach((u) => froms.push(['u:' + u, uName(u)]));
     const pending = () => { const pg = val('drP') || null, to = val('drT'), g = anProg(pg); return A.els.filter((e) => e.active !== false && e.source === 'manual' && anOwner(e, pg, g ? g.department_id : null) === to); };
-    const toList = [...new Set(A.els.filter((e) => e.active !== false && e.source === 'manual').flatMap((e) => A.progs.map((p) => anOwner(e, p.id, p.department_id))))].filter(Boolean);
+    const toList = [...new Set(A.els.filter((e) => e.active !== false && e.source === 'manual').flatMap((e) => A.vis.map((p) => anOwner(e, p.id, p.department_id))))].filter(Boolean);
     modal('طلب البيانات', `<div class="formgrid"><label class="f">الجهة الطالبة<select id="drF">${froms.map(([v, l]) => opt(v, l, ANQ.mode === 'program' ? 'p:' + ANQ.prog : '')).join('')}</select></label>
-      <label class="f">البرنامج<select id="drP" onchange="C.drEls()">${A.progs.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select></label>
-      <label class="f">الجهة المطلوب منها<select id="drT" onchange="C.drEls()">${toList.map((u) => opt(u, uName(u), ANQ.mode === 'unit' ? ANQ.unit : '')).join('')}</select></label>
+      <label class="f">البرنامج<select id="drP" onchange="C.drEls()">${A.vis.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select></label>
+      <label class="f">الجهة المطلوب منها<select id="drT" onchange="C.drEls()">${toList.map((u) => opt(u, uName(u), pre || (ANQ.mode === 'unit' ? ANQ.unit : ''))).join('')}</select></label>
       <label class="f">آخر موعد<input id="drD" type="date"></label><label class="f full">ملاحظة<textarea id="drN" rows="2" maxlength="1000"></textarea></label></div>
       <h3 style="margin:10px 0 4px;font-size:14px">العناصر (عام ${esc(ANQ.year)}هـ)</h3><div id="drE"></div><div class="err"></div>`, `<button class="btn pri" id="drOk">إرسال الطلب</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
     C.drEls = () => { const L = pending(); $('#drE').innerHTML = L.length ? L.map((e) => `<label class="row small" style="gap:6px;align-items:center"><input type="checkbox" class="drC" value="${attr(e.code)}" checked style="width:auto">${esc(e.name_ar)}</label>`).join('') : '<p class="small muted">لا عناصر لهذه الجهة في هذا البرنامج.</p>'; };
@@ -1091,7 +1109,7 @@
       const h = headOf(to), hf = h && fac(h.faculty_id); if (hf && hf.profile_app_id) notify([hf.profile_app_id], 'طلب بيانات جديد للتقرير السنوي: ' + els.length + ' عنصر من ' + froms.find((x) => x[0] === f)[1]);
       C.close(); toast('أُرسل الطلب.'); ANQ.tab = 'req'; refresh(); }); };
   async function anReqTab() {
-    const [list, els] = await Promise.all([D.select('data_requests', { eq: { year: ANQ.year }, order: ['created_at', false] }), D.select('data_elements')]);
+    const [all, els] = await Promise.all([D.select('data_requests', { eq: { year: ANQ.year }, order: ['created_at', false] }), D.select('data_elements')]), list = ANQ.rprog ? all.filter((q) => q.program_id === ANQ.rprog) : all;
     const nm = (c) => (els.find((e) => e.code === c) || {}).name_ar || c, from = (q) => q.from_program_id ? 'لجنة ' + ((anProg(q.from_program_id) || {}).name || '') : uName(q.from_unit_id);
     S._dr = list;
     if (!list.length) return '<div class="empty">لا توجد طلبات بيانات لك في هذا العام.</div>';
@@ -1165,6 +1183,127 @@
   }
   C.anOpen = (tab, year) => { ANQ.tab = tab; ANQ.year = year; ANQ.mode = 'unit'; ANQ.unit = ''; C.go('annual'); };
   const anMine = () => { const a = S._anOpen; if (!a || !a.open.length) return ''; return `<h3 style="margin:22px 0 8px">طلبات بيانات التقرير السنوي</h3><div class="clist">${a.open.map((q) => { const n = daysTo(q.due_date); return `<div class="aline" style="--c:#B7862A"><div><b>${esc((q.elements || []).map(a.nm).join('، '))}</b><div class="small muted">${esc((anProg(q.program_id) || {}).name || '')} · ${esc(q.year)}هـ</div></div><span class="when ${n != null && n < 0 ? 'late' : ''}">${esc(whenTxt(n))}</span><span class="act"><button class="btn sm pri" onclick="C.anOpen('req','${esc(q.year)}')">فتح</button></span></div>`; }).join('')}</div>`; };
+
+  /* ===== الجودة والمؤشرات، المرحلتان 2 و3 (الملفات 29-31): حساب المؤشرات من القيم المعتمدة، وتصدير النموذجين 1 و4، وتقرير البرنامج TP-152 ===== */
+  const anFmt = (n) => n == null || !isFinite(n) ? '' : String(Math.round(n * 100) / 100);
+  const anSaveDocx = async (file, data, name) => { needLibs(); const res = await fetch('templates/' + file); if (!res.ok) throw new Error('تعذر تحميل قالب النموذج.'); const zip = new PizZip(await res.arrayBuffer());
+    const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
+    try { doc.render(data); } catch (e) { const er = (e.properties && e.properties.errors || []).map((x) => x.properties && x.properties.explanation).filter(Boolean); throw new Error('خطأ في قالب النموذج: ' + (er.slice(0, 3).join('، ') || e.message)); }
+    saveBlob(doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), name.replace(/[\\/:*?"<>|]/g, '') + '.docx'); };
+  /* بيانات صفحة المؤشرات لبرنامج: القيم المعتمدة لكل الأعوام، والنتائج المحفوظة */
+  async function anKpiData(pg) {
+    const g = anProg(pg), [links, kpis, els, vals, res, st] = await Promise.all([D.select('program_kpis', { eq: { program_id: pg }, order: ['sort'] }), D.select('kpis'), D.select('data_elements'), D.select('data_values'), D.select('kpi_results', { eq: { program_id: pg } }), D.rpc('data_status', { p_year: ANQ.year })]);
+    const dp = g && g.department_id, E = (c) => els.find((e) => e.code === c);
+    const scoped = (e, v) => e.level === 'program' ? v.program_id === pg : e.level === 'department' ? v.department_id === dp : !v.program_id && !v.department_id;
+    const val = (c, y) => { const e = E(c); if (!e) return null; const v = vals.find((x) => x.element_code === c && x.year === String(y) && x.status === 'approved' && !x.term && scoped(e, x)); return v || null; };
+    const stat = (c) => { const e = E(c); if (!e) return 'none'; const s = (st || []).find((x) => x.element === c && !x.term && (e.level === 'program' ? x.program === pg : e.level === 'department' ? x.department === dp : !x.program && !x.department)); return s ? s.status : 'none'; };
+    const outs = (k) => ((k.formula || {}).outputs || []);
+    const used = (k) => [...new Set(outs(k).flatMap((o) => [o.el, o.num, o.den]).filter(Boolean))];
+    const calc = (o, y) => { const n = val(o.el || o.num, y), d = o.den ? val(o.den, y) : null; if (!n || n.value_num == null) return null; if (o.type === 'value') return { num: +n.value_num, text: anFmt(+n.value_num) };
+      if (!d || !(+d.value_num)) return null; const r = +n.value_num / +d.value_num; return o.type === 'pct' ? { num: r * 100, text: anFmt(r * 100) + '%' } : o.type === 'per' ? { num: r, text: '1:' + anFmt(r) } : { num: r, text: anFmt(r) }; };
+    const rows = links.filter((l) => l.active !== false).map((l) => { const k = kpis.find((x) => x.id === l.kpi_id); if (!k) return null;
+      const u = used(k), ss = u.map((c) => ({ c, e: E(c), s: stat(c) })), r = res.find((x) => x.kpi_id === k.id && x.year === ANQ.year) || null, cs = outs(k).map((o) => calc(o, ANQ.year));
+      const all = ss.length && ss.every((x) => x.s === 'approved') && cs.every(Boolean), none = ss.every((x) => x.s === 'none');
+      const miss = ss.filter((x) => x.s !== 'approved' && x.e), who = [...new Set(miss.map((x) => anOwner(x.e, pg, dp)).filter(Boolean))];
+      return { k, l, r, ss, cs, state: all ? 'done' : none ? 'need' : 'part', miss, who, target: (r && r.target) || l.target || k.target || '', internal: (r && r.internal_benchmark) || l.internal_benchmark || k.internal_benchmark || '', external: (r && r.external_benchmark) || l.external_benchmark || k.external_benchmark || '' }; }).filter(Boolean);
+    S._ak = { pg, g, dp, rows, els, E, val, calc, outs, res, used };
+    return S._ak;
+  }
+  const KPI_ST = { done: ['محسوب', 'ok'], need: ['يحتاج إدخالًا', 'wait'], part: ['ناقص', 'bad'] };
+  const anKCode = (k) => k.official_code || (k.alt_codes || [])[0] || k.id;
+  const anKVal = (x) => { const o = S._ak.outs(x.k); return o.map((q, i) => (q.label ? q.label + ': ' : '') + (x.cs[i] ? x.cs[i].text : '—')).join('، '); };
+  async function anKpiTab(vis) {
+    const A = await anKpiData(ANQ.prog); await anLoad(); const can = anAdmin() || anWork(ANQ.prog), srcs = (x) => [...new Set(x.ss.map((s) => s.e && s.e.source).filter(Boolean))].map((c) => AN_SRC[c] === 'يدوي' ? 'يدوي' : c === 'site' ? 'آلي من الموقع' : 'من برنامج').join(' + ');
+    const cnt = (s) => A.rows.filter((x) => x.state === s).length;
+    const list = A.rows.length ? `<div class="stats" style="margin-bottom:12px"><div><b>${A.rows.length}</b><span>مؤشرًا للبرنامج</span></div><div><b>${cnt('done')}</b><span>محسوب</span></div><div><b class="${cnt('part') ? 'bad' : ''}">${cnt('part')}</b><span>ناقص</span></div><div><b>${cnt('need')}</b><span>يحتاج إدخالًا</span></div></div>
+      <div class="tw"><table><tr><th>المؤشر</th><th>المصدر</th><th>الفعلي</th><th>المستهدف</th><th>المقارنات</th><th>الحالة</th><th class="noprint"></th></tr>
+      ${A.rows.map((x, i) => `<tr><td><b>${esc(x.k.name_ar)}</b>${x.k.needs_confirm ? ' ' + chip('يحتاج تأكيدًا', 'wait') : ''}<div class="tiny muted" dir="ltr" style="text-align:end">${esc((x.k.official_code ? [x.k.official_code] : []).concat(x.k.alt_codes || []).join(' · '))}</div>${x.r && x.r.analysis ? `<div class="tiny">التحليل: ${esc(x.r.analysis)}</div>` : ''}</td>
+        <td class="small">${esc(srcs(x))}</td><td><b class="num">${esc(anKVal(x))}</b></td><td class="small">${esc(x.target)}</td><td class="small">${x.internal ? 'داخلية: ' + esc(x.internal) + '<br>' : ''}${x.external ? 'خارجية: ' + esc(x.external) : ''}${!x.internal && !x.external ? '—' : ''}</td>
+        <td>${chip(...KPI_ST[x.state])}${x.who.length ? `<div class="tiny muted">${x.who.map((u) => esc(uName(u))).join('، ')}</div>` : ''}</td>
+        <td class="noprint">${can ? `<button class="btn sm pri" onclick="C.kpiAn(${i})">تحليل</button> ` : ''}${can && x.state !== 'done' && x.who.length ? `<button class="btn sm" onclick="C.drNew('${attr(x.who[0])}')">طلب</button> ` : ''}<button class="btn sm" onclick="C.kpiCard(${i})">بطاقة (1)</button> <button class="btn sm" onclick="C.kpiForm4(${i})">تقرير (4)</button></td></tr>`).join('')}</table></div>`
+      : '<div class="empty">لم تُربط مؤشرات بهذا البرنامج بعد. تُربط من القاموس أدناه، وتصل مؤشرات المحاسبة بتنفيذ الملف 30.</div>';
+    return list + `<details style="margin-top:18px"><summary><b>القاموس: المؤشرات وعناصر البيانات</b></summary><div style="margin-top:12px">${await anDictTab()}</div></details>`;
+  }
+  C.kpiAn = (i) => { const x = S._ak.rows[i], r = x.r || {}, locked = r.status === 'approved';
+    modal('تحليل المؤشر — ' + x.k.name_ar, `<p class="small muted">الفعلي لعام ${esc(ANQ.year)}هـ: <b>${esc(anKVal(x))}</b> · ${esc((anProg(S._ak.pg) || {}).name || '')}</p>${x.miss.length ? `<div class="panel small" style="margin-bottom:8px">لم يكتمل: ${x.miss.map((m) => esc(m.e.name_ar) + ' (' + esc(AN_ST[m.s][0]) + '؛ ' + esc(uName(anOwner(m.e, S._ak.pg, S._ak.dp))) + ')').join('، ')}</div>` : ''}${locked ? '<div class="panel small" style="margin-bottom:8px">اعتُمد تقرير البرنامج لهذا العام، فلا يُعدَّل.</div>' : ''}
+      <div class="formgrid"><label class="f">المستهدف<input id="kaT" value="${attr(x.target)}"></label><label class="f">المستهدف الجديد<input id="kaN" value="${attr(r.new_target || '')}"></label><label class="f">المقارنة الداخلية<input id="kaI" value="${attr(x.internal)}"></label><label class="f">المقارنة الخارجية<input id="kaX" value="${attr(x.external)}"></label>
+      <label class="f full">التحليل<textarea id="kaA" rows="4">${esc(r.analysis || '')}</textarea></label></div><div class="err"></div>`, `${locked ? '' : '<button class="btn pri" id="kaOk">حفظ</button>'}<button class="btn" onclick="C.close()">إغلاق</button>`, true);
+    if (locked) return;
+    $('#kaOk').onclick = (ev) => busy(ev.target, async () => { const first = x.cs.find(Boolean);
+      await D.rpc('kpi_result_save', { p_kpi: x.k.id, p_program: S._ak.pg, p_year: ANQ.year, p_num: first ? first.num : null, p_text: anKVal(x), p_source: x.state === 'done' ? 'computed' : 'manual', p_target: val('kaT'), p_internal: val('kaI'), p_external: val('kaX'), p_analysis: val('kaA'), p_new_target: val('kaN'), p_version: r.version || 0 });
+      C.close(); toast('حُفظ التحليل.'); refresh(); }); };
+  const anData = (x) => { const u = S._ak.used(x.k), L = u.map((c, i) => `(${i + 1}) ${(S._ak.E(c) || {}).name_ar || c}`).join('\n');
+    const idx = (c) => u.indexOf(c) + 1, one = (o) => o.type === 'value' ? `(${idx(o.el)})` : o.type === 'pct' ? `(${idx(o.num)}) ÷ (${idx(o.den)}) × 100` : `(${idx(o.num)}) ÷ (${idx(o.den)})`;
+    return { data_text: L, formula_text: S._ak.outs(x.k).map((o) => (o.label ? o.label + ' = ' : '') + one(o)).join('\n') }; };
+  const anCk = (val0, list, base) => Object.fromEntries(list.map((v, i) => ['ck' + (base + i), [].concat(val0).includes(v) ? '☑' : '☐']));
+  const anDeg = (g) => { const d = String((g || {}).degree || ''); return /دبلوم/.test(d) ? 'دبلوم' : /ماجستير/.test(d) ? 'ماجستير' : /دكتور/.test(d) ? 'دكتوراه' : 'بكالوريوس'; };
+  C.kpiCard = (i) => busy(null, async () => { const x = S._ak.rows[i], k = x.k, D0 = anData(x);
+    const tf = /عام/.test(k.timeframe || '') ? 'سنوي' : '', unitBox = { 'نسبة مئوية': 'نسبة مئوية', 'معدل': 'معدل', 'متوسط': 'متوسط', 'عدد': 'عدد', 'نسبة/معامل': 'نسبة/معامل' }[k.unit] || '';
+    await anSaveDocx('form1.docx', Object.assign({ name: k.name_ar, code: anKCode(k), edition: 'الإصدار 1.0 - ' + ANQ.year + 'هـ', definition: k.definition || k.method_text || '', goal: k.goal || '', terms: k.terms || '', owner: k.owner_unit_id ? uName(k.owner_unit_id) : 'جهة النطاق (لجنة البرنامج أو القسم)', reference: k.reference_unit_id ? uName(k.reference_unit_id) : '', example: k.example || '' }, D0,
+      anCk(k.scope_category || [], ['طلاب', 'هيئة التدريس', 'الموظفين', 'أخرى'], 1), anCk(k.scope_degree && k.scope_degree.length ? k.scope_degree : [anDeg(S._ak.g)], ['دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه'], 5), anCk(k.level === 'program' ? 'البرامج' : k.scope_level || [], ['المؤسسة', 'الكليات', 'الفروع', 'الأقسام', 'التخصصات', 'البرامج'], 9), anCk(k.scope_gender || [], ['ذكر', 'أنثى'], 15),
+      anCk(unitBox, ['عدد', 'نسبة مئوية', 'معدل', 'متوسط', 'نسبة/معامل', 'زمن', 'قيمة مالية', 'أخرى'], 17), anCk(k.report_form || '4', ['4', '5'], 25), anCk(k.evidence_kinds || [], ['سياسات', 'إحصائية', 'سنوية', 'محاضر', 'تقارير', 'تطبيق', 'متابعة', 'استطلاع', 'خطط', 'مؤسسية'], 27),
+      anCk(k.origin, ['internal', 'external'], 37), anCk(k.direction, ['positive', 'negative', 'target'], 39), anCk(k.classification, ['core', 'extra'], 42), anCk(tf, ['سنوي', 'نصف سنوي', 'ربع سنوي'], 44)), 'بطاقة مؤشر - ' + anKCode(k)); toast('نُزّلت البطاقة.'); });
+  C.kpiForm4 = (i) => busy(null, async () => { const A = S._ak, x = A.rows[i], k = x.k, y = +ANQ.year, r = x.r || {}, O = A.outs(k), res = (yr) => A.res.find((q) => q.kpi_id === k.id && q.year === String(yr));
+    const rows = O.map((o, j) => { const c = x.cs[j], p = (yr) => { const v = A.calc(o, yr); return v ? v.text : (res(yr) || {}).actual_text || ''; }; return { label: o.label || (O.length > 1 ? '(' + 'أب'[j] + ')' : k.unit || ''), cur: c ? c.text : '', p1: p(y - 1), p2: p(y - 2), target: x.target, internal: x.internal, ex1: x.external, ex2: '', new_target: r.new_target || '' }; });
+    await anSaveDocx('form4.docx', Object.assign({ name: k.name_ar, program: (A.g || {}).name || '', college: S.settings.collegeName || 'كلية الأعمال', unit: k.unit || '', year: ANQ.year + 'هـ', code: k.official_code || (k.alt_codes || []).join(' / '), department: uName(A.dp), external_src: '', y1: y - 1, y2: y - 2, rows, analysis: r.analysis || '', benchmark_analysis: '', improve: '', reference: k.reference_unit_id ? uName(k.reference_unit_id) : '', approver: '' }, anData(x),
+      anCk(anDeg(A.g), ['دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه'], 1), anCk(k.direction, ['positive', 'negative', 'target'], 5), anCk([], ['', '', '', ''], 8), anCk([], ['', '', ''], 12)), 'تقرير مؤشر - ' + anKCode(k) + ' - ' + (A.g || {}).name); toast('نُزّل التقرير.'); });
+  /* ---------- تقرير البرنامج السنوي TP-152 ---------- */
+  const AR_ST = { draft: ['مسودة', ''], in_review: ['قيد المراجعة', 'wait'], returned: ['أُعيد بملاحظات', 'bad'], approved: ['معتمد', 'ok'] };
+  const AR_SEC = [
+    { k: 'prev', t: 'أ. خطط التحسين من العام الماضي', rows: 'prev', cols: [['priority', 'أولويات التحسين'], ['done', 'ما تم تنفيذه (٪)'], ['notes', 'ملاحظات']] },
+    { k: 'st', t: 'ب. إحصاءات البرنامج', f: [['st_total', 'إجمالي عدد الطلاب في البرنامج'], ['st_started', 'من بدأوا البرنامج في سنة التقرير'], ['st_completed', 'من أتموا البرنامج'], ['st_exits', 'من أتموا نقاط الخروج (إن وجدت)', 0, 1], ['st_faculty', 'عدد أعضاء هيئة التدريس'], ['st_ratio', 'نسبة الطلاب إلى الأعضاء']] },
+    { k: 'plo', t: 'ج1. تقويم نواتج التعلم', plos: 1, f: [['strengths', 'جوانب القوة', 1], ['improvements', 'جوانب التحسين مع الأولويات', 1]] },
+    { k: 'courses', t: 'ج2. تقييم الطلبة للمقررات', rows: 'courses', cols: [['code', 'رمز المقرر'], ['name', 'اسم المقرر'], ['n', 'عدد المقيّمين'], ['rate', 'نسبة المشاركين'], ['result', 'النتيجة'], ['recs', 'التوصيات']] },
+    { k: 'pe', t: 'ج3. تقويم الطلبة لجودة البرنامج', f: [['pe_date', 'تاريخ التقويم'], ['pe_n', 'عدد المشاركين'], ['pe_str', 'ملاحظات: جوانب القوة', 1], ['pe_str_resp', 'تعليق البرنامج عليها', 1], ['pe_imp', 'ملاحظات: جوانب التحسين', 1], ['pe_imp_resp', 'تعليق البرنامج عليها', 1], ['pe_sug', 'مقترحات التطوير', 1], ['pe_sug_resp', 'تعليق البرنامج عليها', 1]] },
+    { k: 'rs', t: 'ج4. البحث العلمي والابتكار', f: [['rs_pub', 'الأبحاث المنشورة'], ['rs_proj', 'المشاريع البحثية'], ['rs_conf', 'المؤتمرات التي أقامها البرنامج'], ['rs_sem', 'الندوات التي أقامها البرنامج'], ['rs_confatt', 'حضور المؤتمرات'], ['rs_sematt', 'حضور الندوات'], ['research_comment', 'مناقشة الأنشطة', 1]] },
+    { k: 'community', t: 'ج5. الشراكة المجتمعية', rows: 'community', cols: [['activity', 'النشاط'], ['desc', 'وصف مختصر']], f: [['community_comment', 'التعليق', 1]] },
+    { k: 'oe', t: 'ج6. تقويمات أخرى (إن وجدت)', opt: 1, f: [['oe_method', 'أسلوب التقويم', 0, 1], ['oe_date', 'التاريخ', 0, 1], ['oe_n', 'عدد المشاركين', 0, 1], ['oe_str', 'جوانب القوة', 1, 1], ['oe_str_resp', 'تعليق البرنامج', 1, 1], ['oe_imp', 'جوانب التحسين', 1, 1], ['oe_imp_resp', 'تعليق البرنامج', 1, 1], ['oe_sug', 'مقترحات التطوير', 1, 1], ['oe_sug_resp', 'تعليق البرنامج', 1, 1]] },
+    { k: 'kpis', t: 'د. مؤشرات الأداء الرئيسة', kpis: 1, f: [['kpi_comment', 'التعليق العام', 1]] },
+    { k: 'ch', t: 'هـ. التحديات والصعوبات (إن وجدت)', opt: 1, f: [['ch_teaching', 'التعليم', 1, 1], ['ch_assessment', 'التقويم', 1, 1], ['ch_guidance', 'التوجيه والإرشاد', 1, 1], ['ch_resources', 'مصادر التعلم', 1, 1], ['ch_faculty', 'أعضاء هيئة التدريس', 1, 1], ['ch_research', 'النشاط البحثي', 1, 1], ['ch_other', 'أخرى', 1, 1]] },
+    { k: 'plan', t: 'و. خطة تطوير البرنامج', rows: 'plan', cols: [['priority', 'أولويات التحسين'], ['actions', 'الإجراءات'], ['owner', 'مسؤولية التنفيذ']] },
+    { k: 'ap', t: 'ز. اعتماد التقرير', f: [['ap_body', 'جهة الاعتماد'], ['ap_session', 'رقم الجلسة'], ['ap_date', 'تاريخ الجلسة']] }];
+  const arFilled = (r, cols) => cols.some(([c]) => String(r[c] == null ? '' : r[c]).trim());
+  /* نسبة الاكتمال: الحقول الاختيارية لا تُحسب، وما يُملأ آليًا يعدّ مكتملًا متى وصلت قيمته */
+  const arPct = (s) => { const X = S._ar, v = X.sec; let tot = 0, ok = 0; (s.f || []).forEach((f) => { if (f[3]) return; tot++; if (String(v[f[0]] == null ? '' : v[f[0]]).trim()) ok++; });
+    if (s.rows) { tot++; if ((v[s.rows] || []).some((r) => arFilled(r, s.cols))) ok++; } if (s.plos) { tot++; if (X.plos.some((p) => p.result && p.result !== 'لم يُقس')) ok++; } if (s.kpis) { tot += X.A.rows.length; ok += X.A.rows.filter((x) => x.state === 'done').length; }
+    if (s.opt) return null; return tot ? Math.round(ok / tot * 100) : 100; };
+  async function anAprTab() {
+    const pg = ANQ.prog, g = anProg(pg), [rep] = await D.select('annual_reports', { eq: { program_id: pg, year: ANQ.year } }), lib = await D.rpc('spec_library', { p_program: pg }).catch(() => null), A = await anKpiData(pg), prevRep = (await D.select('annual_reports', { eq: { program_id: pg, year: String(+ANQ.year - 1) } }).catch(() => []))[0];
+    const num = (c) => { const v = A.val(c, ANQ.year); return v && v.value_num != null ? String(+v.value_num) : ''; };
+    const sec = Object.assign({}, (rep && rep.sections) || {}), def = (k, v) => { if ((sec[k] == null || sec[k] === '') && v !== '' && v != null) sec[k] = v; };
+    const st = num('E-STUDENTS'), fac = num('E-FAC-FT') || num('E-FAC-ALL'), ploV = A.val('E-PLO-RES', ANQ.year), crsV = A.val('E-PG2-AVG', ANQ.year), det = (v, k) => ((v && v.details) || {})[k] || [];
+    def('st_total', st); def('st_faculty', fac); if (st && +fac) def('st_ratio', '1:' + anFmt(+st / +fac)); def('rs_pub', num('E-PAPERS')); def('st_completed', num('E-GRADS'));
+    if (!(sec.courses || []).length && det(crsV, 'courses').length) sec.courses = det(crsV, 'courses').map((c) => ({ code: c.code, name: c.name, n: c.n, rate: c.rate, result: c.result, recs: c.recs || '' }));
+    if (!(sec.prev || []).length && prevRep && prevRep.sections && (prevRep.sections.plan || []).length) sec.prev = prevRep.sections.plan.map((p) => ({ priority: p.priority, done: '', notes: '' }));
+    const info = ((lib || {}).spec || {}).info || {}, libP = (lib || {}).plos || [], plos = det(ploV, 'plos').length ? det(ploV, 'plos') : libP.map((p) => ({ code: p.code, domain: p.domain, text: p.text, methods: '', target: '', result: 'لم يُقس' }));
+    S._ar = { pg, g, rep: rep || null, sec, A, plos, info, can: (anWork(pg) || anAdmin()) && (!rep || ['draft', 'returned'].includes(rep.status)) };
+    return `<div id="arWrap">${anAprBody()}</div>`;
+  }
+  function anAprBody() { const X = S._ar, rep = X.rep, stt = rep ? rep.status : 'draft', sec = X.sec, ro = !X.can ? 'disabled' : '';
+    const pcts = AR_SEC.map(arPct).filter((p) => p != null), all = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0;
+    const fld = (f) => f[2] ? `<label class="f full">${esc(f[1])}<textarea id="ar_${f[0]}" rows="2" ${ro}>${esc(sec[f[0]] || '')}</textarea></label>` : `<label class="f">${esc(f[1])}<input id="ar_${f[0]}" value="${attr(sec[f[0]] == null ? '' : sec[f[0]])}" ${ro}></label>`;
+    const rowsT = (s) => { const L = sec[s.rows] || []; return `<div class="tw"><table><tr>${s.cols.map((c) => `<th>${esc(c[1])}</th>`).join('')}</tr>${L.map((r, i) => `<tr>${s.cols.map((c) => `<td><input class="arC" data-r="${s.rows}" data-i="${i}" data-c="${c[0]}" value="${attr(r[c[0]] == null ? '' : r[c[0]])}" ${ro} style="width:100%"></td>`).join('')}</tr>`).join('') || `<tr><td colspan="${s.cols.length}" class="muted small">لا صفوف بعد.</td></tr>`}</table></div>${X.can ? `<button class="btn sm" style="margin-top:6px" onclick="C.arAdd('${s.rows}')">إضافة صف</button>` : ''}`; };
+    const ploT = () => X.plos.length ? `<div class="tw"><table><tr><th>الناتج</th><th>طرق التقويم</th><th>المستهدف</th><th>النتيجة</th></tr>${X.plos.map((p) => `<tr><td><b>${esc(p.code)}</b> ${esc(p.text)}</td><td class="small">${esc(p.methods || '')}</td><td>${esc(p.target || '')}</td><td>${esc(p.result || '')}</td></tr>`).join('')}</table></div>` : '<p class="small muted">تصل النتائج بالنشر من قياس المخرجات.</p>';
+    const kpiT = () => X.A.rows.length ? `<div class="tw"><table><tr><th>المؤشر</th><th>المستهدف</th><th>الفعلي</th><th>المرجعي الداخلي</th><th>التحليل</th><th>المستهدف الجديد</th></tr>${X.A.rows.map((x) => `<tr><td>${esc(x.k.name_ar)}</td><td>${esc(x.target)}</td><td>${esc(anKVal(x))}</td><td>${esc(x.internal)}</td><td class="small">${esc((x.r || {}).analysis || '')}</td><td>${esc((x.r || {}).new_target || '')}</td></tr>`).join('')}</table></div><p class="small muted">تُعدَّل من صفحة «مؤشرات الأداء».</p>` : '<p class="small muted">لا مؤشرات مربوطة بالبرنامج.</p>';
+    const acts = [X.can ? '<button class="btn pri" onclick="C.arSave()">حفظ</button>' : '', X.can ? '<button class="btn" onclick="C.arMove(\'in_review\')">إرسال للمراجعة</button>' : '', anAdmin() && stt === 'in_review' ? '<button class="btn pri" onclick="C.arMove(\'approved\')">اعتماد</button><button class="btn" onclick="C.arMove(\'returned\')">إعادة بملاحظات</button>' : '', isAdmin() && stt === 'approved' ? '<button class="btn" onclick="C.arMove(\'draft\')">إعادة فتح</button>' : '', '<button class="btn" onclick="C.arWord()">تصدير Word</button>'].join(' ');
+    return `<div class="panel" style="margin-bottom:12px"><div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">${chip(...AR_ST[stt])}<b>الاكتمال ${all}٪</b><span class="grow"></span>${acts}</div>${rep && rep.note ? `<div class="small ${stt === 'returned' ? 'bad' : 'muted'}" style="margin-top:6px">ملاحظات: ${esc(rep.note)}</div>` : ''}<div class="err"></div></div>
+      ${AR_SEC.map((s) => { const p = arPct(s); return `<details class="panel" style="margin-bottom:8px"${p !== null && p < 100 ? ' open' : ''}><summary style="cursor:pointer"><b>${esc(s.t)}</b> ${p === null ? chip('اختياري') : chip(p + '٪', p === 100 ? 'ok' : 'wait')}</summary><div style="margin-top:10px">${s.plos ? ploT() : ''}${s.kpis ? kpiT() : ''}${s.rows ? rowsT(s) : ''}${s.f ? `<div class="formgrid" style="margin-top:8px">${s.f.map(fld).join('')}</div>` : ''}</div></details>`; }).join('')}`; }
+  const arCollect = () => { const X = S._ar; AR_SEC.forEach((s) => (s.f || []).forEach((f) => { const e = document.getElementById('ar_' + f[0]); if (e) X.sec[f[0]] = e.value.trim(); }));
+    document.querySelectorAll('.arC').forEach((e) => { const L = X.sec[e.dataset.r] = X.sec[e.dataset.r] || []; (L[+e.dataset.i] = L[+e.dataset.i] || {})[e.dataset.c] = e.value.trim(); }); };
+  C.arAdd = (k) => { arCollect(); (S._ar.sec[k] = S._ar.sec[k] || []).push({}); $('#arWrap').innerHTML = anAprBody(); };
+  C.arSave = () => busy(null, async () => { arCollect(); const X = S._ar, r = await D.rpc('annual_report_save', { p_program: X.pg, p_year: ANQ.year, p_sections: X.sec, p_version: (X.rep || {}).version || 0 }); X.rep = r; toast('حُفظ التقرير.'); $('#arWrap').innerHTML = anAprBody(); });
+  C.arMove = (to) => { const X = S._ar, T = { in_review: 'إرسال التقرير للمراجعة', approved: 'اعتماد التقرير', returned: 'إعادة التقرير بملاحظات', draft: 'إعادة فتح التقرير' }[to];
+    modal(T, `${to === 'in_review' ? '<p class="small muted">يُحفظ التقرير أولًا. ولا يُعدَّل أثناء المراجعة.</p>' : ''}${to === 'approved' ? '<p class="small muted">تُعتمد معه نتائج مؤشرات البرنامج لهذا العام.</p>' : ''}<label class="f">${to === 'returned' ? 'الملاحظات (إلزامية)' : 'ملاحظة (اختيارية)'}<textarea id="arN" rows="3"></textarea></label><div class="err"></div>`, `<button class="btn pri" id="arOk">${T}</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    if (X.can) arCollect();
+    $('#arOk').onclick = (ev) => busy(ev.target, async () => { let ver = (X.rep || {}).version || 0; if (X.can) { const r = await D.rpc('annual_report_save', { p_program: X.pg, p_year: ANQ.year, p_sections: X.sec, p_version: ver }); ver = r.version; }
+      await D.rpc('annual_report_move', { p_program: X.pg, p_year: ANQ.year, p_to: to, p_note: val('arN'), p_version: ver }); C.close(); toast('تم.'); refresh(); }); };
+  C.arWord = () => busy(null, async () => { const X = S._ar; if (X.can) arCollect(); const s = X.sec, g = X.g || {}, I = X.info, dom = (d) => X.plos.filter((p) => (p.domain || (/^ع/.test(p.code) ? 'k' : /^م/.test(p.code) ? 's' : 'v')) === d);
+    const none = (L, row) => L.length ? L : [row];
+    await anSaveDocx('tp152.docx', Object.assign({}, s, { program: g.name || '', program_code: I.code || '', level: I.level || g.degree || '', department: I.department || uName(g.department_id), college: I.college || S.settings.collegeName || 'كلية الأعمال', institution: I.institution || S.settings.university || 'جامعة الجوف', year: ANQ.year + 'هـ', campus: I.campus || '', branches: I.branches || 'لا يوجد',
+      prev: none((s.prev || []).filter((r) => r.priority || r.done || r.notes), { priority: 'لا يوجد', done: '', notes: '' }), plo_k: dom('k'), plo_s: dom('s'), plo_v: dom('v'), courses: (s.courses || []).filter((r) => r.code || r.name), community: (s.community || []).filter((r) => r.activity || r.desc),
+      kpis: X.A.rows.map((x, i) => ({ i: i + 1, name: anKCode(x.k) + ': ' + x.k.name_ar, target: x.target, actual: anKVal(x), internal: x.internal, analysis: (x.r || {}).analysis || '', new_target: (x.r || {}).new_target || '' })),
+      plan: (s.plan || []).filter((r) => r.priority || r.actions).map((r, i) => ({ i: i + 1, priority: r.priority || '', actions: r.actions || '', owner: r.owner || '' })) }), 'تقرير البرنامج السنوي - ' + (g.name || '') + ' - ' + ANQ.year); toast('نُزّل التقرير.'); });
+  C.anRefresh = (ev) => busy(ev && ev.target, async () => { const r = await D.rpc('data_refresh_site', { p_year: ANQ.year }); toast('حُدّثت ' + r.updated + ' قيمة من الموقع.'); refresh(); });
 
   /* ٤ «تنبيهاتي»: المتأخر أولًا ثم الأقرب موعدًا؛ سطر واحد وزر واحد لكل بند */
   async function pgAlerts() {
@@ -2490,7 +2629,7 @@ var RP=window.parent,seq=0,W={};function post(t,a){RP.postMessage({__capp:B.tok,
 function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,rej];RP.postMessage({__capp:B.tok,id:id,t:t,a:a},'*')})}
 window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
 var P={app:B.app,ctx:B.ctx,ro:B.ro,owner:B.owner,level:B.level,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
-var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})}},
+var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})},publishData:function(i){return call('publishData',i)},dataElements:function(){return call('dataElements',{})}},
 C:{go:function(p,o){post('go',{p:p,o:o})}},postMessage:function(){}};
 try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
 var PH=new WeakMap(),IP=HTMLIFrameElement.prototype,sd=Object.getOwnPropertyDescriptor(IP,'srcdoc'),cw=Object.getOwnPropertyDescriptor(IP,'contentWindow');
@@ -2546,6 +2685,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       if (m.t === 'inquire') return reply(true, await window.COLLEGE.inquire(m.a));
       if (m.t === 'inquiries') return reply(true, await window.COLLEGE.inquiries(m.a));
       if (m.t === 'qa') return reply(true, await window.COLLEGE.qa(a.m, a.a));
+      if (m.t === 'publishData') return reply(true, await window.COLLEGE.publishData(a));
+      if (m.t === 'dataElements') return reply(true, await window.COLLEGE.dataElements());
       reply(false, 'طلب غير معروف');
     } catch (err) { reply(false, pgErr(err)); }
   });
@@ -2589,6 +2730,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       if (f && f.profile_app_id) notify([f.profile_app_id], 'استفسار عن ' + (c ? c.code + ' ' + c.name : 'مقررك') + ': ' + (q.title || ''));
       return id; },
     inquiries: async (term) => { const R = appCtx(); return D.rpc('course_inquiries', { p_app: R.app, p_term: term || null }); },
+    /* النشر إلى سجل البيانات (الملف 29): [{element, program?, department?, year, term?, value, text?, details?}]؛ يُقبل من البرنامج المسجَّل مصدرًا للعنصر، وتصل القيمة مسودة */
+    publishData: async (items) => { const R = appCtx(); return D.rpc('data_publish', { p_app: R.app, p_items: Array.isArray(items) ? items : [] }); },
+    /* عناصر هذا البرنامج المصدر، وبرامج الكلية، ليختار الناشر */
+    dataElements: async () => { const R = appCtx(); return (await D.select('data_elements', { eq: { source_app_id: R.app } })).filter((e) => e.active !== false).map((e) => ({ code: e.code, name: e.name_ar, level: e.level, period: e.period_kind, unit: e.unit })); },
     /* مكتبة التوصيفات ومسار ملف المقرر (الملف 24): qa(method, args). الصلاحية تفرضها دوال القاعدة؛ الموقع يمرر فقط.
        roles → [{program, level: approve|review|view|null, coordinator, quality, quality_unit}]
        library {program} → {spec, plos, plan, matrix, courses:[{course_code,…,clos}], annual, can_edit}
@@ -2708,7 +2853,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     ['org_app_access', 'app_id,profile_app_id'], ['org_app_duties', 'id'], ['course_status', 'id'],
     ['spec_programs', 'program_id'], ['spec_plos', 'program_id,code'], ['spec_plan', 'program_id,course_code'], ['spec_matrix', 'program_id,course_code,plo_code'],
     ['course_specs', 'course_code'], ['course_clos', 'course_code,code'], ['annual_reports', 'program_id,year'], ['qa_levels', 'program_id,faculty_id'],
-    ['course_file_flow', 'term_id,course_id'], ['course_file_events', 'id'], ['data_elements', 'code'], ['kpis', 'id'], ['data_values', 'id'], ['kpi_results', 'id'], ['data_requests', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
+    ['course_file_flow', 'term_id,course_id'], ['course_file_events', 'id'], ['data_elements', 'code'], ['kpis', 'id'], ['program_kpis', 'program_id,kpi_id'], ['data_values', 'id'], ['kpi_results', 'id'], ['data_requests', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {
