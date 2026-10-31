@@ -245,25 +245,25 @@
 
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
-    ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
+    ['home', 'الرئيسية', 'home'], ['lead', 'واجهة القيادة', 'chart', () => isAdmin() && isLeader()], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
     ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'], ['annual', 'الجودة والمؤشرات', 'chart', () => annualSeen()],
-    ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
+    ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear', () => canSettings()]
   ];
-  const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
+  const TITLES = { lead: 'واجهة القيادة', positions: 'المناصب', home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
     files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'الجودة والمؤشرات' };
-  const NAV_OF = { myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
+  const NAV_OF = { positions: 'settings', myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
     const st = S.settings; applyTheme(st.theme);
     $('#brand').innerHTML = `<img src="${attr(st.logo || LOGO_IMG)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="emb" style="display:none">${emblem()}</span><div><b>${esc(st.university || 'جامعة الجوف')}</b><span dir="ltr">${esc(st.universityEn || 'Jouf University')}</span></div>`;
-    const roleTxt = isAdmin() ? 'مدير النظام' : S.me.college_role === 'dean' ? 'عميد الكلية' : S.me.college_role === 'vice' ? 'وكيل الكلية' : (myDirect().find((m) => m.position === 'head') ? 'رئيس ' + uName(myDirect().find((m) => m.position === 'head').unit_id) : S.me.faculty_id ? 'عضو هيئة التدريس' : 'مستخدم');
+    const roleTxt = isAdmin() ? 'مدير النظام' : leadTitle() ? leadTitle() : (S.me.faculty_id ? 'عضو هيئة التدريس' : 'مستخدم');
     const ini = (S.me.name || '؟').replace(/^(د|أ|م)\.\s*/, '').trim().charAt(0);
     $('#topbar').innerHTML = `<button class="ib" id="menuBtn" style="display:none" aria-label="القائمة">${icon('menu')}</button>
-      <span class="ttl" id="topTitle"></span><span class="grow"></span>
+      <span class="ttl" id="topTitle"></span><span class="grow"></span>${isLeader() ? `<div class="leadsw" role="group" aria-label="الواجهة"><button class="${LEAD.member ? '' : 'on'}" onclick="C.leadMode(false)">واجهة القيادة</button><button class="${LEAD.member ? 'on' : ''}" onclick="C.leadMode(true)">أعمالي كعضو هيئة تدريس</button></div>` : ''}
       <button class="ib" onclick="C.fullscreen()" aria-label="ملء الشاشة" title="ملء الشاشة">${icon('expand')}</button>
-      <button class="ib" onclick="C.go('settings')" aria-label="الإعدادات" title="الإعدادات">${icon('gear')}</button>
+      ${canSettings() ? `<button class="ib" onclick="C.go('settings')" aria-label="الإعدادات" title="الإعدادات">${icon('gear')}</button>` : ''}
       <button class="ib" onclick="C.go('notifs')" aria-label="الإشعارات" title="الإشعارات">${icon('bell')}<span class="badge hidden" id="bellN"></span></button>
       <button class="user" onclick="C.userMenu()" aria-label="حسابي"><span class="av">${esc(ini)}</span><span class="nm"><b>${esc(S.me.name)}</b><small>${esc(roleTxt)}</small></span>${icon('down')}</button>`;
     const KN = { vices: ['leadership', 'administration'], depts: ['department'], units: ['unit'], committees: ['committee'] };
@@ -284,6 +284,7 @@
     bellCount(); refreshUrgent(); renderDock(S.settings.assist, true);
   }
   const go = (C.go = (page, opts) => {
+    if (S.me && SET_PAGES.includes(page) && !canSettings()) { toast('الإعدادات لمدير النظام ومن يحدده.', true); page = 'home'; opts = {}; }
     if (page === 'org' && ORG.dirty && VIEW.page === 'org' && !(opts && opts.force)) { if (!window.confirm('في الجهة المحددة تغييرات لم تُحفظ. هل تريد تجاهلها؟')) return; ORG.dirty = false; }
     if (VIEW.page === 'app' && page !== 'app' && window.__CAPP && window.__CAPP.busy()) { if (!window.confirm('لم يكتمل حفظ بيانات البرنامج بعد. هل تغادر؟')) return; }
     VIEW = Object.assign({ page }, opts || {});
@@ -301,7 +302,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -997,7 +998,7 @@
         <div class="clist">${special.map((a) => { const l = LVL[appLv(a)] || ['اطلاع', '']; return `<button onclick="C.appOpen('${a.id}')" style="padding:9px 14px">${icon(a.icon || 'app')}<span class="grow"><b>${esc(a.name)}</b><span class="small muted" style="display:block">${esc(uName(a.unit_id))}</span></span>${chip(l[0], l[1])}${icon('chev')}</button>`; }).join('')}</div>` : '');
   }
   /* ===== التقرير السنوي، المرحلة 1 (الملف 28): سجل البيانات، وطلبات البيانات، والقاموس. الصلاحية تفرضها دوال القاعدة؛ هنا لإظهار الأزرار فقط. ===== */
-  const annualSeen = () => isAdmin() || !!(S.me && S.me.college_role) || myDirect().length > 0;
+  const annualSeen = () => isAdmin() || myDirect().length > 0;
   const ANQ = { tab: 'data', year: '', mode: 'program', prog: '', unit: '', q: '' };
   const anMem = (u) => !!myFac() && !!u && S.members.some((m) => m.unit_id === u && m.faculty_id === myFac() && activeM(m));
   const anHead = (u) => !!myFac() && !!u && S.members.some((m) => m.unit_id === u && m.faculty_id === myFac() && m.position === 'head' && activeM(m));
@@ -1016,9 +1017,9 @@
   const anFail = (e) => /does not exist|schema cache|relation/i.test(String(e && e.message)) ? '<div class="empty">هذه الصفحات تحتاج تنفيذ الملف database/28_annual_data.sql أولًا.</div>' : `<div class="panel bad">${esc(pgErr(e))}</div>`;
   /* البرامج التي تظهر للمستخدم: الكل للمدير ووحدة الجودة والعميد والوكيل؛ وإلا برامج لجنته أو تنسيقه أو قسمه، وكل البرامج لعضو جهة تملك عنصرًا بعينه (يُدخل قيمه لكل برنامج) */
   const anVisible = (els) => { const progs = (S.programs || []).filter((p) => p.active !== false);
-    if (anAdmin() || (S.me && S.me.college_role)) return progs;
+    if (anAdmin() || leadScope().quality) return progs;
     const owner = (els || []).some((e) => e.active !== false && e.level === 'program' && e.owner_unit_id && anMem(e.owner_unit_id));
-    return progs.filter((p) => owner || anWork(p.id) || anHead(p.department_id)); };
+    const sc = leadScope(); return progs.filter((p) => owner || anWork(p.id) || sc.progs.some((x) => x.id === p.id)); };
   const anSoon = (t, stage, body) => `<div class="empty"><b>${esc(t)}: قيد الإنشاء — المرحلة ${stage}</b><div class="small" style="margin-top:6px">${esc(body)}</div></div>`;
   async function pgAnnual() {
     if (!ANQ.year) ANQ.year = String((curTerm() || {}).year || anYears()[0] || '');
@@ -2168,36 +2169,39 @@
   async function pgReports() {
     if (!gcap('reports')) return '<div class="panel">التقارير تحتاج صلاحية «التقارير».</div>';
     RQ.term = RQ.term || (curTerm() || {}).id;
+    /* الملف 32: صاحب المنصب يرى نطاقه؛ وصاحب دور «التقارير» الممنوح والعميد يرون الكلية */
+    const own = S.grants.some((g) => g.profile_app_id === S.me.app_id && activeM({ start_date: g.start_date || '0', end_date: g.end_date }) && ((S.roles.find((r) => r.key === g.role_key) || {}).caps || {}).reports);
+    const scope = isLeader() && !own && !leadScope().all ? leadScope().set : null, inU = (id) => !scope || scope.has(id), inF = (f) => !scope || (!!f && (scope.has(f.department_id) || S.members.some((m) => m.faculty_id === f.id && activeM(m) && scope.has(m.unit_id))));
     const ctrl = `<div class="row noprint" style="margin-bottom:12px"><select class="inp" onchange="C.rq('r',this.value)" aria-label="التقرير">${Object.keys(REPORTS).map((k) => opt(k, REPORTS[k], RQ.r)).join('')}</select>
-      ${['faculty', 'load'].includes(RQ.r) ? `<select class="inp" onchange="C.rq('dept',this.value)" aria-label="القسم"><option value="">كل الأقسام</option>${deptUnits().map((d) => opt(d.id, d.name, RQ.dept)).join('')}</select>` : ''}
+      ${['faculty', 'load'].includes(RQ.r) ? `<select class="inp" onchange="C.rq('dept',this.value)" aria-label="القسم"><option value="">${scope ? 'كل النطاق' : 'كل الأقسام'}</option>${deptUnits().filter((d) => inU(d.id)).map((d) => opt(d.id, d.name, RQ.dept)).join('')}</select>` : ''}
       ${RQ.r === 'load' ? `<select class="inp" onchange="C.rq('term',this.value)" aria-label="الفصل">${S.terms.slice().reverse().map((t) => opt(t.id, t.name, RQ.term)).join('')}</select>` : ''}
       ${['assign', 'tasks'].includes(RQ.r) ? `<select class="inp" onchange="C.rq('kind',this.value)" aria-label="نوع الجهة"><option value="">كل الجهات</option>${opt('unit', 'الوحدات', RQ.kind)}${opt('committee', 'اللجان', RQ.kind)}${opt('department', 'الأقسام', RQ.kind)}</select>` : ''}
       <span class="grow"></span><button class="btn sm" onclick="C.repXlsx()">تصدير Excel</button><button class="btn sm" onclick="C.repPrint()">طباعة / PDF</button></div>`;
     let head = [], rows = [], summary = '';
     if (RQ.r === 'faculty') {
-      const l = S.faculty.filter((f) => !RQ.dept || f.department_id === RQ.dept).sort((a, b) => uName(a.department_id).localeCompare(uName(b.department_id), 'ar') || a.name_ar.localeCompare(b.name_ar, 'ar'));
+      const l = S.faculty.filter((f) => inF(f) && (!RQ.dept || f.department_id === RQ.dept)).sort((a, b) => uName(a.department_id).localeCompare(uName(b.department_id), 'ar') || a.name_ar.localeCompare(b.name_ar, 'ar'));
       head = ['الاسم', 'الرتبة', 'التخصص', 'القسم', 'الحالة', 'التكليفات السارية'];
       rows = l.map((f) => [f.name_ar, f.rank, f.specialty, uName(f.department_id), f.status, S.members.filter((m) => m.faculty_id === f.id && activeM(m)).length]);
       const by = {}; l.forEach((f) => { by[f.rank || 'غير محدد'] = (by[f.rank || 'غير محدد'] || 0) + 1; });
       summary = `<div class="stats">${Object.keys(by).map((k) => `<div><b>${by[k]}</b><span>${esc(k)}</span></div>`).join('')}<div><b>${l.length}</b><span>الإجمالي</span></div></div>`;
     } else if (RQ.r === 'load') {
-      const l = (await D.rpc('report_teaching_load', { p_term: RQ.term })).filter((x) => !RQ.dept || (fac(x.faculty_id) || {}).department_id === RQ.dept).sort((a, b) => b.hours - a.hours);
+      const l = (await D.rpc('report_teaching_load', { p_term: RQ.term })).filter((x) => inF(fac(x.faculty_id)) && (!RQ.dept || (fac(x.faculty_id) || {}).department_id === RQ.dept)).sort((a, b) => b.hours - a.hours);
       head = ['عضو هيئة التدريس', 'الرتبة', 'القسم', 'عدد المقررات', 'عدد الشعب', 'الساعات المعتمدة'];
       rows = l.map((x) => [x.name, x.rank, x.department, x.courses, x.sections, Number(x.hours)]);
       const tot = l.reduce((a, x) => a + Number(x.hours), 0); summary = `<div class="stats"><div><b>${l.filter((x) => x.sections).length}</b><span>عضو لديه شعب</span></div><div><b>${l.reduce((a, x) => a + x.sections, 0)}</b><span>شعبة مسندة</span></div><div><b>${tot}</b><span>ساعة معتمدة</span></div></div>`;
     } else if (RQ.r === 'assign') {
-      const l = S.members.filter((m) => activeM(m) && (!RQ.kind || (unit(m.unit_id) || {}).kind === RQ.kind)).sort((a, b) => uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar') || (a.position === 'head' ? -1 : 1));
+      const l = S.members.filter((m) => activeM(m) && inU(m.unit_id) && (!RQ.kind || (unit(m.unit_id) || {}).kind === RQ.kind)).sort((a, b) => uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar') || (a.position === 'head' ? -1 : 1));
       head = ['الجهة', 'الجهة الأم', 'العضو', 'الصفة', 'بداية التكليف', 'نهاية التكليف'];
       rows = l.map((m) => [uName(m.unit_id), uName((unit(m.unit_id) || {}).parent_id), fName(m.faculty_id), POS[m.position], m.start_date, m.end_date || 'مستمر']);
     } else if (RQ.r === 'tasks') {
       const reqs = await D.select('org_requests', { cols: 'unit_id,status,due_date,archived' });
-      const us = S.units.filter((u) => !RQ.kind || u.kind === RQ.kind);
+      const us = S.units.filter((u) => inU(u.id) && (!RQ.kind || u.kind === RQ.kind));
       head = ['الجهة'].concat(Object.keys(RSTAT).map((k) => RSTAT[k][0])).concat(['متأخرة', 'مؤرشفة', 'الإجمالي']);
       rows = us.map((u) => { const rs = reqs.filter((r) => r.unit_id === u.id); return [u.name].concat(Object.keys(RSTAT).map((k) => rs.filter((r) => !r.archived && r.status === k).length))
         .concat([rs.filter((r) => !r.archived && r.due_date && r.due_date < today() && !['done', 'rejected'].includes(r.status)).length, rs.filter((r) => r.archived).length, rs.length]); }).filter((r) => r[r.length - 1] > 0);
     } else {
       head = ['الجهة', 'النوع', 'تتبع إلى', 'المسؤول', 'عدد الأعضاء', 'الحالة', 'البرامج'];
-      rows = flatUnits().map((x) => { const h = headOf(x.u.id); return ['  '.repeat(x.d) + x.u.name, KIND[x.u.kind], uName(x.u.parent_id), h ? fName(h.faculty_id) : '', S.members.filter((m) => m.unit_id === x.u.id && activeM(m)).length, USTATUS[x.u.status], S.apps.filter((a) => a.unit_id === x.u.id).map((a) => a.name).join('، ')]; });
+      rows = flatUnits().filter((x) => inU(x.u.id)).map((x) => { const h = headOf(x.u.id); return ['  '.repeat(x.d) + x.u.name, KIND[x.u.kind], uName(x.u.parent_id), h ? fName(h.faculty_id) : '', S.members.filter((m) => m.unit_id === x.u.id && activeM(m)).length, USTATUS[x.u.status], S.apps.filter((a) => a.unit_id === x.u.id).map((a) => a.name).join('، ')]; });
     }
     REP = { head, rows, title: REPORTS[RQ.r] };
     return ctrl + summary + (rows.length ? `<div class="tw"><table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : '<div class="empty">لا توجد بيانات لهذا التقرير بالتصفية الحالية.</div>');
@@ -2377,7 +2381,7 @@
   function pgSettings() {
     const H = (p, ic, t, d, ok) => ok === false ? '' : `<button class="hub" onclick="C.go('${p}')">${icon(ic)}<div><b>${esc(t)}</b><span>${esc(d)}</span></div></button>`;
     /* عضو هيئة التدريس: برامجه وكلمة مروره فقط، دون إعدادات الكلية وهيكلها */
-    if (viewRole() === 'staff') return `<div class="hubgrid">${H('apps', 'app', 'برامجي', 'البرامج التي أُتيحت لك حسب تكليفك')}${H('notifs', 'bell', 'الإشعارات', 'ما وصلك من تكليفات وتنبيهات')}</div>
+    if (viewRole() === 'staff' && !canSettings()) return `<div class="hubgrid">${H('apps', 'app', 'برامجي', 'البرامج التي أُتيحت لك حسب تكليفك')}${H('notifs', 'bell', 'الإشعارات', 'ما وصلك من تكليفات وتنبيهات')}</div>
       ${!DEMO ? `<div class="row" style="margin-top:16px"><button class="btn" onclick="C.changePass()">${icon('key')}تغيير كلمة المرور</button></div>` : ''}`;
     return `<div class="hubgrid">
       ${H('apps', 'upload', 'البرامج والتحديثات', manageAny() ? 'رفع برامج HTML لكل جهة وتحديثها، والرجوع لإصدار سابق' : 'البرامج المتاحة لكل جهة')}
@@ -2388,6 +2392,8 @@
       ${H('org', 'sitemap', 'الهيكل التنظيمي', 'الجهات وتبعيتها ومسؤولوها وأعضاؤها')}
       ${H('faculty', 'user', 'أعضاء هيئة التدريس', 'القاعدة المركزية والاستيراد من Excel')}
       ${H('courses', 'book', 'المقررات والجداول', 'الفصول والمقررات واستيراد الجداول واعتمادها')}
+      ${isAdmin() ? `<button class="hub" onclick="C.setAccess()">${icon('key')}<div><b>من يرى الإعدادات</b><span>الإعدادات لك وحدك، ولك أن تمنحها لأعضاء تحددهم</span></div></button>` : ''}
+      ${H('positions', 'key', 'المناصب', 'كل منصب وشاغله، والتعيين والنقل، مع سجل التدقيق', isAdmin())}
       ${H('matrix', 'list', 'مصفوفة التكليفات والصلاحيات', 'كل الأعضاء أمام كل الجهات والبرامج في جدول واحد، مع تصدير واستيراد Excel', isAdmin())}
       ${H('accounts', 'key', 'الحسابات والصلاحيات', 'حسابات الزملاء، وصلاحيات كل عضو في كل جهة وبرنامج', isAdmin())}
       ${H('identity', 'palette', 'الهوية والواجهة', 'الشعار وصورة الواجهة واسم الكلية والشعار النصي', isAdmin())}
@@ -2832,9 +2838,9 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     <h3>البرامج</h3><p>تفتح برامج جهتك من تبويب «البرامج». مسؤول الجهة يضيف برنامجًا أو يرفع تحديثه من «الإعدادات ← البرامج والتحديثات». بيانات البرنامج تُحفظ في الخادم ويراها أعضاء الجهة.</p>
     <h3>المهام</h3><p>«المهام والتكليفات» تعرض كل ما في جهاتك. أضف التعليقات والمرفقات من داخل المهمة.</p>
     <h3>الصلاحيات</h3><p>ترى ما يخص جهاتك فقط. إن احتجت صلاحية إضافية فاطلبها من مدير النظام.</p>`);
-  C.userMenu = () => modal(S.me.name, `<dl class="kv"><dt>الحساب</dt><dd>${esc(S.me.app_id)}</dd><dt>الدور</dt><dd>${isAdmin() ? 'مدير النظام' : esc(S.me.college_role || 'مستخدم')}</dd>
+  C.userMenu = () => modal(S.me.name, `<dl class="kv"><dt>الحساب</dt><dd>${esc(S.me.app_id)}</dd><dt>الدور</dt><dd>${isAdmin() ? 'مدير النظام' : esc(leadTitle() || 'مستخدم')}</dd>
     <dt>السجل في القاعدة</dt><dd>${myFac() ? esc(fName(myFac())) : 'غير مرتبط'}</dd></dl>`,
-    `${myFac() ? `<button class="btn" onclick="C.close();C.facView('${myFac()}')">${icon('user')}بطاقتي</button>` : ''}${!DEMO ? '<button class="btn" onclick="C.changePass()">تغيير كلمة المرور</button>' : ''}<button class="btn danger" onclick="C.close();C.logout()">${icon('logout')}خروج</button><button class="btn" onclick="C.close()">إغلاق</button>`);
+    `<button class="btn" onclick="C.close();C.go('apps')">${icon('app')}برامجي</button>${myFac() ? `<button class="btn" onclick="C.close();C.facView('${myFac()}')">${icon('user')}بطاقتي</button>` : ''}${!DEMO ? '<button class="btn" onclick="C.changePass()">تغيير كلمة المرور</button>' : ''}<button class="btn danger" onclick="C.close();C.logout()">${icon('logout')}خروج</button><button class="btn" onclick="C.close()">إغلاق</button>`);
   C.changePass = () => {
     modal('تغيير كلمة المرور', `<div class="formgrid"><label class="f">كلمة المرور الجديدة<input type="password" id="cp1" dir="ltr" autocomplete="new-password"></label><label class="f">تأكيدها<input type="password" id="cp2" dir="ltr" autocomplete="new-password"></label></div><div class="err"></div>`,
       `<button class="btn pri" id="cpOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
@@ -3218,8 +3224,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
         <p class="tiny muted">«رئيس»: يدير الجهة وفروعها ويرفع برامجها ونماذجها. «عضو/مقرر/نائب»: يعمل في الجهة. «مطّلع»: قراءة فقط. التغيير يُنهي التكليف السابق بتاريخ اليوم ويبقى في السجل.</p></div>
       <div><div class="panel"><h2>${icon('app')} البرامج</h2>${p ? `<div class="tw" style="max-height:40vh;overflow:auto"><table><tr><th>البرنامج</th><th>الصلاحية</th></tr>${S.apps.map((a) => `<tr><td>${esc(a.name)}<div class="tiny muted">${esc(uName(a.unit_id))}</div></td>
           <td><select class="inp pmA" data-a="${a.id}">${Object.keys(LV).map((k) => opt(k, LV[k], PM.access[a.id] || 'inherit')).join('')}</select></td></tr>`).join('') || '<tr><td colspan="2" class="empty">لا توجد برامج.</td></tr>'}</table></div>` : '<p class="small muted">تُحدَّد صلاحيات البرامج بعد إنشاء حساب للعضو.</p>'}</div>
-        <div class="panel"><h2>${icon('key')} الأدوار العامة وصفة الحساب</h2>${p ? `<div class="checks" style="flex-direction:column;align-items:flex-start">${globalRoles.map((r) => `<label><input type="checkbox" class="pmR" value="${r.key}" ${gr.some((g) => g.role_key === r.key) ? 'checked' : ''}> ${esc(r.name)} <span class="tiny muted">(${Object.keys(r.caps || {}).filter((k) => r.caps[k]).map((k) => CAPS[k] || k).join('، ')})</span></label>`).join('')}</div>
-          <div class="formgrid" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px"><label class="f">صفة الحساب<select id="pmC">${opt('', '—', p.college_role || '')}${opt('dean', 'عميد الكلية', p.college_role)}${opt('vice', 'وكيل الكلية', p.college_role)}</select></label>
+        <div class="panel"><h2>${icon('key')} الأدوار العامة</h2>${p ? `<div class="checks" style="flex-direction:column;align-items:flex-start">${globalRoles.map((r) => `<label><input type="checkbox" class="pmR" value="${r.key}" ${gr.some((g) => g.role_key === r.key) ? 'checked' : ''}> ${esc(r.name)} <span class="tiny muted">(${Object.keys(r.caps || {}).filter((k) => r.caps[k]).map((k) => CAPS[k] || k).join('، ')})</span></label>`).join('')}</div>
+          <div class="formgrid" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="f small muted">العميد والوكلاء ورؤساء الجهات يُحدَّدون من <a href="#" onclick="C.go('positions');return false">المناصب</a>، لا من الحساب.</div>
           <label class="f">مدير النظام<select id="pmAd" ${p.app_id === S.me.app_id ? 'disabled' : ''}>${opt('0', 'لا', p.is_admin ? '1' : '0')}${opt('1', 'نعم', p.is_admin ? '1' : '0')}</select></label></div>
           <p class="tiny muted">الأدوار هنا على مستوى الكلية كلها. لدور على جهة واحدة استخدم «منح الأدوار» أو الصفة في الجهة.</p>` : '<p class="small muted">بعد إنشاء الحساب.</p>'}</div></div></div>
       <div class="row" style="margin-top:14px"><button class="btn pri" onclick="C.pmSave(this)">حفظ الصلاحيات</button><button class="btn" onclick="C.refresh()">إلغاء التغييرات</button></div>`;
@@ -3240,7 +3246,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       for (const c of $$('.pmR')) { const has = PM.gr.find((g) => g.role_key === c.value);
         if (c.checked && !has) { await D.insert('org_grants', { profile_app_id: p.app_id, role_key: c.value, unit_id: rootId(), include_children: true, note: 'من مصفوفة صلاحيات العضو' }); changes.push('دور: ' + c.value); }
         if (!c.checked && has) { await D.update('org_grants', { end_date: today() }, { eq: { id: has.id } }); changes.push('إنهاء دور: ' + c.value); } }
-      const cr = val('pmC'), ad = $('#pmAd') && !$('#pmAd').disabled ? val('pmAd') === '1' : p.is_admin;
+      const cr = p.college_role || null, ad = $('#pmAd') && !$('#pmAd').disabled ? val('pmAd') === '1' : p.is_admin;
       if ((cr || null) !== (p.college_role || null) || ad !== !!p.is_admin) { const r = await D.fn({ action: 'update', appId: p.app_id, collegeRole: cr, isAdmin: ad }); if (!r || r.error) throw new Error((r && r.error) || 'تعذر تعديل الحساب'); changes.push('صفة الحساب'); }
     }
     [S.members, S.grants, S.profiles] = await Promise.all([D.select('org_members'), D.select('org_grants').catch(() => []), D.select('profiles', { cols: 'app_id,username,name,email,is_admin,college_role,active' })]);
@@ -3364,8 +3370,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const myDirect = () => { const mf = myFac(); return mf ? S.members.filter((m) => m.faculty_id === mf && activeM(m) && unit(m.unit_id) && unit(m.unit_id).status !== 'archived')
     .sort((a, b) => (a.position === 'head' ? -1 : b.position === 'head' ? 1 : 0) || uName(a.unit_id).localeCompare(uName(b.unit_id), 'ar')) : []; };
   /* نوع الواجهة: dean (مدير النظام أو العميد: كل الجهات)، vice (الوكيل: جهات إشرافه)، head (رئيس جهة)، staff (عضو هيئة التدريس) */
-  const viewRole = () => isAdmin() || (S.me && S.me.college_role === 'dean') ? 'dean' : (S.me && S.me.college_role === 'vice') ? 'vice'
-    : myDirect().some((m) => m.position === 'head') ? 'head' : 'staff';
+  const viewRole = () => { if (LEAD.member && isLeader()) return 'staff'; if (isAdmin()) return 'dean'; const h = myHeads().map((m) => unit(m.unit_id)).filter(Boolean); return h.some((u) => !u.parent_id) ? 'dean' : h.some((u) => u.kind === 'leadership') ? 'vice' : h.length ? 'head' : 'staff'; };
   C.listAll = (on) => go(VIEW.page, { all: !!on });
   let FAILS = 0, LOCK_UNTIL = 0;
   async function loadBrand() {
@@ -3500,6 +3505,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   async function pgHome() {
     const st = S.settings, role = viewRole();
     if (role === 'staff') return staffHome();
+    if (isLeader() && !isAdmin()) return pgLead();
     const [anns, courses, reqs] = await Promise.all([D.select('org_announcements').catch(() => []), D.select('courses', { cols: 'id' }).catch(() => []),
       D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,priority,assignee_faculty,due_date' }).catch(() => [])]);
     await loadTpl().catch(() => {});
@@ -3523,6 +3529,88 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
         ${q("C.go('files')", 'folder', 'الملفات والمرفقات')}${q(gcap('reports') ? "C.go('reports')" : "C.toast('التقارير تحتاج صلاحية «التقارير».',true)", 'chart', 'التقارير')}${q('C.guide()', 'guide', 'دليل المستخدم')}</div></div></div></div>`;
   }
 
+  /* ===== واجهة القيادة (الملف 32): الصلاحية من المنصب في الهيكل، والمحتوى لنطاقه فقط، من البيانات الموجودة دون نسخها ===== */
+  const myHeads = () => myDirect().filter((m) => m.position === 'head');
+  const isLeader = () => myHeads().length > 0;
+  const LEAD = { member: (() => { try { return localStorage.getItem('lead-mode') === 'member'; } catch (e) { return false; } })() };
+  const leadTitle = () => { const h = myHeads().map((m) => unit(m.unit_id)).filter(Boolean); if (!h.length) return ''; if (h.some((u) => !u.parent_id)) return 'عميد الكلية'; if (h.some((u) => u.kind === 'leadership')) return 'وكيل الكلية'; return 'رئيس ' + h[0].name; };
+  C.leadMode = (m) => { LEAD.member = !!m; try { localStorage.setItem('lead-mode', m ? 'member' : 'lead'); } catch (e) {} renderShell(); go('home'); };
+  /* النطاق: جهاته وما تحتها. الحماية الفعلية في القاعدة (org_caps وcan_see_course وannual_level) */
+  const leadScope = () => { const set = new Set(); myHeads().forEach((m) => { const add = (id) => { if (set.has(id)) return; set.add(id); S.units.filter((u) => u.parent_id === id).forEach((u) => add(u.id)); }; add(m.unit_id); });
+    const all = isAdmin() || myHeads().some((m) => { const u = unit(m.unit_id); return u && !u.parent_id; }), quality = all || set.has('u-quality');
+    const units = S.units.filter((u) => u.status === 'active' && (all || set.has(u.id)));
+    const progs = (S.programs || []).filter((p) => p.active !== false && (quality || set.has(p.department_id)));
+    const appIn = (id) => { const a = S.apps.find((x) => x.id === id); return !!a && (all || set.has(a.unit_id)); };
+    const course = (x) => { if (all || appIn(x.source_app)) return true; const c = ((S.sched || {}).courses || []).find((k) => k.id === x.course_id), g = c && (S.programs || []).find((p) => p.id === c.program_id); return !!g && set.has(g.department_id); };
+    return { all, quality, set, units, progs, appIn, course }; };
+  const LEAD_ST = { complete: 'مكتمل', in_progress: 'قيد العمل', not_started: 'لم يبدأ', notes: 'عليه ملاحظات', met: 'مستوفٍ', unmet: 'غير مستوفٍ', draft: 'مسودة', prepared: 'أُعدّ', submitted: 'أُرسل', in_review: 'قيد المراجعة', returned: 'أُعيد', approved: 'معتمد' };
+  const LEAD_KIND = { file: 'ملفات وتقارير المقررات', exam: 'الاختبارات', bb: 'البلاك بورد', flow: 'مسار اعتماد الملف' };
+  C.leadKpi = (id) => { ANQ.prog = id; ANQ.tab = 'kpi'; ANQ.mode = 'program'; go('annual'); };
+  async function pgLead() {
+    mineCss(); const t = curTerm(), year = String((t || {}).year || '');
+    const [reqs, stAll, reports, results, links, vals, els] = await Promise.all([D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,kind,due_date' }).catch(() => []),
+      t ? D.select('course_status', { eq: { term_id: t.id } }).catch(() => []) : [], D.select('annual_reports').catch(() => []), D.select('kpi_results').catch(() => []), D.select('program_kpis').catch(() => []), D.select('data_values').catch(() => []), D.select('data_elements').catch(() => [])]);
+    await loadTpl().catch(() => {});
+    let urg = []; try { urg = (await mineData()).urg; } catch (e) { await loadSched().catch(() => {}); }
+    const sc = leadScope(), ids = new Set(sc.units.map((u) => u.id));
+    const open = reqs.filter((q) => ids.has(q.unit_id) && q.kind !== 'inquiry' && !['done', 'rejected'].includes(q.status)), lateOf = (q) => q.due_date && q.due_date < today();
+    const pend = (u) => TPLS.filter((x) => x.required && x.active && tplTargets(x).some((k) => k.id === u) && !RLOG.some((r) => r.template_id === x.id && r.unit_id === u)).length;
+    /* ما ينتظر اعتماده: القيم (من التنبيهات) وتقارير البرامج المرسلة لوحدة الجودة */
+    const toApprove = urg.filter((x) => /اعتمادك/.test(x.t));
+    if (anMem('u-quality') || isAdmin()) reports.filter((r) => r.status === 'in_review' && sc.progs.some((p) => p.id === r.program_id)).forEach((r) => toApprove.push({ t: 'تقرير البرنامج السنوي بانتظار المراجعة: ' + ((anProg(r.program_id) || {}).name || r.program_id), sub: 'العام ' + r.year, btn: 'فتح', act: `C.leadKpi('${r.program_id}')` }));
+    const tile = (n, l, c) => `<div class="box" style="border-inline-start:4px solid ${c}"><div class="small muted">${l}</div><b style="font-size:26px;color:${c}">${n}</b></div>`;
+    const heads = myHeads().map((m) => chip(uName(m.unit_id), 'brass')).join(' ');
+    const unitRows = sc.units.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)).map((u) => { const q = open.filter((x) => x.unit_id === u.id), h = headOf(u.id), l = q.filter(lateOf).length, p = pend(u.id);
+      return `<tr style="cursor:pointer" onclick="C.go('unit',{id:'${u.id}'})"><td><b>${esc(u.name)}</b></td><td class="small">${h ? esc(fName(h.faculty_id)) : '<span class="muted">شاغر</span>'}</td><td>${S.members.filter((m) => m.unit_id === u.id && activeM(m)).length}</td><td>${q.length}</td><td>${l ? chip(String(l), 'bad') : '0'}</td><td>${p ? chip(String(p), 'wait') : '0'}</td></tr>`; }).join('');
+    /* التقارير: حالة المقررات بحسب النوع */
+    const st = stAll.filter((x) => sc.course(x) && LEAD_KIND[x.kind]), bySt = {};
+    st.forEach((x) => { const s = x.kind === 'exam' ? (((x.details || {}).questions === 'pending') ? 'الأسئلة لم تُسلَّم' : 'الأسئلة سُلِّمت') : (LEAD_ST[x.status] || x.status || '—'); ((bySt[x.kind] = bySt[x.kind] || {})[s] = (bySt[x.kind][s] || 0) + 1); });
+    const repRows = Object.keys(bySt).map((k) => `<tr><td><b>${esc(LEAD_KIND[k])}</b></td><td>${Object.keys(bySt[k]).map((s) => chip(s + ': ' + bySt[k][s])).join(' ')}</td></tr>`).join('');
+    /* ما تنشره البرامج إلى السجل (الاستطلاعات وقياس المخرجات): من جهة البرنامج في نطاقه */
+    const pub = {}; vals.forEach((v) => { const e = els.find((x) => x.code === v.element_code); if (!e || !e.source_app_id || !sc.appIn(e.source_app_id) || v.year !== year) return; const o = pub[e.source_app_id] = pub[e.source_app_id] || { a: 0, d: 0 }; if (v.status === 'approved') o.a++; else o.d++; });
+    const pubRows = Object.keys(pub).map((id) => `<tr><td><b>${esc((S.apps.find((a) => a.id === id) || {}).name || id)}</b></td><td>${chip('معتمد: ' + pub[id].a, 'ok')} ${chip('بانتظار الاعتماد: ' + pub[id].d, 'wait')}</td></tr>`).join('');
+    const follow = await followBoard({ term: t }).catch(() => '');
+    const kpiRows = sc.progs.map((g) => { const n = links.filter((l) => l.program_id === g.id && l.active !== false).length, r = results.filter((x) => x.program_id === g.id && x.year === year), rep = reports.find((x) => x.program_id === g.id && x.year === year), s = rep ? AR_ST[rep.status] || [rep.status, ''] : ['لم يبدأ', ''];
+      return `<tr style="cursor:pointer" onclick="C.leadKpi('${g.id}')"><td><b>${esc(g.name)}</b></td><td>${n || '—'}</td><td>${r.length}</td><td>${r.filter((x) => x.status === 'approved').length}</td><td>${chip(s[0], s[1])}</td></tr>`; }).join('');
+    return `<div class="homebody"><div class="row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px"><h1 style="margin:0;font-size:22px">واجهة القيادة</h1><span class="grow"></span>${heads}</div>
+      <div class="home2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:16px">${tile(sc.units.length, 'الجهات في نطاقك', 'var(--ink,#3B2160)')}${tile(open.length, 'أعمال مفتوحة', '#B7862A')}${tile(open.filter(lateOf).length, 'متأخرة', '#C0392B')}${tile(toApprove.length, 'بانتظار اعتمادك', '#23826A')}</div>
+      <h3 style="margin:18px 0 8px">بانتظار اعتمادك</h3>${toApprove.length ? `<div class="clist">${toApprove.map((x) => `<div class="aline" style="--c:#23826A"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub || '')}</div></div><span></span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>` : '<div class="okmsg">لا شيء ينتظر اعتمادك ✓</div>'}
+      <h3 style="margin:18px 0 8px">الوحدات واللجان في نطاقك</h3><div class="panel tw"><table><tr><th>الجهة</th><th>رئيسها</th><th>الأعضاء</th><th>أعمال مفتوحة</th><th>متأخرة</th><th>نماذج مطلوبة</th></tr>${unitRows || '<tr><td colspan="6" class="empty">لا توجد جهات.</td></tr>'}</table></div>
+      <h3 style="margin:18px 0 8px">التقارير: ${esc((t || {}).name || '')}</h3>${repRows || pubRows ? `<div class="panel tw"><table>${repRows}${pubRows}</table></div>` : '<div class="empty">لا توجد تقارير منشورة في نطاقك لهذا الفصل.</div>'}${follow}
+      <h3 style="margin:18px 0 8px">المؤشرات: عام ${esc(year)}</h3>${kpiRows ? `<div class="panel tw"><table><tr><th>البرنامج</th><th>المؤشرات</th><th>نتائج محفوظة</th><th>معتمدة</th><th>التقرير السنوي</th></tr>${kpiRows}</table></div>` : '<div class="empty">لا توجد برامج في نطاقك.</div>'}</div>`;
+  }
+
+  /* صفحة المناصب للمدير: الشاغل من org_members؛ والنقل يغلق تكليف السابق (org_set_head) ويسجله التدقيق، ولا يمس الحسابات ولا الأعمال */
+  const POS_NAME = (u) => !u.parent_id ? 'عميد الكلية' : u.kind === 'leadership' ? 'وكيل الكلية' : u.kind === 'department' ? 'رئيس القسم' : u.kind === 'committee' ? 'رئيس اللجنة' : u.kind === 'unit' ? 'رئيس الوحدة' : 'مسؤول الجهة';
+  async function pgPositions() {
+    if (!isAdmin()) return '<div class="empty">هذه الصفحة لمدير النظام.</div>';
+    S.members = await D.select('org_members');
+    const rank = (u) => !u.parent_id ? 0 : ({ leadership: 1, department: 2, unit: 3, committee: 4 })[u.kind] || 5;
+    const list = S.units.filter((u) => u.status === 'active').sort((a, b) => rank(a) - rank(b) || (a.sort || 0) - (b.sort || 0));
+    const rows = list.map((u) => { const h = headOf(u.id), f = h && fac(h.faculty_id);
+      return `<tr><td><b>${esc(POS_NAME(u))}</b></td><td>${esc(u.name)}</td><td class="small">${esc(u.parent_id ? uName(u.parent_id) : '—')}</td><td>${f ? esc(f.name_ar) : chip('شاغر', 'wait')}${f && !f.profile_app_id ? ' ' + chip('سجله بلا حساب', 'bad') : ''}</td><td class="small">${h ? esc(h.start_date) : ''}</td><td><button class="btn sm" onclick="C.posEdit('${u.id}')">${f ? 'نقل' : 'تعيين'}</button></td></tr>`; }).join('');
+    const empty = list.filter((u) => !headOf(u.id)).length, noAcc = list.filter((u) => { const h = headOf(u.id), f = h && fac(h.faculty_id); return f && !f.profile_app_id; }).length;
+    return `<p class="small muted">الصلاحية تتبع المنصب وتنزل مع الهيكل: صاحب المنصب يعمل في جهته، ويطّلع على ما تحتها. نقل المنصب لا يغيّر الحسابات ولا الأعمال، ويبقى السابق في السجل.</p>
+      <div class="row" style="margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap">${chip('شاغرة: ' + empty, empty ? 'wait' : 'ok')} ${chip('شاغلها بلا حساب: ' + noAcc, noAcc ? 'bad' : 'ok')}<span class="grow"></span><button class="btn sm" onclick="C.go('audit')">سجل التدقيق</button></div>
+      <div class="panel tw"><table><tr><th>المنصب</th><th>الجهة</th><th>تتبع</th><th>الشاغل</th><th>منذ</th><th></th></tr>${rows}</table></div>`;
+  }
+  C.posEdit = (id) => { const u = unit(id), h = headOf(id), hist = S.members.filter((m) => m.unit_id === id && m.position === 'head' && m !== h).sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
+    const people = S.faculty.filter((f) => f.status === 'نشط' || (h && f.id === h.faculty_id)).sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
+    modal(POS_NAME(u) + ': ' + u.name, `<div class="formgrid"><label class="f full">الشاغل<select id="psF">${opt('', '— شاغر —', h ? h.faculty_id : '')}${people.map((f) => opt(f.id, f.name_ar + (f.profile_app_id ? '' : ' (بلا حساب)'), h ? h.faculty_id : '')).join('')}</select></label><label class="f">من تاريخ<input type="date" id="psD" value="${today()}"></label></div>
+      ${hist.length ? `<h4 style="margin:12px 0 6px">الشاغلون السابقون</h4><ul class="small">${hist.map((m) => `<li>${esc(fName(m.faculty_id))}: ${esc(m.start_date)} إلى ${esc(m.end_date || '—')}</li>`).join('')}</ul>` : ''}<div class="err"></div>`,
+      `<button class="btn pri" id="psOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#psOk').onclick = (ev) => busy(ev.target, async () => { const nf = val('psF') || null; if (nf === (h ? h.faculty_id : null)) return C.close();
+      await D.rpc('org_set_head', { p_unit: id, p_faculty: nf, p_start: val('psD') || today(), p_end: null });
+      S.members = await D.select('org_members'); const a = await D.rpc('org_my_access'); S.acc = a.units || {}; S.glob = a.global || {}; C.close(); renderShell(); refresh(); toast('حُفظ المنصب وسُجّل في التدقيق.'); }); };
+
+  /* الإعدادات لمدير النظام ومن يحدده في org_settings.data.settingsAccess (معرّفات سجلات الأعضاء، فتنتقل مع النقل). إخفاء ومنع في الواجهة؛ وحماية البيانات تبقى في سياسات القاعدة */
+  const SET_PAGES = ['settings', 'org', 'faculty', 'courses', 'accounts', 'audit', 'ann', 'backup', 'identity', 'general', 'assist', 'forms', 'track', 'perms', 'matrix', 'positions'];
+  const canSettings = () => isAdmin() || (!!myFac() && ((S.settings || {}).settingsAccess || []).includes(myFac()));
+  C.setAccess = () => { if (!isAdmin()) return; const cur = S.settings.settingsAccess || [], list = S.faculty.filter((f) => f.status === 'نشط' || cur.includes(f.id)).sort((x, y) => x.name_ar.localeCompare(y.name_ar, 'ar'));
+    modal('من يرى الإعدادات', `<p class="small muted">مدير النظام يراها دائمًا. من تحدده هنا يدخل صفحات الإعدادات، وما يستطيع تغييره فيها يبقى بحسب صلاحياته.</p><input class="inp" placeholder="بحث بالاسم" oninput="document.querySelectorAll('#saList label').forEach((l)=>{l.style.display=l.textContent.includes(this.value.trim())?'':'none'})" style="width:100%;margin-bottom:8px">
+      <div id="saList" class="checks" style="flex-direction:column;align-items:flex-start;max-height:50vh;overflow:auto">${list.map((f) => `<label><input type="checkbox" class="saC" value="${f.id}" ${cur.includes(f.id) ? 'checked' : ''}> ${esc(f.name_ar)}</label>`).join('')}</div><div class="err"></div>`,
+      `<button class="btn pri" id="saOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#saOk').onclick = (ev) => busy(ev.target, async () => { const d = Object.assign({}, S.settings, { settingsAccess: $$('.saC').filter((c) => c.checked).map((c) => c.value) }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; C.close(); toast('حُفظ.'); }); };
   /* «جهاتي وصلاحياتي»: ما يخص المستخدم وحده */
   function mineHtml(reqs) {
     const mf = myFac(), me = S.me, direct = myDirect();
@@ -3532,7 +3620,6 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const appsOf = (u) => S.apps.filter((a) => a.unit_id === u && a.active && appLv(a) !== 'none').length;
     const roles = [];
     if (isAdmin()) roles.push(chip('مدير النظام', 'brass'));
-    if (me.college_role === 'dean') roles.push(chip('عميد الكلية', 'brass')); if (me.college_role === 'vice') roles.push(chip('وكيل الكلية', 'brass'));
     direct.filter((m) => m.position === 'head').forEach((m) => roles.push(chip('رئيس ' + uName(m.unit_id), 'brass')));
     const myG = S.grants.filter((g) => g.profile_app_id === me.app_id && (!g.end_date || g.end_date >= today()) && (!g.start_date || g.start_date <= today()));
     myG.forEach((g) => roles.push(chip(((S.roles.find((r) => r.key === g.role_key) || {}).name || g.role_key) + ' · ' + uName(g.unit_id))));
