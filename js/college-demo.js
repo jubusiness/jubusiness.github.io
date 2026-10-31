@@ -12,7 +12,7 @@
 
   const F = (id, name, en, email, rank, spec, dept, empno, status) =>
     ({ id, name_ar: name, name_en: en, email, rank, specialty: spec, department_id: dept, employee_no: empno, status: status || 'نشط', profile_app_id: null, notes: '',
-      gender: / بنت /.test(name) ? 'أنثى' : 'ذكر', campus: 'سكاكا', service_start: '20' + String(10 + (parseInt(empno || '0', 10) % 13)).padStart(2, '0') + '-09-01', deact_request: null });
+      contract_type: 'دوام كامل', gender: / بنت /.test(name) ? 'أنثى' : 'ذكر', campus: 'سكاكا', service_start: '20' + String(10 + (parseInt(empno || '0', 10) % 13)).padStart(2, '0') + '-09-01', deact_request: null });
   const T = {
     departments: [{ id: 'acct', name: 'قسم المحاسبة' }, { id: 'fin', name: 'قسم التمويل' }, { id: 'ba', name: 'قسم إدارة الأعمال' }],
     dept_settings: [],
@@ -57,7 +57,12 @@
       ['c-plans', 'committee', 'لجنة الخطط', 'vice', false, 42, {}, 'اسم مبدئي معتمد من التصور الأولي.'],
       ['c-3', 'committee', 'لجنة افتراضية ٣', 'vice', false, 43, {}, 'اسم مؤقت قابل لإعادة التسمية.'],
       ['c-4', 'committee', 'لجنة افتراضية ٤', 'vice', false, 44, {}, 'اسم مؤقت قابل لإعادة التسمية.'],
-      ['c-5', 'committee', 'لجنة افتراضية ٥', 'vice', false, 45, {}, 'اسم مؤقت قابل لإعادة التسمية.']
+      ['c-5', 'committee', 'لجنة افتراضية ٥', 'vice', false, 45, {}, 'اسم مؤقت قابل لإعادة التسمية.'],
+      /* الملف 27 */
+      ['u-community', 'unit', 'وحدة الشراكة وخدمة المجتمع', 'vice-edu', false, 60, {}],
+      ['c-q-acct', 'committee', 'لجنة جودة قسم المحاسبة', 'dept-acct', false, 70, {}],
+      ['c-q-fin', 'committee', 'لجنة جودة قسم التمويل والاستثمار', 'dept-fin', false, 70, {}],
+      ['c-q-ba', 'committee', 'لجنة جودة قسم إدارة الأعمال', 'dept-ba', false, 70, {}]
     ].map(([id, kind, name, parent_id, is_fixed, sort, data, description, dept_ref]) =>
       ({ id, kind, name, parent_id, is_fixed, sort, data, description: description || '', dept_ref: dept_ref || null, status: 'active', term_start: null, term_end: null })),
     faculty: [
@@ -93,8 +98,18 @@
       { id: 'hd-hr', name: 'الدبلوم العالي في إدارة الموارد البشرية', department_id: 'dept-ba', degree: 'الدبلوم العالي', prefixes: ['بشر5', 'قصد5'], coordinator_id: null, active: true, sort: 21 }],
     course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: [],
     /* الملف 24 */
-    spec_programs: [], spec_plos: [], spec_plan: [], spec_matrix: [], course_specs: [], course_clos: [], annual_reports: [], qa_levels: [], course_file_flow: [], course_file_events: []
+    spec_programs: [], spec_plos: [], spec_plan: [], spec_matrix: [], course_specs: [], course_clos: [], annual_reports: [], qa_levels: [], course_file_flow: [], course_file_events: [],
+    /* الملف 28: عناصر ومؤشر للتجربة فقط؛ القاموس الفعلي في الملف 29 بعد مراجعة المالك */
+    data_elements: [
+      { code: 'DEMO-GRAD', name_ar: 'عدد الخريجين (عينة)', definition: 'إجمالي الخريجين في السنة', unit: 'count', level: 'program', owner_unit_id: 'u-alumni', source: 'manual', source_app_id: null, period_kind: 'year', active: true, sort: 1 },
+      { code: 'DEMO-PASS', name_ar: 'الناجحون في الاختبار المهني (عينة)', definition: 'مالكه لجنة جودة البرنامج', unit: 'count', level: 'program', owner_unit_id: null, source: 'manual', source_app_id: null, period_kind: 'year', active: true, sort: 2 },
+      { code: 'DEMO-TRAIN', name_ar: 'الدورات التخصصية (عينة)', definition: 'مالكه القسم', unit: 'count', level: 'department', owner_unit_id: null, source: 'manual', source_app_id: null, period_kind: 'year', active: true, sort: 3 },
+      { code: 'DEMO-PART', name_ar: 'الشراكات المجتمعية (عينة)', definition: 'على مستوى الكلية', unit: 'count', level: 'college', owner_unit_id: 'u-community', source: 'manual', source_app_id: null, period_kind: 'year', active: true, sort: 4 },
+      { code: 'DEMO-ACT', name_ar: 'المشاركون في الأنشطة (عينة)', definition: 'لكل فصل', unit: 'count', level: 'program', owner_unit_id: 'u-advising', source: 'manual', source_app_id: null, period_kind: 'term', active: true, sort: 5 }],
+    kpis: [{ id: 'k-demo', official_code: null, alt_codes: ['KPI-PG-DEMO'], name_ar: 'مؤشر عينة للتجربة', definition: '', goal: '', unit: 'نسبة مئوية', report_form: '4', owner_unit_id: 'u-alumni', reference_unit_id: 'u-quality', origin: 'internal', direction: 'positive', classification: 'core', timeframe: 'سنوي', level: 'program', method_text: 'الناجحون إلى المتقدمين', target: '50%', needs_confirm: true, confirm_note: 'مثال على علامة يحتاج تأكيدًا', active: true, sort: 1 }],
+    data_values: [], kpi_results: [], data_requests: []
   };
+  T.programs.forEach((p) => { p.quality_unit_id = { 'dept-acct': 'c-q-acct', 'dept-fin': 'c-q-fin', 'dept-ba': 'c-q-ba' }[p.department_id] || null; });
   Object.assign(T.faculty[12], { gender: '', campus: '', service_start: null }); Object.assign(T.faculty[9], { campus: 'القريات' }); Object.assign(T.faculty[10], { gender: '' });
   T.faculty[11].profile_app_id = 'uacct'; T.faculty[7].profile_app_id = 'umem'; T.faculty[0].profile_app_id = 'udean'; T.faculty[1].profile_app_id = 'uvice'; T.faculty[2].profile_app_id = 'uexam'; T.faculty[3].profile_app_id = 'uplan';
   const mem = (unit, fac, position, start, end) => T.org_members.push({ id: uuid(), unit_id: unit, faculty_id: fac, position, title: '', start_date: start || '2025-09-01', end_date: end || null, note: '' });
@@ -102,6 +117,7 @@
   mem('c-plans', 'f04', 'head'); mem('c-plans', 'f12', 'member'); mem('c-plans', 'f05', 'member'); mem('c-training', 'f07', 'head'); mem('c-training', 'f06', 'member');
   mem('u-quality', 'f12', 'head'); mem('u-quality', 'f06', 'member'); mem('dept-acct', 'f06', 'head', '2023-09-01', '2025-08-31'); mem('dept-acct', 'f12', 'head', '2025-09-01');
   mem('dept-fin', 'f05', 'head'); mem('dept-ba', 'f09', 'head'); mem('u-academic', 'f09', 'member'); mem('c-3', 'f13', 'member');
+  mem('c-q-acct', 'f06', 'head'); mem('c-q-acct', 'f08', 'member'); mem('c-q-ba', 'f04', 'member'); mem('u-alumni', 'f03', 'head'); mem('u-alumni', 'f04', 'member');
   T.org_grants.push({ id: 'g1', profile_app_id: 'uvice', role_key: 'vice', unit_id: 'vice', include_children: true, start_date: '2025-09-01', end_date: null, note: '' });
   T.org_grants.push({ id: 'g2', profile_app_id: 'uexam', role_key: 'schedule_officer', unit_id: 'u-academic', include_children: false, start_date: null, end_date: null, note: '' });
   T.org_grants.push({ id: 'g4', profile_app_id: 'uexam', role_key: 'college_admin', unit_id: 'vice-edu', include_children: true, start_date: null, end_date: null, note: 'مثال لمراجعة الصلاحيات عند النقل' });
@@ -130,7 +146,7 @@
   const PKS = { org_app_access: ['app_id', 'profile_app_id'], org_app_fac: ['app_id', 'faculty_id'], org_app_data: ['app_id', 'key'], org_exclusions: ['grant_id', 'unit_id'], course_coords: ['term_id', 'course_id'],
     spec_plos: ['program_id', 'code'], spec_plan: ['program_id', 'course_code'], spec_matrix: ['program_id', 'course_code', 'plo_code'], course_clos: ['course_code', 'code'],
     annual_reports: ['program_id', 'year'], qa_levels: ['program_id', 'faculty_id'], course_file_flow: ['term_id', 'course_id'] };
-  Object.assign(PK, { spec_programs: 'program_id', course_specs: 'course_code' });
+  Object.assign(PK, { spec_programs: 'program_id', course_specs: 'course_code', data_elements: 'code' });
   const pk = (t) => PK[t] || 'id';
   const matches = (r, q) => {
     if (!q) return true;
@@ -146,11 +162,17 @@
     let rows = (T[t] || []).filter((r) => matches(r, q)).map(clone);
     /* الملف 22: مفاتيح priv.* لا يقرؤها إلا «استخدام» أو «إدارة» */
     if (t === 'org_app_data') rows = rows.filter((r) => !String(r.key).startsWith('priv.') || ['use', 'manage'].includes(appLvMe(r.app_id)));
+    /* الملف 28: سياسات القراءة */
+    if (t === 'data_values') rows = rows.filter((r) => r.status === 'approved' || valueCanEnter(r.element_code, r.program_id, r.department_id));
+    if (t === 'data_requests') rows = rows.filter((r) => annualAdmin() || r.created_by === ME || unitMember(r.to_unit_id, myFacId()) || (r.from_unit_id && unitMember(r.from_unit_id, myFacId())) || (r.from_program_id && annualLevel(r.from_program_id) === 'work'));
     if (q && q.order) { const [c, asc] = q.order; rows.sort((a, b) => (a[c] > b[c] ? 1 : a[c] < b[c] ? -1 : 0) * (asc === false ? -1 : 1)); }
     if (q && q.limit) rows = rows.slice(0, q.limit);
     return rows;
   };
-  DEMO.insert = async (t, rows) => {
+  /* الملف 28: الكتابة المباشرة للمدير (والقاموس لوحدة الجودة أيضًا)، والباقي بالدوال */
+  const annualGuard = (t) => { if (['data_values', 'kpi_results', 'data_requests'].includes(t) && !(prof(ME) || {}).is_admin) throw new Error('new row violates row-level security policy for table "' + t + '"');
+    if (['data_elements', 'kpis'].includes(t) && !annualAdmin()) throw new Error('new row violates row-level security policy for table "' + t + '"'); };
+  DEMO.insert = async (t, rows) => { annualGuard(t);
     const arr = Array.isArray(rows) ? rows : [rows]; const out = [];
     for (const r0 of arr) {
       const r = Object.assign({}, r0); if (pk(t) === 'id' && !r.id) r.id = uuid();
@@ -166,7 +188,7 @@
   DEMO.upsert = async (t, row) => { const ex = T[t].find((x) => x[pk(t)] === row[pk(t)]); if (ex) return DEMO.update(t, row, { eq: { [pk(t)]: row[pk(t)] } }); return DEMO.insert(t, row); };
   DEMO.upsertMany = async (t, rows, ignore) => { T[t] = T[t] || []; const ks = PKS[t] || [pk(t)];
     rows.forEach((r) => { const ex = T[t].find((x) => ks.every((k) => String(x[k]) === String(r[k]))); if (ex) { if (!ignore) Object.assign(ex, r); } else T[t].push(clone(r)); }); return []; };
-  DEMO.update = async (t, patch, q) => {
+  DEMO.update = async (t, patch, q) => { annualGuard(t);
     const out = [];
     T[t].filter((r) => matches(r, q)).forEach((r) => {
       const before = clone(r);
@@ -480,7 +502,7 @@
   const qaUnitOf = (pg) => (T.programs.find((p) => p.id === pg) || {}).quality_unit_id || 'u-quality';
   const qaLevel = (pg) => { const p = prof(ME), me = myFacId(), g = T.programs.find((x) => x.id === pg); if (!p) return null; if (p.is_admin) return 'approve'; if (!g) return null;
     if (me && g.coordinator_id === me) return 'approve';
-    if (unitMember(qaUnitOf(pg), me)) return (T.qa_levels.find((x) => x.program_id === pg && x.faculty_id === me) || {}).level || 'approve';
+    if (unitMember(qaUnitOf(pg), me) || unitMember('u-quality', me)) return (T.qa_levels.find((x) => x.program_id === pg && x.faculty_id === me) || {}).level || 'approve';
     if (p.college_role) return 'view';
     if (me && g.department_id && T.org_members.some((m) => m.unit_id === g.department_id && m.faculty_id === me && m.position === 'head' && activeR(m))) return 'view';
     return null; };
@@ -570,6 +592,54 @@
   R.course_file_history = ({ p_term, p_course }) => { const f = T.course_file_flow.find((x) => x.term_id === p_term && x.course_id === p_course);
     if (!(qaLevel(courseProgram(p_course)) !== null || myCourseOn(p_term, p_course) || (f && f.reviewer_id === myFacId()))) return [];
     return clone(T.course_file_events.filter((e) => e.term_id === p_term && e.course_id === p_course)); };
+  /* الملف 28: سجل بيانات التقرير السنوي (تحاكي دوال القاعدة وفحوصها) */
+  const unitHead = (u, f) => !!(u && f) && T.org_members.some((m) => m.unit_id === u && m.faculty_id === f && m.position === 'head' && activeR(m));
+  const annualAdmin = () => !!(prof(ME) || {}).is_admin || unitMember('u-quality', myFacId());
+  const annualLevel = (pg) => { const p = prof(ME), me = myFacId(), g = T.programs.find((x) => x.id === pg); if (!p) return null; if (annualAdmin()) return 'all'; if (!g) return null;
+    if (me && g.coordinator_id === me) return 'work'; if (unitMember(qaUnitOf(pg), me)) return 'work'; if (p.college_role) return 'view';
+    if (me && g.department_id && unitHead(g.department_id, me)) return 'view'; return null; };
+  const valueOwner = (el, pg, dp) => { const e = T.data_elements.find((x) => x.code === el); if (!e) return null; return e.owner_unit_id || (e.level === 'program' ? qaUnitOf(pg) : e.level === 'department' ? dp : 'u-quality'); };
+  const valueCanEnter = (el, pg, dp) => annualAdmin() || unitMember(valueOwner(el, pg, dp), myFacId());
+  const valueCanApprove = (el, pg, dp) => !!(prof(ME) || {}).is_admin || unitHead(valueOwner(el, pg, dp), myFacId());
+  R.annual_level = ({ p_program }) => annualLevel(p_program);
+  R.data_value_save = ({ p_element, p_program, p_department, p_year, p_term, p_num, p_text, p_evidence, p_note, p_version }) => {
+    const e = T.data_elements.find((x) => x.code === p_element && x.active); if (!e) throw new Error('العنصر غير موجود أو موقوف.');
+    const pg = p_program || null, dp = p_department || null; let tm = p_term || null;
+    if (e.source !== 'manual') throw new Error('هذا العنصر يصل آليًا من مصدره ولا يُدخل يدويًا.');
+    if (!String(p_year || '').trim()) throw new Error('العام مطلوب.');
+    if (e.level === 'program' && (!pg || dp)) throw new Error('هذا العنصر يُدخل لبرنامج.');
+    if (e.level === 'department' && (!dp || pg)) throw new Error('هذا العنصر يُدخل لقسم.');
+    if (e.level === 'college' && (pg || dp)) throw new Error('هذا العنصر يُدخل للكلية.');
+    if (e.period_kind === 'term' && !tm) throw new Error('حدّد الفصل لهذا العنصر.'); if (e.period_kind === 'year') tm = null;
+    if (e.unit === 'text' && !String(p_text || '').trim()) throw new Error('أدخل النص.');
+    if (e.unit !== 'text' && (p_num === null || p_num === undefined || p_num === '')) throw new Error('أدخل قيمة رقمية.');
+    if (!valueCanEnter(p_element, pg, dp)) throw new Error('إدخال هذا العنصر للجهة المالكة له.');
+    let r = T.data_values.find((v) => v.element_code === p_element && (v.program_id || '') === (pg || '') && (v.department_id || '') === (dp || '') && v.year === p_year && (v.term || '') === (tm || ''));
+    if (r) { if (r.version !== Number(p_version || 0)) throw new Error('عدّل شخص آخر هذه القيمة بعد أن فتحتها. أعد فتحها ثم احفظ.');
+      if (r.status === 'approved') throw new Error('القيمة معتمدة. يعيدها رئيس الجهة مسودة أولًا.');
+      Object.assign(r, { value_num: p_num === '' ? null : p_num, value_text: p_text || '', evidence: p_evidence || '', status: 'draft', note: p_note || '', entered_by: ME, approved_by: null, updated_at: nowISO(), version: r.version + 1 });
+    } else { if (Number(p_version || 0) !== 0) throw new Error('حُذفت هذه القيمة بعد أن فتحتها. أعد فتحها ثم احفظ.');
+      r = { id: uuid(), element_code: p_element, program_id: pg, department_id: dp, year: p_year, term: tm, value_num: p_num, value_text: p_text || '', evidence: p_evidence || '', status: 'draft', note: p_note || '', entered_by: ME, approved_by: null, updated_at: nowISO(), version: 1 }; T.data_values.push(r); }
+    return clone(r); };
+  R.data_value_review = ({ p_id, p_action, p_note, p_version }) => { const r = T.data_values.find((v) => v.id === p_id); if (!r) throw new Error('القيمة غير موجودة.');
+    if (!valueCanApprove(r.element_code, r.program_id, r.department_id)) throw new Error('الاعتماد لرئيس الجهة المالكة أو مدير النظام.');
+    if (r.version !== Number(p_version || 0)) throw new Error('عدّل شخص آخر هذه القيمة بعد أن فتحتها. أعد فتحها ثم حاول.');
+    if (p_action === 'approve') { if (r.status !== 'draft') throw new Error('تُعتمد القيمة وهي مسودة فقط.'); r.status = 'approved'; r.approved_by = ME; if (p_note) r.note = p_note; }
+    else if (p_action === 'return') { if (r.status !== 'draft') throw new Error('تُعاد القيمة وهي مسودة فقط.'); if (!String(p_note || '').trim()) throw new Error('اكتب ملاحظة الإعادة.'); r.status = 'returned'; r.note = p_note; }
+    else if (p_action === 'reopen') { if (r.status !== 'approved') throw new Error('يُعاد إلى مسودة ما كان معتمدًا فقط.'); r.status = 'draft'; r.approved_by = null; if (p_note) r.note = p_note; }
+    else throw new Error('إجراء غير معروف.');
+    r.updated_at = nowISO(); r.version += 1; return clone(r); };
+  R.data_status = ({ p_year }) => T.data_values.filter((v) => v.year === p_year).map((v) => ({ element: v.element_code, program: v.program_id, department: v.department_id, term: v.term, status: v.status, updated_at: v.updated_at }));
+  R.data_request_create = ({ p_from_unit, p_from_program, p_to_unit, p_elements, p_program, p_department, p_year, p_term, p_due, p_note }) => {
+    if (!(p_elements || []).length) throw new Error('اختر عنصرًا واحدًا على الأقل.'); if (!String(p_year || '').trim()) throw new Error('العام مطلوب.');
+    if (!T.org_units.some((u) => u.id === p_to_unit)) throw new Error('الجهة المطلوب منها غير موجودة.');
+    if (!(annualAdmin() || (p_from_program && annualLevel(p_from_program) === 'work') || (p_from_unit && unitMember(p_from_unit, myFacId())))) throw new Error('طلب البيانات للجنة البرنامج أو أعضاء الجهة الطالبة.');
+    const r = { id: uuid(), from_unit_id: p_from_unit || null, from_program_id: p_from_program || null, to_unit_id: p_to_unit, elements: p_elements.slice(), program_id: p_program || null, department_id: p_department || null, year: p_year, term: p_term || null, due_date: p_due || null, status: 'new', note: p_note || '', reply: '', created_by: ME, created_at: nowISO(), updated_at: nowISO(), updated_by: ME };
+    T.data_requests.push(r); return clone(r); };
+  R.data_request_update = ({ p_id, p_status, p_reply }) => { const r = T.data_requests.find((x) => x.id === p_id); if (!r) throw new Error('الطلب غير موجود.');
+    if (!['new', 'in_progress', 'done', 'rejected'].includes(p_status)) throw new Error('الحالة غير صحيحة.');
+    if (!(annualAdmin() || unitMember(r.to_unit_id, myFacId()))) throw new Error('يردّ على الطلب الجهة المطلوب منها.');
+    r.status = p_status; if (p_reply !== null && p_reply !== undefined) r.reply = p_reply; r.updated_at = nowISO(); r.updated_by = ME; return clone(r); };
   R.org_app_del = ({ p_app, p_key }) => { T.org_app_data = T.org_app_data.filter((x) => !(x.app_id === p_app && x.key === p_key)); return null; };
   /* ربط الحساب بسجل العضو بالبريد عند أول دخول (مثل الملف 9) */
   R.org_link_me = () => { const own = T.faculty.find((f) => f.profile_app_id === ME); if (own) return own.id;

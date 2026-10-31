@@ -246,13 +246,13 @@
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
     ['home', 'الرئيسية', 'home'], ['college', 'الكلية', 'college'], ['vices', 'الوكالات', 'bank'], ['depts', 'الأقسام العلمية', 'sitemap'],
-    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'],
+    ['units', 'الوحدات', 'cubes'], ['committees', 'اللجان', 'users'], ['-'], ['tasks', 'المهام والتكليفات', 'file'], ['mine', 'مهامي', 'clipboard', () => !!myFac() && viewRole() !== 'staff'], ['memberships', 'العضوية في الوحدات واللجان', 'users', () => !!myFac() && viewRole() !== 'staff'], ['alerts', 'تنبيهاتي', 'bell', () => !!myFac() && viewRole() !== 'staff'], ['annual', 'التقرير السنوي', 'chart', () => annualSeen()],
     ['reports', 'التقارير', 'chart', () => gcap('reports')], ['settings', 'الإعدادات', 'gear']
   ];
   const TITLES = { home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
-    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي' };
+    files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'التقرير السنوي' };
   const NAV_OF = { myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
@@ -274,7 +274,7 @@
     const mine = myDirect();
     /* عضو هيئة التدريس: أربعة عناصر فقط */
     const nb = (p, ic, t) => `<button class="nav" data-p="${p}" onclick="C.go('${p}')">${icon(ic)}${t}</button>`;
-    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') +
+    $('#side').innerHTML = staff ? nb('home', 'home', 'الرئيسية') + nb('mine', 'clipboard', 'مهامي') + nb('memberships', 'users', 'العضوية في الوحدات واللجان') + nb('alerts', 'bell', 'تنبيهاتي') + (annualSeen() ? nb('annual', 'chart', 'التقرير السنوي') : '') +
       `<div class="foot">${esc(st.collegeName || 'كلية الأعمال')} · نظام إدارة الكلية ${VERSION}${DEMO ? '<br>نسخة تجريبية' : ''}</div>` : NAV.map((n) => n[0] === '-' ? '<div class="sep"></div>' : ((n[3] && !n[3]()) || !showNav(n[0])) ? '' :
       `<button class="nav" data-p="${n[0]}" onclick="C.go('${n[0]}')">${icon(n[2])}${esc(n[1])}</button>`).join('') +
       (mine.length ? `<div class="sep"></div><div class="sidehead">جهاتي</div>${mine.slice(0, 10).map((m) => `<button class="nav sub" data-p="u:${m.unit_id}" onclick="C.go('unit',{id:'${m.unit_id}'})">${kindDot((unit(m.unit_id) || {}).kind || 'unit')}<span class="grow">${esc(uName(m.unit_id))}</span><small>${esc(POS[m.position])}</small></button>`).join('')}` : '') +
@@ -301,7 +301,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
@@ -690,7 +690,8 @@
   /* =====================================================================
      أعضاء هيئة التدريس (القاعدة المركزية)
      ===================================================================== */
-  const FQ = { q: '', dept: '', rank: '', st: 'active', miss: false, req: false, sel: new Set() };
+  const CONTRACTS = ['دوام كامل', 'دوام جزئي', 'متعاون'];
+  const FQ = { q: '', dept: '', rank: '', ct: '', st: 'active', miss: false, req: false, sel: new Set() };
   const canEditFac = (f) => isAdmin() || (f && f.department_id && cap(f.department_id, 'manage'));
   const canAddFac = () => isAdmin() || deptUnits().some((d) => cap(d.id, 'manage'));
   const ranks = () => S.settings.ranks || ['أستاذ', 'أستاذ مشارك', 'أستاذ مساعد', 'محاضر', 'معيد'];
@@ -716,7 +717,7 @@
   }
   function facFiltered() {
     const q = FQ.q.trim().toLowerCase();
-    return S.faculty.filter((f) => (FQ.st === 'all' || (FQ.st === 'inactive') === offF(f)) && (!FQ.dept || f.department_id === FQ.dept) && (!FQ.rank || f.rank === FQ.rank) &&
+    return S.faculty.filter((f) => (FQ.st === 'all' || (FQ.st === 'inactive') === offF(f)) && (!FQ.dept || f.department_id === FQ.dept) && (!FQ.rank || f.rank === FQ.rank) && (!FQ.ct || (FQ.ct === 'none' ? !f.contract_type : f.contract_type === FQ.ct)) &&
       (!FQ.miss || (canEditFac(f) && facMissing(f).length)) && (!FQ.req || f.deact_request) &&
       (!q || [f.name_ar, f.name_en, f.email, f.employee_no, f.specialty].some((x) => String(x || '').toLowerCase().includes(q))))
       .sort((a, b) => a.name_ar.localeCompare(b.name_ar, 'ar'));
@@ -741,6 +742,7 @@
         <select class="inp" onchange="C.fq('st',this.value)" aria-label="الحالة">${[['active', 'النشطون'], ['inactive', 'غير النشطين'], ['all', 'الكل']].map(([v, l]) => opt(v, l, FQ.st)).join('')}</select>
         <select class="inp" onchange="C.fq('dept',this.value)" aria-label="القسم"><option value="">كل الأقسام</option>${deptUnits().map((d) => opt(d.id, d.name, FQ.dept)).join('')}</select>
         <select class="inp" onchange="C.fq('rank',this.value)" aria-label="الرتبة"><option value="">كل الرتب</option>${ranks().map((r) => opt(r, r, FQ.rank)).join('')}</select>
+        <select class="inp" onchange="C.fq('ct',this.value)" aria-label="نوع التعاقد"><option value="">كل أنواع التعاقد</option>${CONTRACTS.map((c) => opt(c, c, FQ.ct)).join('')}${opt('none', 'لم يُحدَّد', FQ.ct)}</select>
         <span class="grow"></span>
         <button class="btn sm" onclick="C.facExport()">تصدير Excel</button>
         ${canAddFac() ? `<button class="btn sm" onclick="C.facImport()">استيراد من Excel</button><button class="btn pri sm" onclick="C.facEdit()">إضافة عضو</button>` : ''}
@@ -750,10 +752,10 @@
         <span class="small muted">${S.faculty.filter((f) => f.profile_app_id).length} من ${S.faculty.length} عضوًا مرتبطون بحساب دخول؛ يُربط الحساب تلقائيًا بالبريد عند أول دخول.</span></div>` : ''}
       ${helpers}<div id="fBulk">${bulkBar()}</div>
       <p class="small muted">${list.length} من ${S.faculty.length} عضو. هذه القاعدة هي المصدر الوحيد لبيانات الأعضاء في كل الوحدات واللجان والجداول.</p>
-      ${list.length ? `<style>.ftab td{white-space:nowrap;font-size:13.5px}.ftab td.nm{white-space:normal;min-width:200px}.ftab th{white-space:nowrap}</style><div class="tw"><table class="ftab"><tr>${canSel ? `<th class="noprint"><input type="checkbox" aria-label="تحديد الكل" onchange="C.fSelAll(this.checked)" ${list.filter(canEditFac).every((f) => FQ.sel.has(f.id)) && FQ.sel.size ? 'checked' : ''}></th>` : ''}<th>الاسم</th><th class="noprint"></th><th>الرتبة</th><th>القسم</th><th>الجنس</th><th>المقر</th><th>الخدمة</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}${FQ.miss ? '<th>الناقص</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
+      ${list.length ? `<style>.ftab td{white-space:nowrap;font-size:13.5px}.ftab td.nm{white-space:normal;min-width:200px}.ftab th{white-space:nowrap}</style><div class="tw"><table class="ftab"><tr>${canSel ? `<th class="noprint"><input type="checkbox" aria-label="تحديد الكل" onchange="C.fSelAll(this.checked)" ${list.filter(canEditFac).every((f) => FQ.sel.has(f.id)) && FQ.sel.size ? 'checked' : ''}></th>` : ''}<th>الاسم</th><th class="noprint"></th><th>الرتبة</th><th>القسم</th><th>الجنس</th><th>المقر</th><th>التعاقد</th><th>الخدمة</th><th>البريد الجامعي</th>${showMob ? '<th>الجوال</th>' : ''}${FQ.miss ? '<th>الناقص</th>' : ''}<th>الحالة</th><th>الحساب</th></tr>
       ${list.map((f) => { const y = svcYears(f.service_start); return `<tr${offF(f) ? ' style="opacity:.6"' : ''}>${canSel ? `<td class="noprint">${canEditFac(f) ? `<input type="checkbox" aria-label="تحديد" ${FQ.sel.has(f.id) ? 'checked' : ''} onchange="C.fSel('${f.id}',this.checked)">` : ''}</td>` : ''}
         <td class="nm"><a href="#" onclick="C.facView('${f.id}');return false"><b>${esc(f.name_ar)}</b></a>${f.name_en ? `<div class="tiny muted" dir="ltr" style="text-align:end">${esc(f.name_en)}</div>` : ''}</td>
-        <td class="noprint">${act(f)}</td><td>${esc(f.rank)}</td><td>${esc(uName(f.department_id))}</td><td>${esc(f.gender || '')}</td><td>${esc(f.campus || '')}</td><td class="small" title="${attr(f.service_start ? 'منذ ' + fmtD(f.service_start) : '')}">${esc(yrsTxt(y))}</td>
+        <td class="noprint">${act(f)}</td><td>${esc(f.rank)}</td><td>${esc(uName(f.department_id))}</td><td>${esc(f.gender || '')}</td><td>${esc(f.campus || '')}</td><td class="small">${esc(f.contract_type || '')}</td><td class="small" title="${attr(f.service_start ? 'منذ ' + fmtD(f.service_start) : '')}">${esc(yrsTxt(y))}</td>
         <td dir="ltr" style="text-align:end">${esc(f.email || '')}</td>${showMob ? `<td dir="ltr" style="text-align:end">${esc(S.privates[f.id] || '')}</td>` : ''}${FQ.miss ? `<td class="small bad">${esc(facMissing(f).join('، '))}</td>` : ''}
         <td>${chip(f.status, f.status === 'نشط' ? 'ok' : offF(f) ? 'bad' : 'wait')}${f.deact_request ? ' ' + chip('طلب إيقاف', 'bad') : ''}</td><td>${f.profile_app_id ? chip((prof(f.profile_app_id) || {}).active === false ? 'معطل' : 'مرتبط', (prof(f.profile_app_id) || {}).active === false ? 'bad' : 'ok') : '<span class="small muted">—</span>'}</td></tr>`; }).join('')}</table></div>`
       : `<div class="empty">لا يوجد أعضاء مطابقون.${S.faculty.length ? '' : (isAdmin() ? ' ابدأ بإضافة الأعضاء أو استيرادهم من Excel.' : '')}</div>`}
@@ -915,7 +917,8 @@
     const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; }), units = mem.map((m) => m.unit_id);
     const reqs = [...new Map([...(await D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => [])), ...(units.length ? await D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [])].map((q) => [q.id, q])).values()];
     const urg = buildUrgent(sc.my, reqs.filter((q) => q.assignee_faculty === mf || mem.some((m) => m.unit_id === q.unit_id && ['head', 'deputy'].includes(m.position))));
-    S.urgentN = urg.length;
+    const an = await anUrgent().catch(() => ({ items: [], open: [], nm: String })); urg.push(...an.items); urg.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
+    S.urgentN = urg.length; S._anOpen = an;
     return { sc, reqs, mem, urg };
   }
   async function refreshUrgent() { if (!myFac()) return; try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); } }
@@ -960,7 +963,7 @@
       const pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
       return `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}${r.coordinator ? ' <span class="chip ok" style="font-size:11px">منسق</span>' : ''}${pn ? `<div class="tiny muted">${esc(pn)}</div>` : ''}</td><td data-h="الشعب" style="--c:var(--mute)">${esc(secs)}</td>${cols.map((col) => { const s = colState(c, col), a = colApp(col);
         return `<td class="rc" data-h="${attr(col.name)}" style="--c:${col.color};background:${tint(col.color, 6)}" ${a ? `onclick="C.appOpenCtx('${a.id}','${c.id}')" role="button" tabindex="0" title="فتح ${attr(a.name)}"` : 'title="لم يُربط برنامج بهذا العمود"'}>${stb(s.t, s.text)}${s.test ? '<span class="tiny" style="display:block;color:#9A6B00">بيانات تجريبية</span>' : ''}</td>`; }).join('')}</tr>`; }).join('');
-    const follow = viewRole() !== 'staff' ? await followBoard(sc) : '';
+    const follow = (viewRole() !== 'staff' ? await followBoard(sc) : '') + anMine();
     return `<p class="small muted" style="margin:0 0 10px">${esc((sc.term || {}).name || '')} · اضغط الخانة لفتح البرنامج المعني على المقرر</p>
       ${sc.my.length ? `<table class="req"><thead>${head}</thead><tbody>${rows}</tbody></table>` : '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>'}${follow}`;
   }
@@ -993,6 +996,176 @@
       (special.length ? `<h3 style="margin:22px 0 4px;font-size:15px">صلاحيات خاصة</h3><p class="small muted" style="margin:0 0 8px">برامج لك عليها صلاحية دون عضوية في جهتها.</p>
         <div class="clist">${special.map((a) => { const l = LVL[appLv(a)] || ['اطلاع', '']; return `<button onclick="C.appOpen('${a.id}')" style="padding:9px 14px">${icon(a.icon || 'app')}<span class="grow"><b>${esc(a.name)}</b><span class="small muted" style="display:block">${esc(uName(a.unit_id))}</span></span>${chip(l[0], l[1])}${icon('chev')}</button>`; }).join('')}</div>` : '');
   }
+  /* ===== التقرير السنوي، المرحلة 1 (الملف 28): سجل البيانات، وطلبات البيانات، والقاموس. الصلاحية تفرضها دوال القاعدة؛ هنا لإظهار الأزرار فقط. ===== */
+  const annualSeen = () => isAdmin() || !!(S.me && S.me.college_role) || myDirect().length > 0;
+  const ANQ = { tab: 'data', year: '', mode: 'program', prog: '', unit: '', q: '' };
+  const anMem = (u) => !!myFac() && !!u && S.members.some((m) => m.unit_id === u && m.faculty_id === myFac() && activeM(m));
+  const anHead = (u) => !!myFac() && !!u && S.members.some((m) => m.unit_id === u && m.faculty_id === myFac() && m.position === 'head' && activeM(m));
+  const anAdmin = () => isAdmin() || anMem('u-quality');
+  const anProg = (id) => (S.programs || []).find((p) => p.id === id);
+  const anQaUnit = (id) => (anProg(id) || {}).quality_unit_id || 'u-quality';
+  const anOwner = (e, pg, dp) => e.owner_unit_id || (e.level === 'program' ? anQaUnit(pg) : e.level === 'department' ? dp : 'u-quality');
+  const anWork = (id) => anAdmin() || anMem(anQaUnit(id)) || (!!myFac() && (anProg(id) || {}).coordinator_id === myFac());
+  const AN_ST = { none: ['لم يُدخل', 'wait'], draft: ['مسودة', ''], returned: ['أُعيد بملاحظات', 'bad'], approved: ['معتمد', 'ok'] };
+  const AN_UNIT = { count: 'عدد', percent: 'نسبة مئوية', ratio: 'نسبة', text: 'نص' };
+  const AN_LEVEL = { program: 'برنامج', department: 'قسم', college: 'كلية' };
+  const AN_SRC = { site: 'الموقع', app: 'برنامج', manual: 'يدوي' };
+  const DR_ST = { new: ['جديد', 'wait'], in_progress: ['قيد العمل', ''], done: ['تم', 'ok'], rejected: ['مرفوض', 'bad'] };
+  const anYears = () => [...new Set((S.terms || []).map((x) => String(x.year)))].sort().reverse();
+  const anKey = (el, pg, dp, tm) => [el, pg || '', dp || '', tm || ''].join('|');
+  const anFail = (e) => /does not exist|schema cache|relation/i.test(String(e && e.message)) ? '<div class="empty">التقرير السنوي يحتاج تنفيذ الملف database/28_annual_data.sql أولًا.</div>' : `<div class="panel bad">${esc(pgErr(e))}</div>`;
+  async function pgAnnual() {
+    if (!ANQ.year) ANQ.year = String((curTerm() || {}).year || anYears()[0] || '');
+    const tabs = [['data', 'سجل البيانات'], ['req', 'طلبات البيانات'], ['dict', 'القاموس']];
+    const nav = `<div class="row noprint" style="margin-bottom:12px;gap:6px;flex-wrap:wrap">${tabs.map(([k, l]) => `<button class="btn sm ${ANQ.tab === k ? 'pri' : ''}" onclick="C.anq('tab','${k}')">${l}</button>`).join('')}<span class="grow"></span>
+      ${ANQ.tab !== 'dict' ? `<label class="small">العام <select class="inp" onchange="C.anq('year',this.value)" aria-label="العام">${anYears().map((y) => opt(y, y + 'هـ', ANQ.year)).join('')}</select></label>` : ''}</div>`;
+    try { return nav + (ANQ.tab === 'req' ? await anReqTab() : ANQ.tab === 'dict' ? await anDictTab() : await anDataTab()); }
+    catch (e) { console.error(e); return nav + anFail(e); }
+  }
+  C.anq = (k, v) => { ANQ[k] = v; if (VIEW.page === 'annual') refresh(); else C.go('annual'); };
+  /* صفوف السجل: كل عنصر نشط مع كل نطاق وفترة ضمن المعروض، ومعها قيمته إن كانت ظاهرة للمستخدم وحالتها */
+  async function anLoad() {
+    const [els, vals, st] = await Promise.all([D.select('data_elements', { order: ['sort'] }), D.select('data_values', { eq: { year: ANQ.year } }), D.rpc('data_status', { p_year: ANQ.year })]);
+    const V = new Map(vals.map((v) => [anKey(v.element_code, v.program_id, v.department_id, v.term), v])), ST = new Map((st || []).map((s) => [anKey(s.element, s.program, s.department, s.term), s.status]));
+    const progs = (S.programs || []).filter((p) => p.active !== false), terms = (S.terms || []).filter((x) => String(x.year) === ANQ.year), rows = [];
+    const owners = [...new Set(els.filter((e) => e.active !== false).flatMap((e) => e.level === 'program' ? progs.map((p) => anOwner(e, p.id)) : e.level === 'department' ? deptUnits().map((d) => anOwner(e, null, d.id)) : [anOwner(e)]))].filter(Boolean);
+    if (!ANQ.prog || !anProg(ANQ.prog)) ANQ.prog = (progs.find((p) => anWork(p.id)) || progs[0] || {}).id || '';
+    if (!ANQ.unit || !owners.includes(ANQ.unit)) ANQ.unit = owners.find(anMem) || owners[0] || '';
+    els.filter((e) => e.active !== false).forEach((e) => { let sc = [];
+      if (ANQ.mode === 'program') { const g = anProg(ANQ.prog); if (!g) return;
+        sc = e.level === 'program' ? [{ pg: g.id }] : e.level === 'department' ? (g.department_id ? [{ dp: g.department_id }] : []) : [{}]; }
+      else sc = e.level === 'program' ? progs.filter((p) => anOwner(e, p.id) === ANQ.unit).map((p) => ({ pg: p.id })) : e.level === 'department' ? deptUnits().filter((d) => anOwner(e, null, d.id) === ANQ.unit).map((d) => ({ dp: d.id })) : anOwner(e) === ANQ.unit ? [{}] : [];
+      sc.forEach((s) => (e.period_kind === 'term' ? terms.map((x) => x.id) : [null]).forEach((tm) => { const k = anKey(e.code, s.pg, s.dp, tm), v = V.get(k), owner = anOwner(e, s.pg, s.dp);
+        rows.push({ e, pg: s.pg || null, dp: s.dp || null, tm, v, status: ST.get(k) || 'none', owner, enter: e.source === 'manual' && (anAdmin() || anMem(owner)), approve: isAdmin() || anHead(owner) }); })); });
+    S._an = { els, rows, owners, progs };
+    return S._an;
+  }
+  const anScope = (r) => r.pg ? (anProg(r.pg) || {}).name || r.pg : r.dp ? uName(r.dp) : 'الكلية';
+  const anTerm = (id) => { const x = (S.terms || []).find((k) => k.id === id); return x ? x.name : 'العام كله'; };
+  const anVal = (r) => !r.v ? (r.status === 'none' ? '—' : '<span class="small muted">غير معتمدة بعد</span>') : r.e.unit === 'text' ? esc(r.v.value_text) : `<b class="num">${esc(r.v.value_num)}</b>${r.e.unit === 'percent' ? '٪' : ''}`;
+  async function anDataTab() {
+    const { rows, owners, progs } = await anLoad();
+    const cnt = (s) => rows.filter((r) => r.status === s).length;
+    const canReq = progs.some((p) => anWork(p.id)) || myDirect().length > 0;
+    const acts = (r, i) => [r.enter && r.status !== 'approved' ? `<button class="btn sm pri" onclick="C.dvEdit(${i})">${r.status === 'none' ? 'إدخال' : 'تعديل'}</button>` : '',
+      r.approve && r.status === 'draft' && r.v ? `<button class="btn sm" onclick="C.dvReview(${i},'approve')">اعتماد</button><button class="btn sm" onclick="C.dvReview(${i},'return')">إعادة</button>` : '',
+      r.approve && r.status === 'approved' && r.v ? `<button class="btn sm" onclick="C.dvReview(${i},'reopen')">إعادته مسودة</button>` : ''].join(' ');
+    return `<div class="row noprint" style="margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="inp" onchange="C.anq('mode',this.value)" aria-label="العرض">${opt('program', 'حسب البرنامج', ANQ.mode)}${opt('unit', 'حسب الجهة المالكة', ANQ.mode)}</select>
+        ${ANQ.mode === 'program' ? `<select class="inp" onchange="C.anq('prog',this.value)" aria-label="البرنامج">${progs.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select>` : `<select class="inp" onchange="C.anq('unit',this.value)" aria-label="الجهة">${owners.map((u) => opt(u, uName(u), ANQ.unit)).join('')}</select>`}
+        <span class="grow"></span>${canReq && rows.length ? '<button class="btn sm pri" onclick="C.drNew()">طلب البيانات</button>' : ''}</div>
+      <div class="stats" style="margin-bottom:12px"><div><b>${cnt('approved')}</b><span>معتمد</span></div><div><b>${cnt('draft')}</b><span>مسودة</span></div><div><b class="${cnt('returned') ? 'bad' : ''}">${cnt('returned')}</b><span>أُعيد بملاحظات</span></div><div><b>${cnt('none')}</b><span>لم يُدخل</span></div></div>
+      ${rows.length ? `<div class="tw"><table><tr><th>العنصر</th><th>النطاق</th><th>الجهة المالكة</th><th>الفترة</th><th>المصدر</th><th>القيمة</th><th>الحالة</th><th class="noprint"></th></tr>
+        ${rows.map((r, i) => `<tr><td><b>${esc(r.e.name_ar)}</b><div class="tiny muted" dir="ltr" style="text-align:end">${esc(r.e.code)}</div></td><td>${esc(anScope(r))}</td><td class="small">${esc(uName(r.owner))}</td><td class="small">${esc(anTerm(r.tm))}</td><td class="small">${esc(AN_SRC[r.e.source] || r.e.source)}</td><td>${anVal(r)}${r.v && r.v.evidence ? `<div class="tiny muted">الشاهد: ${esc(r.v.evidence)}</div>` : ''}${r.v && r.v.note ? `<div class="tiny ${r.status === 'returned' ? 'bad' : 'muted'}">${esc(r.v.note)}</div>` : ''}</td><td>${chip(...AN_ST[r.status])}</td><td class="noprint">${acts(r, i)}</td></tr>`).join('')}</table></div>`
+        : '<div class="empty">لا توجد عناصر لهذا العرض. يُعبَّأ القاموس بعد مراجعته (الملف 29)، أو يضيفها المدير ووحدة الجودة من تبويب «القاموس».</div>'}`;
+  }
+  C.dvEdit = (i) => { const r = S._an.rows[i], e = r.e, v = r.v || {};
+    modal(e.name_ar + ' — ' + anScope(r), `<p class="small muted">${esc(e.definition || '')}</p><p class="small muted">${esc(anTerm(r.tm))} · ${esc(ANQ.year)}هـ · الجهة المالكة: ${esc(uName(r.owner))}. أرقام مجمّعة فقط، دون أي بيانات شخصية.</p>
+      ${r.status === 'returned' && v.note ? `<div class="panel bad small" style="margin-bottom:8px">ملاحظة الإعادة: ${esc(v.note)}</div>` : ''}
+      <div class="formgrid">${e.unit === 'text' ? `<label class="f full">النص<textarea id="dvT" rows="3">${esc(v.value_text || '')}</textarea></label>` : `<label class="f">القيمة (${esc(AN_UNIT[e.unit])})<input id="dvN" type="number" step="any" dir="ltr" value="${attr(v.value_num == null ? '' : v.value_num)}"></label>`}
+      <label class="f full">الشاهد (نص أو رابط)<input id="dvE" value="${attr(v.evidence || '')}" maxlength="500"></label><label class="f full">ملاحظة<textarea id="dvO" rows="2" maxlength="1000"></textarea></label></div><div class="err"></div>`,
+      `<button class="btn pri" id="dvOk">حفظ مسودة</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#dvOk').onclick = (ev) => busy(ev.target, async () => { const n = val('dvN');
+      await D.rpc('data_value_save', { p_element: e.code, p_program: r.pg, p_department: r.dp, p_year: ANQ.year, p_term: r.tm, p_num: e.unit === 'text' || n === '' ? null : Number(n), p_text: e.unit === 'text' ? val('dvT') : '', p_evidence: val('dvE'), p_note: val('dvO'), p_version: v.version || 0 });
+      C.close(); toast('حُفظت القيمة مسودة.'); refresh(); }); };
+  C.dvReview = (i, act) => { const r = S._an.rows[i], T = { approve: 'اعتماد القيمة', return: 'إعادة القيمة بملاحظات', reopen: 'إعادة القيمة إلى مسودة' }[act];
+    const showV = r.e.unit === 'text' ? r.v.value_text : r.v.value_num;
+    modal(T + ' — ' + r.e.name_ar, `<p>${esc(anScope(r))} · ${esc(anTerm(r.tm))}: <b>${esc(showV)}</b></p>${r.v.evidence ? `<p class="small">الشاهد: ${esc(r.v.evidence)}</p>` : ''}${act === 'reopen' ? '<p class="small muted">ستختفي القيمة عن غير المالكين حتى يُعاد اعتمادها، وتبقى القديمة في سجل التدقيق.</p>' : ''}
+      <label class="f">${act === 'return' ? 'ملاحظة الإعادة (إلزامية)' : 'ملاحظة (اختيارية)'}<textarea id="drvN" rows="2"></textarea></label><div class="err"></div>`, `<button class="btn pri" id="drvOk">${T}</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#drvOk').onclick = (ev) => busy(ev.target, async () => { await D.rpc('data_value_review', { p_id: r.v.id, p_action: act, p_note: val('drvN'), p_version: r.v.version }); C.close(); toast('تم.'); refresh(); }); };
+  /* طلب البيانات: إلى جهة مالكة، لعناصرها في برنامج */
+  C.drNew = () => { const A = S._an, mine = myDirect().map((m) => m.unit_id), froms = [];
+    A.progs.filter((p) => anWork(p.id)).forEach((p) => froms.push(['p:' + p.id, 'لجنة برنامج: ' + p.name])); mine.forEach((u) => froms.push(['u:' + u, uName(u)]));
+    const pending = () => { const pg = val('drP') || null, to = val('drT'), g = anProg(pg); return A.els.filter((e) => e.active !== false && e.source === 'manual' && anOwner(e, pg, g ? g.department_id : null) === to); };
+    const toList = [...new Set(A.els.filter((e) => e.active !== false && e.source === 'manual').flatMap((e) => A.progs.map((p) => anOwner(e, p.id, p.department_id))))].filter(Boolean);
+    modal('طلب البيانات', `<div class="formgrid"><label class="f">الجهة الطالبة<select id="drF">${froms.map(([v, l]) => opt(v, l, ANQ.mode === 'program' ? 'p:' + ANQ.prog : '')).join('')}</select></label>
+      <label class="f">البرنامج<select id="drP" onchange="C.drEls()">${A.progs.map((p) => opt(p.id, p.name, ANQ.prog)).join('')}</select></label>
+      <label class="f">الجهة المطلوب منها<select id="drT" onchange="C.drEls()">${toList.map((u) => opt(u, uName(u), ANQ.mode === 'unit' ? ANQ.unit : '')).join('')}</select></label>
+      <label class="f">آخر موعد<input id="drD" type="date"></label><label class="f full">ملاحظة<textarea id="drN" rows="2" maxlength="1000"></textarea></label></div>
+      <h3 style="margin:10px 0 4px;font-size:14px">العناصر (عام ${esc(ANQ.year)}هـ)</h3><div id="drE"></div><div class="err"></div>`, `<button class="btn pri" id="drOk">إرسال الطلب</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
+    C.drEls = () => { const L = pending(); $('#drE').innerHTML = L.length ? L.map((e) => `<label class="row small" style="gap:6px;align-items:center"><input type="checkbox" class="drC" value="${attr(e.code)}" checked style="width:auto">${esc(e.name_ar)}</label>`).join('') : '<p class="small muted">لا عناصر لهذه الجهة في هذا البرنامج.</p>'; };
+    C.drEls();
+    $('#drOk').onclick = (ev) => busy(ev.target, async () => { const f = val('drF'), els = [...document.querySelectorAll('.drC:checked')].map((x) => x.value), pg = val('drP'), g = anProg(pg), to = val('drT');
+      if (!f) throw new Error('ليست لك جهة تطلب باسمها.'); if (!els.length) throw new Error('اختر عنصرًا واحدًا على الأقل.');
+      await D.rpc('data_request_create', { p_from_unit: f.startsWith('u:') ? f.slice(2) : null, p_from_program: f.startsWith('p:') ? f.slice(2) : null, p_to_unit: to, p_elements: els, p_program: pg, p_department: g ? g.department_id : null, p_year: ANQ.year, p_term: null, p_due: val('drD') || null, p_note: val('drN') });
+      const h = headOf(to), hf = h && fac(h.faculty_id); if (hf && hf.profile_app_id) notify([hf.profile_app_id], 'طلب بيانات جديد للتقرير السنوي: ' + els.length + ' عنصر من ' + froms.find((x) => x[0] === f)[1]);
+      C.close(); toast('أُرسل الطلب.'); ANQ.tab = 'req'; refresh(); }); };
+  async function anReqTab() {
+    const [list, els] = await Promise.all([D.select('data_requests', { eq: { year: ANQ.year }, order: ['created_at', false] }), D.select('data_elements')]);
+    const nm = (c) => (els.find((e) => e.code === c) || {}).name_ar || c, from = (q) => q.from_program_id ? 'لجنة ' + ((anProg(q.from_program_id) || {}).name || '') : uName(q.from_unit_id);
+    S._dr = list;
+    if (!list.length) return '<div class="empty">لا توجد طلبات بيانات لك في هذا العام.</div>';
+    const row = (q) => { const can = anAdmin() || anMem(q.to_unit_id), open = !['done', 'rejected'].includes(q.status), n = daysTo(q.due_date);
+      return `<tr><td class="small">${esc(from(q))}</td><td class="small">${esc(uName(q.to_unit_id))}</td><td class="small">${(q.elements || []).map((c) => esc(nm(c))).join('<br>')}</td><td class="small">${esc((anProg(q.program_id) || {}).name || '—')}</td>
+        <td class="small">${q.due_date ? esc(fmtD(q.due_date)) + (open && n != null && n < 0 ? ' <span class="bad">متأخر</span>' : '') : '—'}</td><td>${chip(...DR_ST[q.status])}${q.note ? `<div class="tiny muted">${esc(q.note)}</div>` : ''}${q.reply ? `<div class="tiny">الرد: ${esc(q.reply)}</div>` : ''}</td>
+        <td class="noprint">${can && open ? `${q.status === 'new' ? `<button class="btn sm" onclick="C.drSet('${q.id}','in_progress')">قيد العمل</button> ` : ''}<button class="btn sm pri" onclick="C.drSet('${q.id}','done')">تم</button> <button class="btn sm" onclick="C.drSet('${q.id}','rejected')">رفض</button>` : ''}</td></tr>`; };
+    return `<div class="tw"><table><tr><th>من</th><th>إلى</th><th>العناصر</th><th>البرنامج</th><th>الموعد</th><th>الحالة</th><th class="noprint"></th></tr>${list.map(row).join('')}</table></div>`;
+  }
+  C.drSet = (id, status) => { const q = S._dr.find((x) => x.id === id), done = async () => { if (q.created_by && status !== 'in_progress') notify([q.created_by], 'طلب البيانات إلى ' + uName(q.to_unit_id) + ': ' + DR_ST[status][0]); refresh(); };
+    if (status === 'in_progress') return busy(null, async () => { await D.rpc('data_request_update', { p_id: id, p_status: status, p_reply: null }); await done(); });
+    modal(DR_ST[status][0] + ': طلب البيانات', `<label class="f">الرد${status === 'rejected' ? ' (سبب الرفض)' : ''}<textarea id="drR" rows="2">${esc(q.reply || '')}</textarea></label><div class="err"></div>`, `<button class="btn pri" id="drSOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#drSOk').onclick = (ev) => busy(ev.target, async () => { if (status === 'rejected' && !val('drR')) throw new Error('اكتب سبب الرفض.'); await D.rpc('data_request_update', { p_id: id, p_status: status, p_reply: val('drR') }); C.close(); await done(); }); };
+  /* القاموس: البحث بأي رمز؛ يعدّله المدير ووحدة الجودة */
+  async function anDictTab() {
+    const [els, kp] = await Promise.all([D.select('data_elements', { order: ['sort'] }), D.select('kpis', { order: ['sort'] })]);
+    S._de = els; S._kp = kp;
+    const ed = anAdmin(), q = ANQ.q.trim().toLowerCase(), hit = (arr) => !q || arr.some((x) => String(x || '').toLowerCase().includes(q));
+    const K = kp.filter((k) => hit([k.official_code, k.name_ar, ...(k.alt_codes || [])])), E = els.filter((e) => hit([e.code, e.name_ar]));
+    VIEW.after = () => { const i = $('#anQ'); if (i && ANQ._f) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); ANQ._f = false; } };
+    return `<div class="row noprint" style="margin-bottom:12px;gap:8px;align-items:center"><input class="inp" id="anQ" style="width:260px" placeholder="ابحث بأي رمز أو بالاسم…" value="${attr(ANQ.q)}" oninput="C.anQ(this.value)" aria-label="بحث"><span class="grow"></span>${ed ? '<button class="btn sm pri" onclick="C.kpiEdit()">إضافة مؤشر</button><button class="btn sm" onclick="C.elEdit()">إضافة عنصر</button>' : ''}</div>
+      <h3 style="margin:0 0 6px;font-size:15px">المؤشرات (${K.length})</h3>
+      ${K.length ? `<div class="tw"><table><tr><th>الرمز الرسمي</th><th>الرموز البديلة</th><th>المؤشر</th><th>المستهدف</th><th>المالك</th><th>المرجعية</th>${ed ? '<th class="noprint"></th>' : ''}</tr>${K.map((k) => `<tr><td dir="ltr" style="text-align:end">${esc(k.official_code || '—')}</td><td dir="ltr" class="small" style="text-align:end">${esc((k.alt_codes || []).join(', '))}</td><td><b>${esc(k.name_ar)}</b>${k.needs_confirm ? ` ${chip('يحتاج تأكيدًا', 'wait')}` : ''}${k.confirm_note ? `<div class="tiny muted">${esc(k.confirm_note)}</div>` : ''}</td><td>${esc(k.target || '')}</td><td class="small">${esc(k.owner_unit_id ? uName(k.owner_unit_id) : '—')}</td><td class="small">${esc(k.reference_unit_id ? uName(k.reference_unit_id) : '—')}</td>${ed ? `<td class="noprint"><button class="btn sm" onclick="C.kpiEdit('${attr(k.id)}')">تعديل</button></td>` : ''}</tr>`).join('')}</table></div>` : '<div class="empty">لا مؤشرات.</div>'}
+      <h3 style="margin:18px 0 6px;font-size:15px">عناصر البيانات (${E.length})</h3>
+      ${E.length ? `<div class="tw"><table><tr><th>الرمز</th><th>العنصر</th><th>الوحدة</th><th>المستوى</th><th>الجهة المالكة</th><th>المصدر</th><th>الدورية</th>${ed ? '<th class="noprint"></th>' : ''}</tr>${E.map((e) => `<tr${e.active === false ? ' style="opacity:.6"' : ''}><td dir="ltr" style="text-align:end">${esc(e.code)}</td><td><b>${esc(e.name_ar)}</b>${e.definition ? `<div class="tiny muted">${esc(e.definition)}</div>` : ''}</td><td class="small">${esc(AN_UNIT[e.unit])}</td><td class="small">${esc(AN_LEVEL[e.level])}</td><td class="small">${esc(e.owner_unit_id ? uName(e.owner_unit_id) : 'جهة النطاق')}</td><td class="small">${esc(AN_SRC[e.source])}</td><td class="small">${e.period_kind === 'term' ? 'فصلي' : 'سنوي'}</td>${ed ? `<td class="noprint"><button class="btn sm" onclick="C.elEdit('${attr(e.code)}')">تعديل</button></td>` : ''}</tr>`).join('')}</table></div>` : '<div class="empty">لا عناصر.</div>'}`;
+  }
+  C.anQ = (v) => { ANQ.q = v; ANQ._f = true; refresh(); };
+  const anUnits = () => S.units.filter((u) => u.status !== 'archived').sort(sortU);
+  C.elEdit = (code) => { const e = code ? S._de.find((x) => x.code === code) : { code: '', name_ar: '', definition: '', unit: 'count', level: 'program', owner_unit_id: '', source: 'manual', source_app_id: '', period_kind: 'year', active: true, sort: 100 };
+    modal(code ? 'تعديل عنصر' : 'إضافة عنصر', `<div class="formgrid"><label class="f">الرمز<input id="eC" dir="ltr" value="${attr(e.code)}" ${code ? 'disabled' : ''} maxlength="60"></label><label class="f">الاسم<input id="eN" value="${attr(e.name_ar)}" maxlength="200"></label>
+      <label class="f full">التعريف<textarea id="eD" rows="2">${esc(e.definition)}</textarea></label>
+      <label class="f">الوحدة<select id="eU">${Object.entries(AN_UNIT).map(([k, l]) => opt(k, l, e.unit)).join('')}</select></label><label class="f">المستوى<select id="eL">${Object.entries(AN_LEVEL).map(([k, l]) => opt(k, l, e.level)).join('')}</select></label>
+      <label class="f">الجهة المالكة<select id="eO"><option value="">جهة النطاق (لجنة البرنامج أو القسم)</option>${anUnits().map((u) => opt(u.id, u.name, e.owner_unit_id)).join('')}</select></label>
+      <label class="f">المصدر<select id="eS">${Object.entries(AN_SRC).map(([k, l]) => opt(k, l, e.source)).join('')}</select></label>
+      <label class="f">البرنامج المصدر<select id="eA"><option value="">—</option>${(S.apps || []).map((a) => opt(a.id, a.name, e.source_app_id)).join('')}</select></label>
+      <label class="f">الدورية<select id="eP">${opt('year', 'سنوي', e.period_kind)}${opt('term', 'فصلي', e.period_kind)}</select></label><label class="f">الترتيب<input id="eR" type="number" value="${attr(e.sort)}"></label>
+      <label class="f">الحالة<select id="eV">${opt('1', 'نشط', e.active === false ? '0' : '1')}${opt('0', 'موقوف', e.active === false ? '0' : '1')}</select></label></div><div class="err"></div>`, `<button class="btn pri" id="eOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
+    $('#eOk').onclick = (ev) => busy(ev.target, async () => { const row = { name_ar: val('eN'), definition: val('eD'), unit: val('eU'), level: val('eL'), owner_unit_id: val('eO') || null, source: val('eS'), source_app_id: val('eA') || null, period_kind: val('eP'), sort: Number(val('eR')) || 100, active: val('eV') === '1' };
+      if (!row.name_ar) throw new Error('الاسم مطلوب.');
+      if (code) await D.update('data_elements', row, { eq: { code } }); else { const c = val('eC'); if (!c) throw new Error('الرمز مطلوب.'); if (S._de.some((x) => x.code === c)) throw new Error('الرمز مستعمل.'); await D.insert('data_elements', Object.assign(row, { code: c })); }
+      C.close(); toast('حُفظ العنصر.'); refresh(); }); };
+  const anList = (s) => String(s || '').split(/[,،\n]+/).map((x) => x.trim()).filter(Boolean);
+  C.kpiEdit = (id) => { const k = id ? S._kp.find((x) => x.id === id) : { id: '', official_code: '', alt_codes: [], name_ar: '', definition: '', goal: '', unit: '', method_text: '', target: '', internal_benchmark: '', external_benchmark: '', criteria: [], direction: '', classification: '', timeframe: '', level: 'program', report_form: '4', origin: 'internal', owner_unit_id: '', reference_unit_id: '', needs_confirm: false, confirm_note: '' };
+    const us = anUnits().map((u) => [u.id, u.name]);
+    modal(id ? 'تعديل مؤشر' : 'إضافة مؤشر', `<div class="formgrid"><label class="f">الرمز الرسمي (KPI-JP-##)<input id="kO" dir="ltr" value="${attr(k.official_code || '')}" maxlength="40"></label><label class="f">الرموز البديلة (تفصلها فاصلة)<input id="kA" dir="ltr" value="${attr((k.alt_codes || []).join(', '))}"></label>
+      <label class="f full">اسم المؤشر<input id="kN" value="${attr(k.name_ar)}" maxlength="300"></label><label class="f full">التعريف<textarea id="kD" rows="2">${esc(k.definition || '')}</textarea></label><label class="f full">الهدف<textarea id="kG" rows="2">${esc(k.goal || '')}</textarea></label>
+      <label class="f full">طريقة القياس<textarea id="kM" rows="2">${esc(k.method_text || '')}</textarea></label>
+      <label class="f">المستهدف<input id="kT" value="${attr(k.target || '')}"></label><label class="f">وحدة القياس<input id="kU" value="${attr(k.unit || '')}"></label>
+      <label class="f">المقارنة الداخلية<input id="kI" value="${attr(k.internal_benchmark || '')}"></label><label class="f">المقارنة الخارجية<input id="kX" value="${attr(k.external_benchmark || '')}"></label>
+      <label class="f">الجهة المالكة<select id="kW"><option value="">—</option>${us.map(([v, l]) => opt(v, l, k.owner_unit_id)).join('')}</select></label><label class="f">الجهة المرجعية<select id="kR"><option value="">—</option>${us.map(([v, l]) => opt(v, l, k.reference_unit_id)).join('')}</select></label>
+      <label class="f">المستوى<select id="kL">${opt('program', 'برامجي', k.level)}${opt('institution', 'مؤسسي', k.level)}</select></label><label class="f">مصدر المؤشر<select id="kS">${opt('internal', 'داخلي', k.origin)}${opt('external', 'خارجي', k.origin)}</select></label>
+      <label class="f">الاتجاه<select id="kV">${[['', '—'], ['positive', 'إيجابي'], ['negative', 'سلبي'], ['target', 'مستهدف']].map(([v, l]) => opt(v, l, k.direction)).join('')}</select></label><label class="f">التصنيف<select id="kC">${[['', '—'], ['core', 'أساسي'], ['extra', 'إضافي']].map(([v, l]) => opt(v, l, k.classification)).join('')}</select></label>
+      <label class="f">الإطار الزمني<input id="kF" value="${attr(k.timeframe || '')}"></label><label class="f">نموذج التقرير<select id="kP">${opt('4', 'نموذج 4', k.report_form)}${opt('5', 'نموذج 5', k.report_form)}</select></label>
+      <label class="f full">المحكات والمعايير (تفصلها فاصلة)<input id="kK" value="${attr((k.criteria || []).join(', '))}"></label>
+      <label class="f full row" style="gap:6px;align-items:center"><input type="checkbox" id="kY" ${k.needs_confirm ? 'checked' : ''} style="width:auto"> يحتاج تأكيدًا</label><label class="f full">ملاحظة التأكيد<input id="kZ" value="${attr(k.confirm_note || '')}"></label></div><div class="err"></div>`, `<button class="btn pri" id="kOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
+    $('#kOk').onclick = (ev) => busy(ev.target, async () => { const row = { official_code: val('kO') || null, alt_codes: anList(val('kA')), name_ar: val('kN'), definition: val('kD'), goal: val('kG'), method_text: val('kM'), target: val('kT'), unit: val('kU'), internal_benchmark: val('kI'), external_benchmark: val('kX'), owner_unit_id: val('kW') || null, reference_unit_id: val('kR') || null, level: val('kL'), origin: val('kS'), direction: val('kV'), classification: val('kC'), timeframe: val('kF'), report_form: val('kP'), criteria: anList(val('kK')), needs_confirm: val('kY'), confirm_note: val('kZ') };
+      if (!row.name_ar) throw new Error('اسم المؤشر مطلوب.');
+      if (row.official_code && S._kp.some((x) => x.id !== id && x.official_code === row.official_code)) throw new Error('الرمز الرسمي مستعمل لمؤشر آخر.');
+      if (id) await D.update('kpis', row, { eq: { id } }); else await D.insert('kpis', Object.assign(row, { id: 'k-' + Date.now().toString(36) }));
+      C.close(); toast('حُفظ المؤشر.'); refresh(); }); };
+  /* بنود التقرير السنوي في «مهامي» و«تنبيهاتي»: الطلبات الواردة، والقيم المعادة، وما ينتظر الاعتماد */
+  async function anUrgent() {
+    const [dr, els, vals] = await Promise.all([D.select('data_requests').catch(() => []), D.select('data_elements').catch(() => []), D.select('data_values').catch(() => [])]);
+    const nm = (c) => (els.find((e) => e.code === c) || {}).name_ar || c, open = dr.filter((q) => ['new', 'in_progress'].includes(q.status) && anMem(q.to_unit_id)), out = [];
+    open.forEach((q) => { const n = daysTo(q.due_date); out.push({ k: 'comm', t: 'طلب بيانات للتقرير السنوي (' + (q.elements || []).length + ' عنصر)', sub: (anProg(q.program_id) || {}).name || uName(q.to_unit_id), n, late: n != null && n < 0, btn: 'فتح', act: `C.anOpen('req','${esc(q.year)}')` }); });
+    const owned = (v) => { const e = els.find((x) => x.code === v.element_code); return e ? anOwner(e, v.program_id, v.department_id) : null; };
+    vals.filter((v) => v.status === 'returned' && anMem(owned(v))).forEach((v) => out.push({ k: 'comm', t: 'قيمة أُعيدت بملاحظات: ' + nm(v.element_code), sub: v.note || '', n: null, late: true, btn: 'فتح', act: `C.anOpen('data','${esc(v.year)}')` }));
+    const wait = vals.filter((v) => v.status === 'draft' && anHead(owned(v)));
+    if (wait.length) out.push({ k: 'comm', t: wait.length + ' قيمة بانتظار اعتمادك في التقرير السنوي', sub: uName(owned(wait[0])), n: null, late: false, btn: 'فتح', act: `C.anOpen('data','${esc(wait[0].year)}')` });
+    return { items: out, open, nm };
+  }
+  C.anOpen = (tab, year) => { ANQ.tab = tab; ANQ.year = year; ANQ.mode = 'unit'; ANQ.unit = ''; C.go('annual'); };
+  const anMine = () => { const a = S._anOpen; if (!a || !a.open.length) return ''; return `<h3 style="margin:22px 0 8px">طلبات بيانات التقرير السنوي</h3><div class="clist">${a.open.map((q) => { const n = daysTo(q.due_date); return `<div class="aline" style="--c:#B7862A"><div><b>${esc((q.elements || []).map(a.nm).join('، '))}</b><div class="small muted">${esc((anProg(q.program_id) || {}).name || '')} · ${esc(q.year)}هـ</div></div><span class="when ${n != null && n < 0 ? 'late' : ''}">${esc(whenTxt(n))}</span><span class="act"><button class="btn sm pri" onclick="C.anOpen('req','${esc(q.year)}')">فتح</button></span></div>`; }).join('')}</div>`; };
+
   /* ٤ «تنبيهاتي»: المتأخر أولًا ثم الأقرب موعدًا؛ سطر واحد وزر واحد لكل بند */
   async function pgAlerts() {
     mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
@@ -1053,7 +1226,7 @@
       `${canEditFac(f) ? `<button class="btn pri" onclick="C.facEdit('${id}')">تعديل البيانات</button>` : myFac() === id ? `<button class="btn pri" onclick="C.facEdit('${id}')">تعديل جوالي</button>` : ''}${isAdmin() ? `<button class="btn" onclick="C.close();C.perms('${id}')">الصلاحيات</button>` : ''}<button class="btn" onclick="C.close()">إغلاق</button>`, true);
   };
   C.facEdit = (id) => {
-    const f = id ? fac(id) : { name_ar: '', name_en: '', employee_no: '', email: '', rank: '', specialty: '', department_id: '', status: 'نشط', notes: '', gender: '', campus: '', service_start: null };
+    const f = id ? fac(id) : { name_ar: '', name_en: '', employee_no: '', email: '', rank: '', specialty: '', department_id: '', status: 'نشط', notes: '', gender: '', campus: '', service_start: null, contract_type: '' };
     const full = !id || canEditFac(f);
     /* الجوال: المدير، ورئيس القسم لأعضاء قسمه، والعضو نفسه (الملف 17) */
     const mobOk = isAdmin() || (id && myFac() === id) || (full && f.department_id && cap(f.department_id, 'manage'));
@@ -1073,6 +1246,7 @@
       <label class="f">التخصص<input id="fs" value="${attr(f.specialty)}" maxlength="120"></label>
       <label class="f">الجنس<select id="fg"><option value="">—</option>${GENDERS.map((g) => opt(g, g, f.gender)).join('')}</select></label>
       <label class="f">المقر<select id="fc"><option value="">—</option>${cps.map((c) => opt(c, c, f.campus)).join('')}</select></label>
+      <label class="f">نوع التعاقد<select id="fct"><option value="">—</option>${CONTRACTS.map((c) => opt(c, c, f.contract_type)).join('')}</select></label>
       <label class="f">تاريخ بداية الخدمة<span class="row" style="gap:8px;align-items:center"><input id="fv" type="date" value="${attr(f.service_start || '')}" oninput="document.getElementById('fvY').textContent=C.yrs(this.value)"><span id="fvY" class="small muted">${esc(yrsTxt(svcYears(f.service_start)))}</span></span></label>
       <label class="f">الحالة<select id="ft" ${isAdmin() ? '' : 'disabled'}>${statuses().map((s) => opt(s, s, f.status)).join('')}</select>${isAdmin() || !id ? '' : '<span class="tiny muted">الإيقاف بطلب لمدير النظام.</span>'}</label>
       <label class="f full">ملاحظات<textarea id="fo" maxlength="1000">${esc(f.notes || '')}</textarea></label></div><div class="err"></div>`,
@@ -1082,7 +1256,7 @@
       if (mobOk && $('#fp') && val('fp') && !/^[0-9+\s-]{7,20}$/.test(val('fp'))) throw new Error('رقم الجوال غير صحيح.');
       if (full) {
         const row = { name_ar: val('fa'), name_en: val('fe'), employee_no: val('fn') || null, email: val('fm').toLowerCase() || null, rank: val('fr'), specialty: val('fs'), department_id: val('fd') || null,
-          gender: val('fg'), campus: val('fc'), service_start: val('fv') || null, notes: val('fo') };
+          gender: val('fg'), campus: val('fc'), contract_type: val('fct'), service_start: val('fv') || null, notes: val('fo') };
         if (!row.name_ar) throw new Error('الاسم بالعربية مطلوب.');
         if (row.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.email)) throw new Error('البريد الجامعي غير صحيح.');
         const twin = row.email && S.faculty.find((x) => x.id !== id && (x.email || '').toLowerCase() === row.email);
@@ -1103,7 +1277,7 @@
   };
   C.yrs = (d) => yrsTxt(svcYears(d));
   const reloadFaculty = async () => { S.faculty = await D.select('faculty'); const pv = await D.select('faculty_private').catch(() => []); S.privates = Object.fromEntries(pv.map((p) => [p.faculty_id, p.mobile])); };
-  const FAC_HEAD = ['الاسم بالعربية', 'الاسم بالإنجليزية', 'الرقم الوظيفي', 'البريد الجامعي', 'الرتبة', 'التخصص', 'القسم', 'الحالة', 'الجوال', 'الجنس', 'المقر', 'تاريخ بداية الخدمة'];
+  const FAC_HEAD = ['الاسم بالعربية', 'الاسم بالإنجليزية', 'الرقم الوظيفي', 'البريد الجامعي', 'الرتبة', 'التخصص', 'القسم', 'الحالة', 'الجوال', 'الجنس', 'المقر', 'تاريخ بداية الخدمة', 'نوع التعاقد'];
   /* تاريخ من Excel: رقم تسلسلي، أو 2010-05-14، أو 14/05/2010 (يوم/شهر/سنة)؛ الميلادي فقط */
   const xlDate = (s) => { s = String(s || '').trim(); if (!s) return ''; let m;
     if (/^\d{4,5}(\.\d+)?$/.test(s)) return new Date(Math.round((+s - 25569) * 864e5)).toISOString().slice(0, 10);
@@ -1114,9 +1288,10 @@
   const xlCampus = (s) => { const k = normAr(s); if (!k) return ''; const c = CAMPUSES().find((x) => normAr(x) === k || normAr(x).includes(k) || k.includes(normAr(x))); return c || null; };
   const FAC_MAP = { 'الاسم بالعربية': 'name_ar', 'الاسم': 'name_ar', 'name_ar': 'name_ar', 'الاسم بالإنجليزية': 'name_en', 'name_en': 'name_en', 'الرقم الوظيفي': 'employee_no', 'employee_no': 'employee_no',
     'البريد الجامعي': 'email', 'البريد': 'email', 'email': 'email', 'الرتبة': 'rank', 'الرتبة الأكاديمية': 'rank', 'rank': 'rank', 'التخصص': 'specialty', 'specialty': 'specialty', 'القسم': 'department', 'القسم العلمي': 'department', 'department': 'department', 'الحالة': 'status', 'status': 'status', 'الجوال': 'mobile', 'رقم الجوال': 'mobile', 'mobile': 'mobile',
-    'الجنس': 'gender', 'gender': 'gender', 'المقر': 'campus', 'campus': 'campus', 'تاريخ بداية الخدمة': 'service_start', 'بداية الخدمة': 'service_start', 'service_start': 'service_start' };
+    'الجنس': 'gender', 'gender': 'gender', 'المقر': 'campus', 'campus': 'campus', 'تاريخ بداية الخدمة': 'service_start', 'بداية الخدمة': 'service_start', 'service_start': 'service_start', 'نوع التعاقد': 'contract_type', 'contract_type': 'contract_type' };
+  const xlContract = (s) => { const k = normAr(s).replace(/^دوام\s+/, ''); if (!k) return ''; return CONTRACTS.find((c) => normAr(c).replace(/^دوام\s+/, '') === k) || null; };
   C.facExport = () => xlsxOut('أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD.concat(['الحساب', 'التكليفات السارية']),
-    rows: facFiltered().map((f) => [f.name_ar, f.name_en, f.employee_no || '', f.email || '', f.rank, f.specialty, uName(f.department_id) === '—' ? '' : uName(f.department_id), f.status, S.privates[f.id] || '', f.gender || '', f.campus || '', f.service_start || '',
+    rows: facFiltered().map((f) => [f.name_ar, f.name_en, f.employee_no || '', f.email || '', f.rank, f.specialty, uName(f.department_id) === '—' ? '' : uName(f.department_id), f.status, S.privates[f.id] || '', f.gender || '', f.campus || '', f.service_start || '', f.contract_type || '',
       f.profile_app_id ? 'مرتبط' : '', S.members.filter((m) => m.faculty_id === f.id && activeM(m)).map((m) => uName(m.unit_id) + ' (' + POS[m.position] + ')').join('، ')]) }]);
   C.facImport = () => {
     modal('استيراد أعضاء هيئة التدريس من Excel', `<p>الملف يحتوي صفًا للعناوين ثم صفًا لكل عضو. يُطابق العضو الموجود بالرقم الوظيفي ثم بالبريد الجامعي (لا بالاسم وحده)، فيُحدَّث، ومن لا يطابق يُضاف جديدًا.</p>
@@ -1124,7 +1299,7 @@
       <label class="f" style="margin-top:12px">ملف Excel<input type="file" id="fiF" accept=".xlsx,.xls,.csv" onchange="C.facParse(this)"></label>
       <div id="fiOut"></div><div class="err"></div>`, `<button class="btn pri" id="fiOk" disabled>اعتماد الاستيراد</button><button class="btn" onclick="C.close()">إلغاء</button>`, true);
   };
-  C.facTemplate = () => xlsxOut('قالب أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD, rows: [['د. مثال الاسم الكامل', 'Example Name', '40000', 'name@ju.edu.sa', 'أستاذ مساعد', 'محاسبة مالية', (deptUnits()[0] || {}).name || 'قسم المحاسبة', 'نشط', '05xxxxxxxx', 'ذكر', CAMPUSES()[0], '2015-09-01']] },
+  C.facTemplate = () => xlsxOut('قالب أعضاء هيئة التدريس.xlsx', [{ name: 'الأعضاء', head: FAC_HEAD, rows: [['د. مثال الاسم الكامل', 'Example Name', '40000', 'name@ju.edu.sa', 'أستاذ مساعد', 'محاسبة مالية', (deptUnits()[0] || {}).name || 'قسم المحاسبة', 'نشط', '05xxxxxxxx', 'ذكر', CAMPUSES()[0], '2015-09-01', 'دوام كامل']] },
     { name: 'طريقة التعبئة', head: ['العمود', 'الوصف'], rows: [['الاسم بالعربية', 'إلزامي'], ['الرقم الوظيفي أو البريد الجامعي', 'يُستخدم للمطابقة مع الموجود؛ يُفضل تعبئة أحدهما على الأقل'], ['القسم', 'اسم القسم كما هو في الهيكل التنظيمي: ' + deptUnits().map((d) => d.name).join('، ')], ['الرتبة', ranks().join('، ')], ['الحالة', statuses().join('، ') + ' (الافتراضي: نشط)'], ['الجوال', 'اختياري؛ يُحفظ في جدول مقيد الاطلاع (يحتاج صلاحية مدير النظام)'], ['الجنس', 'ذكر أو أنثى'], ['المقر', CAMPUSES().join('، ')], ['تاريخ بداية الخدمة', 'ميلادي، مثل 2015-09-01؛ تُحسب سنوات الخدمة تلقائيًا']] }]);
   let FI = null;
   /* مطابقة اسم القسم بمرونة: دون «قسم» والهمزات، أو جزء من الاسم إن دلّ على قسم واحد («التمويل والاستثمار» = «قسم التمويل») */
@@ -1148,13 +1323,14 @@
       if (dep && !isAdmin() && !cap(dep, 'manage')) return out.err.push([n, 'لا تملك صلاحية على ' + uName(dep)]);
       const ex = (r.employee_no && S.faculty.find((f) => f.employee_no === r.employee_no)) || (email && S.faculty.find((f) => (f.email || '').toLowerCase() === email));
       if (ex && email && ex.email && ex.email.toLowerCase() !== email && S.faculty.some((f) => f.id !== ex.id && (f.email || '').toLowerCase() === email)) return out.err.push([n, 'البريد مسجل لعضو آخر: ' + email]);
-      const g = xlGender(r.gender), cp = xlCampus(r.campus), sv = xlDate(r.service_start);
+      const g = xlGender(r.gender), cp = xlCampus(r.campus), sv = xlDate(r.service_start), ct = xlContract(r.contract_type);
+      if (ct === null) return out.err.push([n, 'نوع التعاقد غير معروف: ' + r.contract_type + ' (' + CONTRACTS.join('، ') + ')']);
       if (g === null) return out.err.push([n, 'الجنس غير معروف: ' + r.gender]);
       if (cp === null) return out.err.push([n, 'المقر غير معروف: ' + r.campus + ' (المقرات: ' + CAMPUSES().join('، ') + ')']);
       if (sv === null) return out.err.push([n, 'تاريخ بداية الخدمة غير مفهوم (ميلادي): ' + r.service_start]);
       const row = { name_ar: r.name_ar, name_en: r.name_en || '', employee_no: r.employee_no || null, email: email || null, rank: r.rank || '', specialty: r.specialty || '', department_id: dep, status: r.status || 'نشط' };
       /* الحقول الجديدة لا تُفرَّغ إن تُركت فارغة في الملف */
-      if (g) row.gender = g; if (cp) row.campus = cp; if (sv) row.service_start = sv;
+      if (g) row.gender = g; if (cp) row.campus = cp; if (sv) row.service_start = sv; if (ct) row.contract_type = ct;
       if (ex) { const ch = Object.keys(row).filter((k) => (row[k] || '') !== (ex[k] || '') && !(k === 'department_id' && !row[k])); if (unk && !ch.includes('department_id')) ch.push('department_id'); if (ch.length || (r.mobile && r.mobile !== S.privates[ex.id])) out.upd.push({ n, id: ex.id, row, ch, mobile: r.mobile, unk }); }
       else out.add.push({ n, row, mobile: r.mobile, unk });
     });
@@ -2532,7 +2708,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     ['org_app_access', 'app_id,profile_app_id'], ['org_app_duties', 'id'], ['course_status', 'id'],
     ['spec_programs', 'program_id'], ['spec_plos', 'program_id,code'], ['spec_plan', 'program_id,course_code'], ['spec_matrix', 'program_id,course_code,plo_code'],
     ['course_specs', 'course_code'], ['course_clos', 'course_code,code'], ['annual_reports', 'program_id,year'], ['qa_levels', 'program_id,faculty_id'],
-    ['course_file_flow', 'term_id,course_id'], ['course_file_events', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
+    ['course_file_flow', 'term_id,course_id'], ['course_file_events', 'id'], ['data_elements', 'code'], ['kpis', 'id'], ['data_values', 'id'], ['kpi_results', 'id'], ['data_requests', 'id'], ['org_templates', 'id'], ['org_report_log', 'id'], ['notifs', 'id'], ['audit_log', 'id']];
   const blobB64 = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
   const save = (name, text, type) => { const x = document.createElement('a'); x.href = URL.createObjectURL(new Blob([text], { type })); x.download = name; document.body.appendChild(x); x.click(); setTimeout(() => { URL.revokeObjectURL(x.href); x.remove(); }, 1500); };
   function pgBackup() {
