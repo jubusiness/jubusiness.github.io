@@ -939,7 +939,9 @@
       qcPrime(qcKey('rpc:faculty_courses', { p_faculty: mf, p_term: t.id }), b.faculty_courses); qcPrime(qcKey('rpc:sched_context', { p_term: t.id }), b.sched_context);
       qcPrime(qcKey('course_status', { eq: { term_id: t.id } }), b.course_status); qcPrime(qcKey('org_requests', { eq: { kind: 'inquiry', term_id: t.id } }), b.inquiries);
       qcPrime(qcKey('org_requests', { eq: { assignee_faculty: mf } }), b.assigned); if (units.length) qcPrime(qcKey('org_requests', { in: { unit_id: units } }), b.unit_reqs);
-      ['data_requests', 'data_elements', 'data_values', 'annual_reports'].forEach((k) => qcPrime(qcKey(k), b[k])); } catch (e) { S._noBundle = true; } }
+      ['data_requests', 'data_elements', 'data_values', 'annual_reports'].forEach((k) => qcPrime(qcKey(k), b[k]));
+      /* الملف 36: الإصدار المعتمد وأعداد الطلاب */
+      if (b.sched_versions && b.sections) { qcPrime(qcKey('sched_versions', { eq: { term_id: t.id, status: 'approved' }, cols: 'id,version_no,approved_at,approved_by,source_name' }), b.sched_versions); const lv = b.sched_versions.slice().sort((x, y) => y.version_no - x.version_no)[0]; if (lv) qcPrime(qcKey('sections', { eq: { version_id: lv.id }, cols: 'id,students' }), b.sections); } } catch (e) { S._noBundle = true; } }
   /* طلبات الصفحة والعدّادات المتزامنة تشترك في حساب واحد، ويُعاد الحساب بعد نصف دقيقة أو بعد أي كتابة */
   const MD = { p: null, t: 0, g: -1, me: null };
   const mineData = () => { const me = (S.me || {}).app_id; if (MD.p && MD.me === me && MD.g === QG.n && Date.now() - MD.t < 30000) return MD.p; const p = mineData0().catch((e) => { MD.p = null; throw e; }); Object.assign(MD, { p, t: Date.now(), g: QG.n, me }); return p; };
@@ -1022,6 +1024,7 @@
   const courseState = (st) => st.some((x) => x.s.t === 'late') ? 'late' : st.length && st.every((x) => x.s.t === 'ok') ? 'ok' : st.every((x) => x.s.t === 'none') ? 'none' : 'wait';
   async function pgMine() {
     mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
+    const t0 = curTerm(); if (t0 && viewRole() !== 'staff') D.rpc('dept_followup', { p_term: t0.id }).catch(() => {});   /* لوحة المتابعة بالتوازي مع البيانات */
     const { sc } = await mineData(); navBadge(); bellCount(); const cols = reqCols();
     const v = sc.term ? await approvedOf(sc.term.id).catch(() => null) : null, secs0 = v ? await D.select('sections', { eq: { version_id: v.id }, cols: 'id,students' }).catch(() => []) : [], stu = Object.fromEntries(secs0.map((x) => [x.id, x.students]));
     const TONE = { late: 'bad', ok: 'ok', wait: 'wait', none: 'none' }, TXT = { late: 'فيه نقص', ok: 'مكتمل', wait: 'قيد العمل', none: 'لم يبدأ' };
@@ -3659,7 +3662,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const apprList = (L) => L.length ? `<div class="clist">${L.map((x) => `<div class="aline" style="--c:#23826A"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub || '')}</div></div><span></span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>` : '<div class="okmsg">لا شيء ينتظر اعتمادك ✓</div>';
   async function pgApprovals() { mineCss(); await mineData().catch(() => {}); navBadge(); return apprList(S._appr || []); }
   async function pgLead() {
-    mineCss(); const t = curTerm(), year = String((t || {}).year || '');
+    mineCss(); const t = curTerm(), year = String((t || {}).year || ''); await primeMine(myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; }).map((m) => m.unit_id));
     const [reqs, stAll, reports, results, links, vals, els] = await Promise.all([D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,title,status,kind,due_date' }).catch(() => []),
       t ? D.select('course_status', { eq: { term_id: t.id } }).catch(() => []) : [], D.select('annual_reports').catch(() => []), D.select('kpi_results').catch(() => []), D.select('program_kpis').catch(() => []), D.select('data_values').catch(() => []), D.select('data_elements').catch(() => [])]);
     await loadTpl().catch(() => {});
