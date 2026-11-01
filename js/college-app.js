@@ -189,7 +189,7 @@
 
   const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png', BG_IMG = 'img/login-bg.jpg';
     let BRAND = null;
-  C.logout = async () => { await D.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null;
+  C.logout = async () => { await D.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null; clearCounts(); MF.f = 'all'; LEAD.member = false; try { localStorage.removeItem('lead-mode'); } catch (e) {}
     /* لا تنتقل الصفحة المفتوحة ولا مرشحات المهام إلى من يدخل بعده على الجهاز نفسه */
     Object.assign(TQ, { tab: 'tasks', st: 'open', unit: '', mine: false }); history.replaceState(null, '', location.pathname + location.search); showLogin(); };
 
@@ -921,10 +921,17 @@
     const reqs = [...new Map([...(await D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => [])), ...(units.length ? await D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [])].map((q) => [q.id, q])).values()];
     const urg = buildUrgent(sc.my, reqs.filter((q) => q.assignee_faculty === mf || mem.some((m) => m.unit_id === q.unit_id && ['head', 'deputy'].includes(m.position))));
     const an = await anUrgent().catch(() => ({ items: [], open: [], nm: String })); urg.push(...an.items); urg.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
-    S.urgentN = urg.length; S._anOpen = an; S.mineN = (sc.my || []).reduce((t, c) => t + reqCols().filter((col) => colState(c, col).t !== 'ok').length, 0); S._appr = await approvalsOf(urg).catch(() => []);
+    S.urgentN = urg.length; S._anOpen = an; S.mineN = (sc.my || []).reduce((t, c) => t + reqCols().filter((col) => reqNow(c, col)).length, 0); S._appr = await approvalsOf(urg).catch(() => []);
     return { sc, reqs, mem, urg };
   }
-  async function refreshUrgent() { if (!myFac()) return; try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); } }
+  /* المطلوب الآن من صاحب الحساب في متطلب: ما فيه نقص، أو ما بلغ موعده ولم يكتمل (بقواعد buildUrgent نفسها). ما لم يبدأ ولا موعد له لا يُعدّ */
+  function reqNow(c, col) { const s = colState(c, col), r = courseRole(c, myFac()), al = ALERTS(), lead = Number(al.leadDays) || 7; if (s.t === 'late') return true; if (s.t === 'ok') return false;
+    if (col.kind === 'file') { const n = daysTo(al.fileDue); return (r.teacher || r.coordinator) && n != null && n <= lead; }
+    if (col.kind === 'exam' && r.coordinator) return stOf(c, 'exam').some((x) => { const d = x.details || {}; if (d.questions !== 'pending') return false; const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = d.qDue ? daysTo(d.qDue) : nx ? daysTo(nx.date) : null; return n == null || n <= lead; });
+    return false; }
+  /* تصفير العدّادات: عند تبديل الحساب أو تعذر الحساب لا يبقى رقم حساب سابق */
+  const clearCounts = () => { S.mineN = 0; S.urgentN = 0; S._appr = []; S._anOpen = null; };
+  async function refreshUrgent() { if (!myFac()) { clearCounts(); navBadge(); return; } try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); clearCounts(); navBadge(); } }
   const MINE_CSS = `.req{width:100%;border-collapse:separate;border-spacing:0 6px}.req th{font-size:13px;font-weight:800;padding:8px 10px;text-align:start;border-radius:10px 10px 0 0}
 .req td{padding:10px;background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.req td:first-child{border-inline-start:1px solid var(--line);border-radius:0 10px 10px 0}.req td:last-child{border-inline-end:1px solid var(--line);border-radius:10px 0 0 10px}
 .req td.rc{cursor:pointer}.req td.rc:hover{filter:brightness(.97)}.sb{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap}
@@ -952,14 +959,14 @@
     const w = Math.floor((new Date(now + 'T00:00:00') - new Date(st + 'T00:00:00')) / (7 * 864e5)) + 1; return w >= 1 && w <= 24 ? w : null; };
   const heroChips = () => { const t = curTerm(), w = termWeek(); return (t ? `<span class="ph-chip">${esc(t.name)}</span>` : '') + (w ? `<span class="ph-chip">الأسبوع ${w}</span>` : ''); };
   const pageHero = (title, desc, big, side) => `<div class="page-hero${big ? ' big' : ''}"><div class="ph-t"><h1>${esc(title)}</h1>${desc ? `<p>${esc(desc)}</p>` : ''}<div class="ph-chips">${heroChips()}</div></div>${side || ''}</div>`;
-  const statCard = (n, label, hint, tone, act) => `<${act ? 'button' : 'div'} class="stat-card ${tone || 'violet'}"${act ? ` onclick="${act}"` : ''}><b>${esc(n)}</b><span>${esc(label)}</span>${hint ? `<small>${esc(hint)}</small>` : ''}</${act ? 'button' : 'div'}>`;
+  const statCard = (n, label, hint, tone, act, pct) => `<${act ? 'button' : 'div'} class="stat-card ${tone || 'violet'}"${act ? ` onclick="${act}"` : ''}><b>${esc(n)}</b><span>${esc(label)}</span>${hint ? `<small>${esc(hint)}</small>` : ''}${pct != null ? `<em class="st-bar"><i style="width:${Math.min(100, Math.round(pct))}%"></i></em>` : ''}</${act ? 'button' : 'div'}>`;
   const numBox = (n, l, tone) => `<span class="num-box ${tone || ''}"><b>${esc(n)}</b><i>${esc(l)}</i></span>`;
-  const itemCard = (o) => `<${o.act ? 'button' : 'div'} class="item-card ${o.tone || ''}"${o.act ? ` onclick="${o.act}"` : ''}><div class="ic-h">${o.code ? `<span class="ic-code" dir="ltr">${esc(o.code)}</span>` : ''}<b>${esc(o.title)}</b>${o.chips || ''}</div>${o.sub ? `<div class="small muted">${esc(o.sub)}</div>` : ''}${o.nums ? `<div class="ic-nums">${o.nums}</div>` : ''}${o.badges ? `<div class="ic-badges">${o.badges}</div>` : ''}</${o.act ? 'button' : 'div'}>`;
+  const itemCard = (o) => `<${o.act ? 'button' : 'div'} class="item-card ${o.tone || ''}"${o.act ? ` onclick="${o.act}"` : ''}><div class="ic-h">${o.code ? `<span class="ic-code" dir="ltr">${esc(o.code)}</span>` : ''}<b>${esc(o.title)}</b>${o.chips || ''}</div>${o.sub ? `<div class="small muted">${esc(o.sub)}</div>` : ''}<div class="ic-end">${o.nums ? `<div class="ic-nums">${o.nums}</div>` : ''}${o.bar ? `<div class="ic-bar"><small>${esc(o.bar.label)}</small><span class="tr"><i style="width:${o.bar.pct}%"></i></span></div>` : ''}${o.badges ? `<div class="ic-badges">${o.badges}</div>` : ''}</div></${o.act ? 'button' : 'div'}>`;
   const WELCOME = () => 'مرحبًا، ' + String((S.me || {}).name || '').trim();
   /* إحصاء عضو هيئة التدريس: مطلوبة، متأخرة، اختبارات قادمة، تنبيهات */
   function homeStats(sc, urg) { const now = today(); let ex = 0; (sc.my || []).forEach((c) => stOf(c, 'exam').forEach((x) => { ex += ((x.details || {}).items || []).filter((i) => i.date && String(i.date) >= now).length; }));
     const late = urg.filter((x) => x.late).length;
-    return `<div class="stat-row">${statCard(S.mineN || 0, 'مطلوبة', 'متطلبات لم تكتمل في مقرراتي', 'violet', "C.go('mine')")}${statCard(late, 'متأخرة', 'تحتاج إجراءً الآن', late ? 'red' : 'green', "C.go('alerts')")}${statCard(ex, 'اختبارات قادمة', 'في مقرراتي', 'orange', "C.go('mine')")}${statCard(urg.length, 'تنبيهات جديدة', '', urg.length ? 'orange' : 'green', "C.go('alerts')")}</div>`; }
+    return `<div class="stat-row">${statCard(S.mineN || 0, 'مطلوب منك الآن', S.mineN ? 'من متطلبات مقرراتي' : 'لا شيء مطلوب الآن', S.mineN ? 'pink' : 'green', "C.mineF('now');C.go('mine')")}${statCard(late, 'متأخرة', late ? 'تحتاج إجراءً الآن' : 'لا شيء متأخر', late ? 'red' : 'green', "C.go('alerts')")}${statCard(ex, 'اختبارات قادمة', 'في مقرراتي', 'blue', "C.go('mine')")}${statCard(urg.length, 'تنبيهات جديدة', urg.length ? 'في تنبيهاتي' : 'لا تنبيهات', urg.length ? 'orange' : 'green', "C.go('alerts')")}</div>`; }
   /* شريط محاضرات اليوم، وإن لم يكن اليوم محاضرات فأقرب يوم */
   function todayStrip(cs) { const by = {}; (cs || []).forEach((c) => meetsOf(c).forEach((m) => (by[m.d] = by[m.d] || []).push({ c, from: m.from, to: m.to })));
     if (!Object.keys(by).length) return ''; const td = todayKey(), i0 = DAYS_ORDER.indexOf(td); let d = td, off = 0; for (; off < 7; off++) { d = DAYS_ORDER[(i0 + off) % 7]; if (by[d]) break; }
@@ -971,24 +978,29 @@
       <h3 style="margin:18px 0 8px">جدولي الدراسي</h3>${cs.length ? `<div class="tw"><table><tr><th>المقرر</th><th>الشعبة</th><th>الأيام</th><th>الوقت</th><th>القاعة</th></tr>${cs.map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td>${esc(c.section)}</td><td>${esc(c.days)}</td><td><span dir="ltr" style="white-space:nowrap">${esc(c.from)}–${esc(c.to)}</span></td><td><span dir="ltr">${esc(c.room || '')}</span></td></tr>`).join('')}</table></div>`
         : `<div class="empty">${myFac() ? 'لا توجد شعب مسندة إليك في الجدول المعتمد لهذا الفصل.' : 'حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.'}</div>`}</div>`;
   }
-  /* ٢ «مهامي»: بطاقات الحالة، وبطاقة لكل مقرر بشارات متطلباته؛ الضغط على الشارة يفتح البرنامج المعني على المقرر */
+  /* ٢ «مهامي»: بطاقات الحالة، وبطاقة لكل مقرر بلون حالته وشارات متطلباته؛ الضغط على الشارة يفتح البرنامج المعني على المقرر */
   const MF = { f: 'all' };
   C.mineF = (f) => { MF.f = f; refresh(); };
+  const courseState = (st) => st.some((x) => x.s.t === 'late') ? 'late' : st.length && st.every((x) => x.s.t === 'ok') ? 'ok' : st.every((x) => x.s.t === 'none') ? 'none' : 'wait';
   async function pgMine() {
     mineCss(); if (!myFac()) return '<div class="empty">حسابك غير مرتبط بسجل عضو هيئة تدريس. يربطه مدير النظام.</div>';
     const { sc } = await mineData(); navBadge(); bellCount(); const cols = reqCols();
     const v = sc.term ? await approvedOf(sc.term.id).catch(() => null) : null, secs0 = v ? await D.select('sections', { eq: { version_id: v.id }, cols: 'id,students' }).catch(() => []) : [], stu = Object.fromEntries(secs0.map((x) => [x.id, x.students]));
-    const cards = sc.my.map((c) => { const r = c.role, secs = r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections, st = cols.map((col) => ({ col, s: colState(c, col), a: colApp(col) }));
-      const ok = st.filter((x) => x.s.t === 'ok').length, late = st.some((x) => x.s.t === 'late'), n = secs.reduce((a, x) => a + (+stu[x.id] || 0), 0), pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name;
-      return { c, r, late, done: st.length && ok === st.length, html: itemCard({ code: c.code, title: c.name, tone: late ? 'bad' : '', sub: pn || '',
-        chips: (r.coordinator ? chip('منسق', 'ok') : '') + (r.teacher ? chip('أستاذ') : ''),
-        nums: numBox(secs.length, 'شعب') + numBox(n || '—', 'طلاب') + numBox(st.length ? Math.round(ok / st.length * 100) + '%' : '—', 'الإنجاز', late ? 'bad' : ok === st.length ? 'ok' : ''),
-        badges: st.map((x) => `<button class="sb ${x.s.t}" style="border:0;cursor:pointer;font:inherit;font-size:12.5px" ${x.a ? `onclick="C.appOpenCtx('${x.a.id}','${c.id}')" title="فتح ${attr(x.a.name)}"` : 'disabled title="لم يُربط برنامج بهذا العمود"'}><span aria-hidden="true">${SB[x.s.t]}</span>${esc(x.col.name)}: ${esc(x.s.text)}${x.s.test ? ' · تجريبية' : ''}</button>`).join('') }) }; });
-    const list = cards.filter((x) => MF.f === 'late' ? x.late : MF.f === 'coord' ? x.r.coordinator : MF.f === 'teach' ? x.r.teacher : true);
+    const TONE = { late: 'bad', ok: 'ok', wait: 'wait', none: 'none' }, TXT = { late: 'فيه نقص', ok: 'مكتمل', wait: 'قيد العمل', none: 'لم يبدأ' };
+    const cards = sc.my.map((c) => { const r = c.role, secs = r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections, st = cols.map((col) => ({ col, s: colState(c, col), a: colApp(col), now: reqNow(c, col) }));
+      const ok = st.filter((x) => x.s.t === 'ok').length, state = courseState(st), n = secs.reduce((a, x) => a + (+stu[x.id] || 0), 0), pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name, pct = st.length ? Math.round(ok / st.length * 100) : 0;
+      return { c, r, state, ok, n, now: st.filter((x) => x.now).length, secs: secs.length, total: st.length, html: itemCard({ code: c.code, title: c.name, tone: TONE[state], sub: pn || '',
+        chips: `<span class="st-tag ${TONE[state]}">${TXT[state]}</span>` + (r.coordinator ? chip('منسق') : '') + (r.teacher ? chip('أستاذ') : ''),
+        nums: numBox(secs.length, 'شعب') + (n ? numBox(n, 'طلاب') : ''), bar: { pct, label: `الإنجاز ${ok} من ${st.length} (${pct}%)`, tone: TONE[state] },
+        badges: st.map((x) => `<button class="rq-b ${x.s.t}" ${x.a ? `onclick="C.appOpenCtx('${x.a.id}','${c.id}')" title="فتح ${attr(x.a.name)}"` : 'disabled title="لم يُربط برنامج بهذا العمود"'}><span aria-hidden="true">${SB[x.s.t]}</span>${esc(x.col.name)}: ${esc(x.s.text)}${x.s.test ? ' · تجريبية' : ''}</button>`).join('') }) }; });
+    const N = cards.length, cnt = (s) => cards.filter((x) => x.state === s).length, stuAll = cards.reduce((a, x) => a + x.n, 0), secAll = cards.reduce((a, x) => a + x.secs, 0), lateN = cards.filter((x) => x.state === 'late').length, nowN = S.mineN || 0, pc = (a, b) => b ? a / b * 100 : 0;
+    const list = cards.filter((x) => MF.f === 'now' ? x.now : MF.f === 'late' ? x.state === 'late' : MF.f === 'coord' ? x.r.coordinator : MF.f === 'teach' ? x.r.teacher : true);
     const fb = (k, t, n) => `<button class="btn sm ${MF.f === k ? 'pri' : ''}" onclick="C.mineF('${k}')">${t} (${n})</button>`;
     const follow = (viewRole() !== 'staff' ? await followBoard(sc) : '') + anMine();
-    return `<div class="stat-row">${statCard(cards.length, 'مقرراتي', (sc.term || {}).name || '', 'violet')}${statCard(cards.filter((x) => x.done).length, 'مكتملة', '', 'green')}${statCard(cards.filter((x) => !x.done && !x.late).length, 'قيد العمل', '', 'orange')}${statCard(cards.filter((x) => x.late).length, 'فيها نقص', '', cards.some((x) => x.late) ? 'red' : 'green', "C.mineF('late')")}</div>
-      <div class="row noprint" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">${fb('all', 'الكل', cards.length)}${fb('late', 'المتأخر', cards.filter((x) => x.late).length)}${fb('coord', 'بصفتي منسقًا', cards.filter((x) => x.r.coordinator).length)}${fb('teach', 'بصفتي أستاذًا', cards.filter((x) => x.r.teacher).length)}</div>
+    return `<div class="stat-row">${statCard(nowN, 'مطلوب منك الآن', nowN ? 'المتأخر وما حان موعده من متطلباتك' : 'لا شيء مطلوب الآن', nowN ? 'pink' : 'green', "C.mineF('now')", null)}
+        ${statCard(N, 'مقرراتي', `${secAll} شعبة${stuAll ? ' · ' + stuAll + ' طالبًا' : ''}${cnt('none') ? ' · لم يبدأ ' + cnt('none') : ''}`, 'violet', "C.mineF('all')")}
+        ${statCard(cnt('ok'), 'مكتملة', `${cnt('ok')} من ${N}`, 'green', null, pc(cnt('ok'), N))}${statCard(cnt('wait'), 'قيد العمل', `${cnt('wait')} من ${N}`, 'orange', null, pc(cnt('wait'), N))}${statCard(lateN, 'فيها نقص', `${lateN} من ${N}`, lateN ? 'red' : 'green', "C.mineF('late')", pc(lateN, N))}</div>
+      <div class="row noprint" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">${fb('all', 'الكل', N)}${fb('now', 'مطلوب الآن', cards.filter((x) => x.now).length)}${fb('late', 'المتأخر', lateN)}${fb('coord', 'بصفتي منسقًا', cards.filter((x) => x.r.coordinator).length)}${fb('teach', 'بصفتي أستاذًا', cards.filter((x) => x.r.teacher).length)}</div>
       ${!sc.my.length ? '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>' : list.length ? `<div class="item-grid">${list.map((x) => x.html).join('')}</div>` : '<div class="okmsg">لا توجد مقررات في هذا التصنيف ✓</div>'}${follow}`;
   }
   /* ٣ «العضوية في الوحدات واللجان»: كل جهة لي فيها دور، بلا فصل بين وحدة ولجنة وقسم ووكالة.
@@ -1006,9 +1018,12 @@
     const waitN = (uid) => vals.filter((v) => { const e = els.find((x) => x.code === v.element_code); return e && anOwner(e, v.program_id, v.department_id) === uid; }).length;
     const openN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status)).length;
     const entry = (u) => { const a = u.entry_app && S.apps.find((x) => x.id === u.entry_app && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
-    const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''], w = m.position === 'head' ? waitN(u.id) : 0;
-      return itemCard({ title: u.name, sub: a ? 'يفتح: ' + a.name : 'مساحة عمل الجهة', act: a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`, chips: chip(r[0], r[1]),
-        nums: numBox(S.members.filter((x) => x.unit_id === u.id && activeM(x)).length, 'الأعضاء') + numBox(n, 'مهام مفتوحة', n ? 'wait' : '') + (m.position === 'head' ? numBox(w, 'بانتظار الاعتماد', w ? 'wait' : '') : '') }); }).join('');
+    const lateN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status) && q.due_date && q.due_date < today()).length;
+    const RT = { head: 'pink', deputy: 'blue', secretary: 'green', member: 'violet', viewer: 'none' };
+    const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), l = lateN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''], w = m.position === 'head' ? waitN(u.id) : 0;
+      return itemCard({ title: u.name, tone: l ? 'bad' : n || w ? 'wait' : 'ok', sub: a ? 'يفتح: ' + a.name : 'مساحة عمل الجهة', act: a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`, chips: `<span class="src-b" style="background:${{ pink: '#C2387F', blue: '#2F6DB5', green: '#1E8A62', violet: '#7B529A', none: '#8072A0' }[RT[m.position] || 'none']}">${esc(r[0])}</span>`,
+        nums: numBox(S.members.filter((x) => x.unit_id === u.id && activeM(x)).length, 'الأعضاء') + numBox(n, 'مهام مفتوحة', n ? 'wait' : '') + (l ? numBox(l, 'متأخرة', 'bad') : '') + (m.position === 'head' ? numBox(w, 'بانتظار الاعتماد', w ? 'wait' : '') : '') }); }).join('');
+    const memStats = mem.length ? `<div class="stat-row">${statCard(mem.length, 'جهاتي', mem.filter((m) => m.position === 'head').length + ' برئاستي', 'violet')}${statCard(mem.reduce((t, m) => t + openN(m.unit_id), 0), 'مهام مفتوحة', 'في جهاتي', 'orange')}${(() => { const l = mem.reduce((t, m) => t + lateN(m.unit_id), 0); return statCard(l, 'متأخرة', l ? 'تجاوزت موعدها' : 'لا شيء متأخر', l ? 'red' : 'green'); })()}${mem.some((m) => m.position === 'head') ? statCard(mem.filter((m) => m.position === 'head').reduce((t, m) => t + waitN(m.unit_id), 0), 'بانتظار الاعتماد', 'في جهات برئاستي', 'pink') : ''}</div>` : '';
     /* صلاحيات خاصة: فردية (org_app_access / org_app_fac) أو دور عام (org_app_duties) على برنامج ليست لي عضوية في جهته ولا هو وجهة دخول لجهة من جهاتي */
     const mine = new Set(mem.map((m) => m.unit_id)), viaEntry = new Set(mem.map((m) => (unit(m.unit_id) || {}).entry_app).filter(Boolean));
     const ids = new Set([...fac, ...acc].filter((x) => x.level && x.level !== 'none').map((x) => x.app_id).concat(Object.keys(S.duties || {})));
@@ -1016,7 +1031,7 @@
       .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     const LVL = { manage: ['إدارة', 'brass'], use: ['استخدام', 'ok'], view: ['اطلاع', ''] };
     if (!mem.length && !special.length) return '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>';
-    return (mem.length ? `<div class="item-grid">${cards}</div>` : '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>') +
+    return (mem.length ? memStats + `<div class="item-grid">${cards}</div>` : '<div class="empty">ليست لك عضوية في جهة حاليًا. لإضافتك تواصل مع مدير النظام.</div>') +
       (special.length ? `<h3 style="margin:22px 0 4px;font-size:15px">صلاحيات خاصة</h3><p class="small muted" style="margin:0 0 8px">برامج لك عليها صلاحية دون عضوية في جهتها.</p>
         <div class="clist">${special.map((a) => { const l = LVL[appLv(a)] || ['اطلاع', '']; return `<button onclick="C.appOpen('${a.id}')" style="padding:9px 14px">${icon(a.icon || 'app')}<span class="grow"><b>${esc(a.name)}</b><span class="small muted" style="display:block">${esc(uName(a.unit_id))}</span></span>${chip(l[0], l[1])}${icon('chev')}</button>`; }).join('')}</div>` : '');
   }
@@ -1202,7 +1217,7 @@
     const owned = (v) => { const e = els.find((x) => x.code === v.element_code); return e ? anOwner(e, v.program_id, v.department_id) : null; };
     vals.filter((v) => v.status === 'returned' && anMem(owned(v))).forEach((v) => out.push({ k: 'comm', t: 'قيمة أُعيدت بملاحظات: ' + nm(v.element_code), sub: v.note || '', n: null, late: true, btn: 'فتح', act: `C.anOpen('data','${esc(v.year)}')` }));
     const wait = vals.filter((v) => v.status === 'draft' && anHead(owned(v)));
-    if (wait.length) out.push({ k: 'comm', t: wait.length + ' قيمة بانتظار اعتمادك في التقرير السنوي', sub: uName(owned(wait[0])), n: null, late: false, btn: 'فتح', act: `C.anOpen('data','${esc(wait[0].year)}')` });
+    if (wait.length) out.push({ k: 'comm', cnt: wait.length, t: wait.length + ' قيمة بانتظار اعتمادك في التقرير السنوي', sub: uName(owned(wait[0])), n: null, late: false, btn: 'فتح', act: `C.anOpen('data','${esc(wait[0].year)}')` });
     return { items: out, open, nm };
   }
   C.anOpen = (tab, year) => { ANQ.tab = tab; ANQ.year = year; ANQ.mode = 'unit'; ANQ.unit = ''; C.go('annual'); };
@@ -1339,7 +1354,8 @@
     const grp = (x) => x.n == null ? (x.late ? 'يحتاج إجراءً الآن' : 'دون موعد') : x.n < 0 ? 'متأخر' : x.n === 0 ? 'اليوم' : x.n === 1 ? 'غدًا' : x.n <= 7 ? 'هذا الأسبوع' : 'لاحقًا';
     const order = ['يحتاج إجراءً الآن', 'متأخر', 'اليوم', 'غدًا', 'هذا الأسبوع', 'لاحقًا', 'دون موعد'];
     const col = (x) => x.late || (x.n != null && x.n < 0) ? 'var(--late)' : x.n != null && x.n <= 1 ? 'var(--wait)' : 'var(--ledger)';
-    return order.filter((g) => urg.some((x) => grp(x) === g)).map((g) => `<h3 class="al-day">${esc(g)} <small>${urg.filter((x) => grp(x) === g).length}</small></h3><div class="clist">${urg.filter((x) => grp(x) === g).map((x) => `<div class="aline" style="--c:${col(x)}"><div><b>${esc(x.t)}</b> ${chip(AL_SRC[x.k] || 'أخرى')}<div class="small muted">${esc(x.sub)}</div></div>
+    const SRC_C = { bb: '#D9822B', file: '#0F8B8D', exam: '#2F6DB5', comm: '#B7862A' }, cn = (f) => urg.filter(f).length, lt = cn((x) => x.late), soon = cn((x) => !x.late && x.n != null && x.n <= 1), wk = cn((x) => !x.late && x.n != null && x.n > 1 && x.n <= 7);
+    return `<div class="stat-row">${statCard(urg.length, 'كل التنبيهات', '', 'violet')}${statCard(lt, 'متأخرة أو عاجلة', '', lt ? 'red' : 'green', null, urg.length ? lt / urg.length * 100 : 0)}${statCard(soon, 'اليوم وغدًا', '', soon ? 'orange' : 'green', null, urg.length ? soon / urg.length * 100 : 0)}${statCard(wk, 'هذا الأسبوع', '', 'blue', null, urg.length ? wk / urg.length * 100 : 0)}</div>` + order.filter((g) => urg.some((x) => grp(x) === g)).map((g) => `<h3 class="al-day">${esc(g)} <small>${urg.filter((x) => grp(x) === g).length}</small></h3><div class="clist">${urg.filter((x) => grp(x) === g).map((x) => `<div class="aline" style="--c:${col(x)}"><div><b>${esc(x.t)}</b> <span class="src-b" style="background:${SRC_C[x.k] || '#8072A0'}">${esc(AL_SRC[x.k] || 'أخرى')}</span><div class="small muted">${esc(x.sub)}</div></div>
         <span class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>`).join('');
   }
   /* الرد على استفسار: نافذة صغيرة بالسؤال والرد، وتُسجَّل القراءة عند فتحها */
@@ -1370,7 +1386,7 @@
       : x[k].map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="small">${esc(names(c.fac))}</td><td class="small">${esc(c.coord ? fName(c.coord) : '—')}</td></tr>`).join('');
     modal(T[k] + ' — ' + uName(dep), `<div class="tw"><table>${k === 'inq' ? '<tr><th>المقرر</th><th>العضو</th><th>الاستفسار</th></tr>' : '<tr><th>المقرر</th><th>الأساتذة</th><th>المنسق</th></tr>'}${body || '<tr><td colspan="3" class="muted">لا شيء.</td></tr>'}</table></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true); };
   /* عدد التنبيهات بجانب «تنبيهاتي» في القائمة الجانبية */
-  function navBadge() { [['mine', S.mineN, false], ['alerts', S.urgentN, true], ['approvals', (S._appr || []).length, true]].forEach(([p, n, hot]) => { const b = $('#side .nav[data-p="' + p + '"]'); if (!b) return; let s = b.querySelector('.nav-badge'); if (!n) { if (s) s.remove(); return; }
+  function navBadge() { [['mine', S.mineN, false], ['alerts', S.urgentN, true], ['approvals', apprN(), true]].forEach(([p, n, hot]) => { const b = $('#side .nav[data-p="' + p + '"]'); if (!b) return; let s = b.querySelector('.nav-badge'); if (!n) { if (s) s.remove(); return; }
     if (!s) { s = document.createElement('span'); s.className = 'nav-badge' + (hot ? ' hot' : ''); b.appendChild(s); } s.textContent = n; }); }
   C.facView = async (id) => {
     const f = fac(id);
@@ -3599,6 +3615,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     if (isLeader() && (anMem('u-quality') || isAdmin())) { const reports = await D.select('annual_reports').catch(() => []), sc = leadScope();
       reports.filter((r) => r.status === 'in_review' && sc.progs.some((p) => p.id === r.program_id)).forEach((r) => list.push({ t: 'تقرير البرنامج السنوي بانتظار المراجعة: ' + ((anProg(r.program_id) || {}).name || r.program_id), sub: 'العام ' + r.year, btn: 'فتح', act: `C.leadKpi('${r.program_id}')` })); }
     return list; }
+  /* عدد ما ينتظر الاعتماد فعليًا: البند الواحد قد يجمع عدة قيم */
+  const apprN = () => (S._appr || []).reduce((t, x) => t + (x.cnt || 1), 0);
   const apprList = (L) => L.length ? `<div class="clist">${L.map((x) => `<div class="aline" style="--c:#23826A"><div><b>${esc(x.t)}</b><div class="small muted">${esc(x.sub || '')}</div></div><span></span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>` : '<div class="okmsg">لا شيء ينتظر اعتمادك ✓</div>';
   async function pgApprovals() { mineCss(); await mineData().catch(() => {}); navBadge(); return apprList(S._appr || []); }
   async function pgLead() {
@@ -3613,7 +3631,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const toApprove = S._appr || [];
     const units = sc.units.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)), lateUnits = units.filter((u) => open.some((q) => q.unit_id === u.id && lateOf(q))).length;
     const unitCards = units.map((u) => { const q = open.filter((x) => x.unit_id === u.id), h = headOf(u.id), l = q.filter(lateOf).length, p = pend(u.id);
-      return itemCard({ title: u.name, tone: l ? 'bad' : '', sub: h ? fName(h.faculty_id) : 'شاغر', act: `C.go('unit',{id:'${u.id}'})`, chips: chip(KIND[u.kind] || ''),
+      return itemCard({ title: u.name, tone: l ? 'bad' : q.length || p ? 'wait' : 'ok', sub: h ? fName(h.faculty_id) : 'شاغر', act: `C.go('unit',{id:'${u.id}'})`, chips: chip(KIND[u.kind] || ''),
         nums: numBox(S.members.filter((m) => m.unit_id === u.id && activeM(m)).length, 'الأعضاء') + numBox(q.length, 'مفتوحة') + numBox(l, 'متأخرة', l ? 'bad' : '') + numBox(p, 'نماذج', p ? 'wait' : '') }); }).join('');
     /* التقارير: حالة المقررات بحسب النوع */
     const st = stAll.filter((x) => sc.course(x) && LEAD_KIND[x.kind]), bySt = {};
@@ -3629,7 +3647,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const dash = (() => { const a = S.apps.find((x) => x.id === S.settings.facultyDashApp); return a && a.current_version && appLv(a) !== 'none' ? `<h3 style="margin:18px 0 8px">القيادة</h3><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" onclick="C.appOpen('${a.id}')">${icon('user')}لوحة أعضاء هيئة التدريس</button></div>` : ''; })();
     const banner = DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية.</div>' : '';
     return `<div class="homebody">${banner}${pageHero(WELCOME(), leadTitle() + ' · ' + sc.units.length + ' جهة في نطاقك', true, `<div class="ph-chips ph-side">${myHeads().map((m) => `<span class="ph-chip">${esc(uName(m.unit_id))}</span>`).join('')}</div>`)}
-      <div class="stat-row">${statCard(toApprove.length, 'بانتظار اعتمادي', '', toApprove.length ? 'orange' : 'green', "C.go('approvals')")}${statCard(lateUnits, 'جهات متأخرة', 'لديها أعمال تجاوزت موعدها', lateUnits ? 'red' : 'green')}${statCard(kp, 'اكتمال المؤشرات', 'عام ' + year, 'violet')}${statCard(open.length, 'أعمال مفتوحة', '', 'violet')}</div>
+      <div class="stat-row">${statCard(apprN(), 'بانتظار اعتمادي', toApprove.length ? 'يحتاج قرارك' : 'لا شيء ينتظرك', toApprove.length ? 'pink' : 'green', "C.go('approvals')")}${statCard(lateUnits, 'جهات متأخرة', `من ${units.length} جهة`, lateUnits ? 'red' : 'green', null, units.length ? lateUnits / units.length * 100 : 0)}${statCard(kp, 'اكتمال المؤشرات', `عام ${year}: ${kA} من ${kN}`, 'violet', null, kN ? kA / kN * 100 : 0)}${statCard(open.length, 'أعمال مفتوحة', 'في نطاقك', 'orange')}</div>
       ${myFac() ? homeStats(sc0, urg) + todayStrip(sc0.mine) : ''}${dash}
       <h3 style="margin:18px 0 8px">بانتظار اعتمادك</h3>${apprList(toApprove)}
       <h3 style="margin:18px 0 8px">الوحدات واللجان في نطاقك</h3><div class="item-grid">${unitCards || '<div class="empty">لا توجد جهات.</div>'}</div>

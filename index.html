@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>نظام إدارة كلية الأعمال — جامعة الجوف</title>
-<script src="config.js?v=20261031e"></script>
+<script src="config.js?v=20261101a"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -418,6 +418,25 @@ button.item-card{cursor:pointer}button.item-card:hover{background:var(--ledger-s
 #qsR{max-height:56vh;overflow:auto;padding:6px}.qs-g{font-size:12px;color:var(--mute);font-weight:800;padding:8px 10px 3px}.qs-i{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer;padding:7px 10px;border-radius:8px}.qs-i small{margin-inline-start:auto;color:var(--mute);font-size:12px}.qs-i:hover,.qs-i.on{background:var(--ledger-soft)}
 @media (max-width:600px){#topbar .ttl{display:none}.stat-row{grid-template-columns:1fr 1fr;gap:8px}.stat-card b{font-size:22px}.item-grid{grid-template-columns:1fr}.page-hero{padding:14px}.page-hero.big{padding:18px 16px}.page-hero.big h1{font-size:20px}.side-q kbd{display:none}}
 @media print{.page-hero{background:none!important;color:#000;padding:0}.page-hero h1,.page-hero p{color:#000}.ph-chips,.stat-row .btn,#qsOv{display:none!important}.stat-card{break-inside:avoid}}
+/* الأسلوب الملون (مرجعه بطاقات المؤشرات في لوحة أعضاء هيئة التدريس) */
+.stat-row{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}
+.stat-card{position:relative;border:1px solid color-mix(in srgb,var(--tone) 28%,var(--line));border-top:1px solid color-mix(in srgb,var(--tone) 28%,var(--line));border-inline-start:5px solid var(--tone);background:linear-gradient(160deg,color-mix(in srgb,var(--tone) 13%,var(--card)),var(--card) 75%);padding:10px 14px;gap:0}
+.stat-card span{order:-1;font-size:13px;color:color-mix(in srgb,var(--tone) 70%,var(--ink))}.stat-card b{font-size:31px;line-height:1.15}.stat-card small{font-size:12px;color:var(--ink2)}
+.stat-card.pink{--tone:#C2387F}.stat-card.blue{--tone:#2F6DB5}
+.st-bar{display:block;height:6px;background:color-mix(in srgb,var(--tone) 16%,var(--line2));border-radius:4px;margin-top:6px;overflow:hidden}.st-bar i{display:block;height:100%;background:var(--tone);border-radius:4px}
+.item-card{border:1px solid color-mix(in srgb,var(--tone) 26%,var(--line));border-inline-start:1px solid color-mix(in srgb,var(--tone) 26%,var(--line));border-top:5px solid var(--tone);background:linear-gradient(180deg,color-mix(in srgb,var(--tone) 7%,var(--card)),var(--card) 60%);height:100%}
+.item-card.bad{--tone:#C0392B}.item-card.wait{--tone:#C27C0E}.item-card.ok{--tone:#1E8A62}.item-card.none{--tone:#8072A0}
+.item-card .ic-end{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.ic-bar small{display:block;font-size:12px;color:var(--ink2);margin-bottom:3px}.ic-bar .tr{display:block;height:7px;background:var(--line2);border-radius:4px;overflow:hidden}.ic-bar i{display:block;height:100%;background:var(--tone);border-radius:4px}
+.num-box{background:color-mix(in srgb,var(--tone,var(--ledger)) 11%,var(--card))}.num-box b{color:color-mix(in srgb,var(--tone,var(--ledger)) 85%,var(--ink))}
+.st-tag{color:#fff;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;line-height:21px;white-space:nowrap}
+.st-tag.bad,.rq-b.late{background:#C0392B}.st-tag.wait,.rq-b.wait{background:#C27C0E}.st-tag.ok,.rq-b.ok{background:#1E8A62}.st-tag.none,.rq-b.none{background:#8072A0}
+.rq-b{border:0;color:#fff;border-radius:999px;padding:2px 10px;font:inherit;font-size:12.5px;font-weight:700;display:inline-flex;gap:4px;align-items:center;cursor:pointer}.rq-b:hover:not(:disabled){filter:brightness(.92)}.rq-b:disabled{cursor:default;opacity:.92}.rq-b:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.src-b{color:#fff;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;line-height:20px;display:inline-block}
+.aline{background:linear-gradient(270deg,color-mix(in srgb,var(--c) 9%,var(--card)),var(--card) 70%);border-color:color-mix(in srgb,var(--c) 25%,var(--line))}
+.ts-item{background:linear-gradient(180deg,var(--ledger-soft),var(--card) 75%)}
+.al-day{display:flex;align-items:center;gap:6px}
+@media (max-width:600px){.stat-row>*:last-child:nth-child(odd){grid-column:1/-1}.stat-card b{font-size:25px}}
 </style>
 </head>
 <body>
@@ -441,7 +460,7 @@ button.item-card{cursor:pointer}button.item-card:hover{background:var(--ledger-s
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js"></script>
-<script src="js/college-demo.js?v=20261031e"></script>
-<script src="js/college-app.js?v=20261031e"></script>
+<script src="js/college-demo.js?v=20261101a"></script>
+<script src="js/college-app.js?v=20261101a"></script>
 </body>
 </html>

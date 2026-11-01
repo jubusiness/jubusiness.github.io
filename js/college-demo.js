@@ -513,7 +513,7 @@
   (() => { const set = T.org_settings[0].data, cur = (T.terms.find((x) => x.is_current) || T.terms[0]).id, day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
     set.publicInfo = Object.assign({}, set.publicInfo, { calendar: [{ d: day(-69), t: 'بدء الدراسة للفصل الأول' }] });
     [['a-clo', 'قياس المخرجات', 'u-quality'], ['a-exm', 'نظام الاختبارات', 'u-exams'], ['a-bb', 'متابعة بلاك بورد', 'u-elearn']].forEach(([id, name, unit_id]) => T.org_apps.push({ id, unit_id, name, description: '', kind: 'html', target: '', icon: 'app', sort: 50, active: true, current_version: null, everyone: 'view', created_at: nowISO() }));
-    set.courseButtons = { file: 'a-clo', exam: 'a-exm', bb: 'a-bb' };
+    set.courseButtons = { file: 'a-clo', exam: 'a-exm', bb: 'a-bb' }; set.alerts = Object.assign({}, set.alerts, { fileDue: day(3), leadDays: 7 });
     const put = (code, kind, status, details, app, progress) => { const c = T.courses.find((x) => x.code === code); if (c) T.course_status.push({ id: uuid(), term_id: cur, course_id: c.id, section_id: null, faculty_id: null, source_app: app, kind, status, progress: progress == null ? null : progress, details: details || {}, updated_at: nowISO() }); };
     put('ACCT101', 'file', 'complete', {}, 'a-clo'); put('ACCT101', 'bb', 'met', {}, 'a-bb'); put('ACCT101', 'exam', '', { questions: 'pending', qDue: day(5), items: [{ name: 'النهائي', date: day(12), period: '1', room: 'A-101' }] }, 'a-exm');
     put('ACCT341', 'file', 'in_progress', {}, 'a-clo', 60); put('ACCT341', 'bb', 'unmet', { missing: ['خطة المقرر', 'الدرجات'] }, 'a-bb'); put('ACCT341', 'exam', '', { questions: 'submitted', items: [{ name: 'النهائي', date: day(15), period: '2', room: 'LAB-2' }] }, 'a-exm');
