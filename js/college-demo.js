@@ -98,7 +98,7 @@
       { id: 'hd-hr', name: 'الدبلوم العالي في إدارة الموارد البشرية', department_id: 'dept-ba', degree: 'الدبلوم العالي', prefixes: ['بشر5', 'قصد5'], coordinator_id: null, active: true, sort: 21 }],
     course_coords: [], faculty_aliases: [], org_app_duties: [], course_status: [],
     /* الملف 24 */
-    spec_programs: [], spec_plos: [], spec_plan: [], spec_matrix: [], course_specs: [], course_clos: [], annual_reports: [], qa_levels: [], course_file_flow: [], course_file_events: [],
+    data_imports: [], spec_programs: [], spec_plos: [], spec_plan: [], spec_matrix: [], course_specs: [], course_clos: [], annual_reports: [], qa_levels: [], course_file_flow: [], course_file_events: [],
     /* الملفات 28-31؛ القاموس من _tools/kpi-seed.json */
     /*KPI-SEED*/data_elements: [
       { code: "E-PG1-AVG", name_ar: "متوسط تقدير طلاب المستوى النهائي لجودة خبرات التعلم", definition: "من استطلاع تقويم البرنامج، مقياس من 5", unit: 'ratio', level: 'program', owner_unit_id: 'u-quality', source: 'app', source_app_id: 'a-srv', period_kind: 'year', active: true, sort: 1 },
