@@ -197,6 +197,7 @@
   };
   const touch = (r) => { r.updated_at = nowISO(); r.updated_by = ME; return r; };
 
+  const R_FC = (a) => R.faculty_courses(a), R_SC = (a) => R.sched_context(a); let DEMO_SEL = null;
   DEMO.select = async (t, q) => {
     let rows = (T[t] || []).filter((r) => matches(r, q)).map(clone);
     /* الملف 22: مفاتيح priv.* لا يقرؤها إلا «استخدام» أو «إدارة» */
@@ -212,6 +213,7 @@
     if (q && q.limit) rows = rows.slice(0, q.limit);
     return rows;
   };
+  DEMO_SEL = DEMO.select;
   /* الملف 28: الكتابة المباشرة للمدير (والقاموس لوحدة الجودة أيضًا)، والباقي بالدوال */
   const annualGuard = (t) => { if (['data_values', 'kpi_results', 'data_requests'].includes(t) && !(prof(ME) || {}).is_admin) throw new Error('new row violates row-level security policy for table "' + t + '"');
     if (['data_elements', 'kpis', 'program_kpis'].includes(t) && !annualAdmin()) throw new Error('new row violates row-level security policy for table "' + t + '"'); };
@@ -486,6 +488,8 @@
     return [...best.values()].map(({ course_id, faculty_id, sections }) => ({ course_id, faculty_id, sections }));
   };
   R.sched_reject = ({ p_version, p_note }) => { const v = T.sched_versions.find((x) => x.id === p_version); if (v && v.status === 'draft') { v.status = 'rejected'; v.note = ((v.note || '') + ' ' + (p_note || '')).trim(); } return null; };
+  /* الملف 35 */
+  R.my_bundle = async ({ p_term, p_faculty, p_units }) => { const sel = DEMO_SEL; const bySel = (t, q) => sel(t, q); return { faculty_courses: await R_FC({ p_faculty, p_term }), sched_context: await R_SC({ p_term }), course_status: await bySel('course_status', { eq: { term_id: p_term } }), inquiries: await bySel('org_requests', { eq: { kind: 'inquiry', term_id: p_term } }), assigned: await bySel('org_requests', { eq: { assignee_faculty: p_faculty } }), unit_reqs: p_units && p_units.length ? await bySel('org_requests', { in: { unit_id: p_units } }) : [], data_requests: await bySel('data_requests'), data_elements: await bySel('data_elements'), data_values: await bySel('data_values'), annual_reports: await bySel('annual_reports') }; };
   R.faculty_courses = ({ p_faculty, p_term }) => T.teaching.filter((t) => t.faculty_id === p_faculty).map((t) => {
     const v = T.sched_versions.find((x) => x.id === t.version_id); if (!v || v.status !== 'approved' || (p_term && v.term_id !== p_term)) return null;
     const s = T.sections.find((x) => x.id === t.section_id), o = T.offerings.find((x) => x.id === s.offering_id), c = T.courses.find((x) => x.id === o.course_id);
@@ -513,6 +517,7 @@
   (() => { const set = T.org_settings[0].data, cur = (T.terms.find((x) => x.is_current) || T.terms[0]).id, day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
     set.publicInfo = Object.assign({}, set.publicInfo, { calendar: [{ d: day(-69), t: 'بدء الدراسة للفصل الأول' }] });
     [['a-clo', 'قياس المخرجات', 'u-quality'], ['a-exm', 'نظام الاختبارات', 'u-exams'], ['a-bb', 'متابعة بلاك بورد', 'u-elearn']].forEach(([id, name, unit_id]) => T.org_apps.push({ id, unit_id, name, description: '', kind: 'html', target: '', icon: 'app', sort: 50, active: true, current_version: null, everyone: 'view', created_at: nowISO() }));
+    /* الملف 34 */ const UC = { deanship: '#7B4FA0', 'vice-edu': '#2563EB', vice: '#DB2777', 'dept-acct': '#D97706', 'dept-fin': '#0891B2', 'dept-ba': '#4F46E5' }; T.org_units.forEach((u) => { u.color = UC[u.id] || (u.parent_id === 'deanship' && !['leadership', 'department'].includes(u.kind) ? '#65A30D' : ''); });
     set.courseButtons = { file: 'a-clo', exam: 'a-exm', bb: 'a-bb' }; set.alerts = Object.assign({}, set.alerts, { fileDue: day(3), leadDays: 7 });
     const put = (code, kind, status, details, app, progress) => { const c = T.courses.find((x) => x.code === code); if (c) T.course_status.push({ id: uuid(), term_id: cur, course_id: c.id, section_id: null, faculty_id: null, source_app: app, kind, status, progress: progress == null ? null : progress, details: details || {}, updated_at: nowISO() }); };
     put('ACCT101', 'file', 'complete', {}, 'a-clo'); put('ACCT101', 'bb', 'met', {}, 'a-bb'); put('ACCT101', 'exam', '', { questions: 'pending', qDue: day(5), items: [{ name: 'النهائي', date: day(12), period: '1', room: 'A-101' }] }, 'a-exm');

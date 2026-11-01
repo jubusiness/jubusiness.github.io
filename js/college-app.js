@@ -90,6 +90,25 @@
       async setPassword(password) { const r = await sb.auth.updateUser({ password }); if (r.error) throw new Error(r.error.message); }
     }
   };
+  /* ذاكرة مؤقتة للقراءة في الجلسة: كل استعلام يُجلب مرة كل دقيقة، والطلبات المتزامنة تشترك في طلب واحد.
+     أي كتابة تُسقط جدولها، وأي دالة كتابة تمسح الكل، فلا يرى المستخدم نتيجة قديمة لما غيّره هو. */
+  const QC = new Map(), QG = { n: 0 }, QC_TTL = 60000, QC_SKIP = new Set(['org_app_data', 'audit_log', 'org_changes']);
+  const QC_RPC = new Set(['faculty_courses', 'sched_context', 'data_status', 'dept_followup', 'faculty_dash', 'report_teaching_load']), QC_KEEP = new Set(['org_my_access', 'org_link_me', 'org_app_put', 'org_app_del', 'my_bundle', 'inquiry_read', 'sched_linked', 'course_file_board', 'qa_roles']);
+  const PERF = { on: /[?&]perf\b/.test(location.search), n: 0 };
+  const qcCopy = (v) => (v && typeof v === 'object' ? structuredClone(v) : v);
+  const qcGet = (key, fn) => { const e = QC.get(key); if (e && Date.now() - e.t < QC_TTL) return e.p.then(qcCopy); PERF.n++; const p = fn(); QC.set(key, { t: Date.now(), p }); p.catch(() => QC.delete(key)); return p.then(qcCopy); };
+  const qcKey = (t, o) => JSON.stringify([t, o || null]);
+  const qcDrop = (t) => { const pre = '["' + t + '"'; [...QC.keys()].forEach((k) => { if (k.startsWith(pre)) QC.delete(k); }); QG.n++; };
+  const qcClear = () => { QC.clear(); QG.n++; };
+  const qcPrime = (key, v) => QC.set(key, { t: Date.now(), p: Promise.resolve(v) });
+  const qcFresh = (key) => { const e = QC.get(key); return !!e && Date.now() - e.t < QC_TTL; };
+  (() => { const sel = D.select; D.select = (t, o) => QC_SKIP.has(t) ? (PERF.n++, sel.call(D, t, o)) : qcGet(qcKey(t, o), () => sel.call(D, t, o));
+    ['insert', 'upsert', 'update', 'remove', 'upsertMany'].forEach((k) => { const f = D[k]; D[k] = async (t, ...r) => { const v = await f.call(D, t, ...r); qcDrop(t); return v; }; });
+    const rp = D.rpc; D.rpc = async (n, a) => { if (QC_RPC.has(n)) return qcGet(qcKey('rpc:' + n, a), () => rp.call(D, n, a)); PERF.n++; const v = await rp.call(D, n, a); if (!QC_KEEP.has(n)) qcClear(); return v; };
+    const fnc = D.fn; D.fn = async (b) => { const v = await fnc.call(D, b); qcClear(); return v; };
+    /* ملف البرنامج لا يتغير لأن مساره يحوي رقم الإصدار: يُحفظ في المتصفح، ويُحذف إصداره السابق */
+    const dl = D.downloadApp; D.downloadApp = async (p) => { let c = null; try { c = await caches.open('college-apps-v1'); const h = await c.match('/__app/' + p); if (h) return await h.blob(); } catch (e) { c = null; }
+      PERF.n++; const b = await dl.call(D, p); if (c) try { await c.put('/__app/' + p, new Response(b, { headers: { 'content-type': b.type || 'text/html' } })); const pre = '/__app/' + String(p).split('/')[0] + '/'; (await c.keys()).forEach((q) => { const u = new URL(q.url).pathname; if (u.startsWith(pre) && u !== '/__app/' + p) c.delete(q); }); } catch (e) {} return b; }; })();
 
   /* ---------------- الحالة ---------------- */
   const S = (window.CS = { apps: [], me: null, acc: {}, glob: {}, units: [], faculty: [], members: [], roles: [], grants: [], terms: [], settings: {}, depts: [], profiles: [], privates: {}, changes: [] });
@@ -189,7 +208,7 @@
 
   const LOGO_IMG = window.COLLEGE_LOGO || 'img/ju-emblem.png', BG_IMG = 'img/login-bg.jpg';
     let BRAND = null;
-  C.logout = async () => { await D.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null; clearCounts(); MF.f = 'all'; LEAD.member = false; try { localStorage.removeItem('lead-mode'); } catch (e) {}
+  C.logout = async () => { await D.auth.signOut(); if (!FORCE_DEMO) DEMO = false; S.me = null; BRAND = null; qcClear(); clearCounts(); MF.f = 'all'; LEAD.member = false; try { localStorage.removeItem('lead-mode'); } catch (e) {}
     /* لا تنتقل الصفحة المفتوحة ولا مرشحات المهام إلى من يدخل بعده على الجهاز نفسه */
     Object.assign(TQ, { tab: 'tasks', st: 'open', unit: '', mine: false }); history.replaceState(null, '', location.pathname + location.search); showLogin(); };
 
@@ -235,13 +254,11 @@
       D.select('profiles', { cols: 'app_id,username,name,email,is_admin,college_role,active' })
     ]);
     Object.assign(S, { units, faculty, members, roles, terms, depts, profiles, settings: (settings[0] || {}).data || {} });
-    S.grants = await D.select('org_grants').catch(() => []);
-    S.apps = await D.select('org_apps').catch(() => []);
-    S.programs = await D.select('programs', { order: ['sort'] }).catch(() => []);
-    const pv = await D.select('faculty_private').catch(() => []);
+    const [grants, apps, programs, pv] = await Promise.all([D.select('org_grants').catch(() => []), D.select('org_apps').catch(() => []), D.select('programs', { order: ['sort'] }).catch(() => []), D.select('faculty_private').catch(() => [])]);
+    Object.assign(S, { grants, apps, programs });
     S.privates = Object.fromEntries(pv.map((p) => [p.faculty_id, p.mobile]));
   }
-  C.reload = async () => { await loadAll(); refresh(); toast('حُدّثت البيانات.'); };
+  C.reload = async () => { qcClear(); await loadAll(); refresh(); toast('حُدّثت البيانات.'); };
 
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
@@ -305,7 +322,8 @@
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
       general: pgGeneral, identity: pgIdentity, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, approvals: pgApprovals, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
-    Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
+    const pf0 = performance.now(), pfN = PERF.n;
+    Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); if (PERF.on) toast(page + ': ' + Math.round(performance.now() - pf0) + ' م.ث · ' + (PERF.n - pfN) + ' طلب'); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
   });
   const refresh = (C.refresh = () => go(VIEW.page, Object.assign({}, VIEW, { force: true })));
@@ -564,14 +582,14 @@
     const u = unit(VIEW.id); if (!u) return '<div class="panel">الجهة غير موجودة.</div>';
     if (VIEW.tab) { WS.tab = VIEW.tab; delete VIEW.tab; }
     const h = headOf(u.id), can = cap(u.id, 'read');
-    const head = `<div class="panel"><div class="row" style="align-items:flex-start"><div class="grow">
+    const head = `<div class="panel" style="border-top:5px solid ${unitColor(u.id)}"><div class="row" style="align-items:flex-start"><div class="grow">
         <div class="path">${pathOf(u.id).map((p) => esc(p.name)).join(' ‹ ')}</div>
         <p style="margin:6px 0 0">${esc(u.description || '')}</p></div>
         ${chip(KIND[u.kind])} ${chip(USTATUS[u.status], u.status === 'active' ? 'ok' : 'wait')}</div>
         <dl class="kv" style="margin-top:12px"><dt>المسؤول</dt><dd>${h ? esc(fName(h.faculty_id)) + ' <span class="small muted">منذ ' + fmtD(h.start_date) + '</span>' : '—'}</dd>
         <dt>عدد الأعضاء</dt><dd>${S.members.filter((m) => m.unit_id === u.id && activeM(m)).length}</dd>
         ${u.term_start || u.term_end ? `<dt>مدة التكليف</dt><dd>${fmtD(u.term_start)} ← ${fmtD(u.term_end)}</dd>` : ''}</dl>
-        <div class="row noprint" style="margin-top:12px"><button class="btn sm" onclick="C.go('ws')">كل الوحدات واللجان</button><button class="btn sm" onclick="C.go('org',{id:'${u.id}'})">موقعها في الهيكل</button></div></div>`;
+        <div class="row noprint" style="margin-top:12px"><button class="btn sm" onclick="C.go('ws')">كل الوحدات واللجان</button><button class="btn sm" onclick="C.go('org',{id:'${u.id}'})">موقعها في الهيكل</button>${cap(u.id, 'manage') ? `<button class="btn sm" onclick="C.unitColor('${u.id}')"><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${unitColor(u.id)}"></span> لون الجهة</button>` : ''}</div></div>`;
     if (!can) return head + '<div class="panel"><h2>لا تملك صلاحية الاطلاع على أعمال هذه الجهة</h2><p class="muted">يمنح مدير النظام الصلاحيات حسب الدور والجهة. إن كنت عضوًا فيها فتأكد أن حسابك مرتبط بسجلك في قاعدة أعضاء هيئة التدريس.</p></div>';
     const tabs = [['tasks', 'المهام والطلبات'], ['forms', 'النماذج والتقارير'], ['members', 'الأعضاء'], ['apps', 'البرامج'], ['hist', 'السجل']];
     let body = '';
@@ -846,7 +864,7 @@
   /* ملخصات البرامج والاستفسارات للفصل (الملف 15) */
   const CX = { st: [], inq: [] };
   async function loadCourseExtras() {
-    const t = (S.sched || {}).term; if (!t) return;
+    const t = (S.sched || {}).term || curTerm(); if (!t) return;
     const [st, inq] = await Promise.all([D.select('course_status', { eq: { term_id: t.id } }).catch(() => []), D.select('org_requests', { eq: { kind: 'inquiry', term_id: t.id } }).catch(() => [])]);
     Object.assign(CX, { st, inq });
   }
@@ -911,17 +929,28 @@
         out.push({ k: 'exam', t: `مراقبة ${n === 0 ? 'اليوم' : 'غدًا'}: ${i.role || 'مراقب'}`, sub: [c.code, i.name, i.period && 'الفترة ' + i.period, i.room && 'القاعة ' + i.room].filter(Boolean).join(' · '), n, late: false, btn: 'فتح',
           act: appOfKind('exam') && c.id ? `C.appOpenCtx('${appOfKind('exam').id}','${c.id}')` : `C.toast('لم يُربط نظام الاختبارات بعد.',true)` }); }); });
     reqs.filter((q) => q.kind !== 'inquiry' && !['done', 'rejected'].includes(q.status) && !q.archived && q.due_date).forEach((q) => { const n = daysTo(q.due_date);
-      if (n <= lead) out.push({ k: 'comm', t: q.title, sub: uName(q.unit_id), n, late: n < 0, btn: 'فتح', act: `C.openReq('${q.id}')` }); });
+      if (n <= lead) out.push({ k: 'comm', uid: q.unit_id, t: q.title, sub: uName(q.unit_id), n, late: n < 0, btn: 'فتح', act: `C.openReq('${q.id}')` }); });
     return out.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
   }
   /* بيانات الصفحات: الجدول وملخصات البرامج والمهام والتكليفات والتنبيهات */
-  async function mineData() {
-    const mf = myFac(); await loadSched(); await loadCourseExtras(); const sc = S.sched || { my: [], mine: [], courses: [] };
-    const mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; }), units = mem.map((m) => m.unit_id);
-    const reqs = [...new Map([...(await D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => [])), ...(units.length ? await D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [])].map((q) => [q.id, q])).values()];
+  /* طلب واحد يملأ الذاكرة المؤقتة بما تحتاجه هذه الصفحات (الملف 35)؛ وبدونه طلبات متوازية */
+  async function primeMine(units) { const t = curTerm(), mf = myFac(); if (S._noBundle || !t || !mf || qcFresh(qcKey('rpc:sched_context', { p_term: t.id }))) return;
+    try { const b = await D.rpc('my_bundle', { p_term: t.id, p_faculty: mf, p_units: units }); if (!b) return;
+      qcPrime(qcKey('rpc:faculty_courses', { p_faculty: mf, p_term: t.id }), b.faculty_courses); qcPrime(qcKey('rpc:sched_context', { p_term: t.id }), b.sched_context);
+      qcPrime(qcKey('course_status', { eq: { term_id: t.id } }), b.course_status); qcPrime(qcKey('org_requests', { eq: { kind: 'inquiry', term_id: t.id } }), b.inquiries);
+      qcPrime(qcKey('org_requests', { eq: { assignee_faculty: mf } }), b.assigned); if (units.length) qcPrime(qcKey('org_requests', { in: { unit_id: units } }), b.unit_reqs);
+      ['data_requests', 'data_elements', 'data_values', 'annual_reports'].forEach((k) => qcPrime(qcKey(k), b[k])); } catch (e) { S._noBundle = true; } }
+  /* طلبات الصفحة والعدّادات المتزامنة تشترك في حساب واحد، ويُعاد الحساب بعد نصف دقيقة أو بعد أي كتابة */
+  const MD = { p: null, t: 0, g: -1, me: null };
+  const mineData = () => { const me = (S.me || {}).app_id; if (MD.p && MD.me === me && MD.g === QG.n && Date.now() - MD.t < 30000) return MD.p; const p = mineData0().catch((e) => { MD.p = null; throw e; }); Object.assign(MD, { p, t: Date.now(), g: QG.n, me }); return p; };
+  async function mineData0() {
+    const mf = myFac(), mem = myDirect().filter((m) => { const u = unit(m.unit_id); return u && u.status !== 'archived'; }), units = mem.map((m) => m.unit_id);
+    await primeMine(units);
+    const [, , r1, r2, an] = await Promise.all([loadSched(), loadCourseExtras(), D.select('org_requests', { eq: { assignee_faculty: mf } }).catch(() => []), units.length ? D.select('org_requests', { in: { unit_id: units } }).catch(() => []) : [], anUrgent().catch(() => ({ items: [], open: [], nm: String }))]);
+    const sc = S.sched || { my: [], mine: [], courses: [] }, reqs = [...new Map([...r1, ...r2].map((q) => [q.id, q])).values()];
     const urg = buildUrgent(sc.my, reqs.filter((q) => q.assignee_faculty === mf || mem.some((m) => m.unit_id === q.unit_id && ['head', 'deputy'].includes(m.position))));
-    const an = await anUrgent().catch(() => ({ items: [], open: [], nm: String })); urg.push(...an.items); urg.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
-    S.urgentN = urg.length; S._anOpen = an; S.mineN = (sc.my || []).reduce((t, c) => t + reqCols().filter((col) => reqNow(c, col)).length, 0); S._appr = await approvalsOf(urg).catch(() => []);
+    urg.push(...an.items); urg.sort((a, b) => (b.late - a.late) || ((a.n == null ? 1e9 : a.n) - (b.n == null ? 1e9 : b.n)));
+    S.urgentN = urg.length; S._anOpen = an; S.mineN = (sc.my || []).reduce((t, c) => t + reqCols().filter((col) => reqNow(c, col)).length, 0); S._appr = await approvalsOf(urg).catch(() => []); S.memN = units.length;
     return { sc, reqs, mem, urg };
   }
   /* المطلوب الآن من صاحب الحساب في متطلب: ما فيه نقص، أو ما بلغ موعده ولم يكتمل (بقواعد buildUrgent نفسها). ما لم يبدأ ولا موعد له لا يُعدّ */
@@ -930,7 +959,7 @@
     if (col.kind === 'exam' && r.coordinator) return stOf(c, 'exam').some((x) => { const d = x.details || {}; if (d.questions !== 'pending') return false; const nx = (d.items || []).filter((i) => i.date && String(i.date) >= today()).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0], n = d.qDue ? daysTo(d.qDue) : nx ? daysTo(nx.date) : null; return n == null || n <= lead; });
     return false; }
   /* تصفير العدّادات: عند تبديل الحساب أو تعذر الحساب لا يبقى رقم حساب سابق */
-  const clearCounts = () => { S.mineN = 0; S.urgentN = 0; S._appr = []; S._anOpen = null; };
+  const clearCounts = () => { S.mineN = 0; S.urgentN = 0; S.memN = 0; S._appr = []; S._anOpen = null; MD.p = null; };
   async function refreshUrgent() { if (!myFac()) { clearCounts(); navBadge(); return; } try { await mineData(); navBadge(); bellCount(); lampSet(); } catch (e) { console.warn(e); clearCounts(); navBadge(); } }
   const MINE_CSS = `.req{width:100%;border-collapse:separate;border-spacing:0 6px}.req th{font-size:13px;font-weight:800;padding:8px 10px;text-align:start;border-radius:10px 10px 0 0}
 .req td{padding:10px;background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.req td:first-child{border-inline-start:1px solid var(--line);border-radius:0 10px 10px 0}.req td:last-child{border-inline-end:1px solid var(--line);border-radius:10px 0 0 10px}
@@ -961,7 +990,16 @@
   const pageHero = (title, desc, big, side) => `<div class="page-hero${big ? ' big' : ''}"><div class="ph-t"><h1>${esc(title)}</h1>${desc ? `<p>${esc(desc)}</p>` : ''}<div class="ph-chips">${heroChips()}</div></div>${side || ''}</div>`;
   const statCard = (n, label, hint, tone, act, pct) => `<${act ? 'button' : 'div'} class="stat-card ${tone || 'violet'}"${act ? ` onclick="${act}"` : ''}><b>${esc(n)}</b><span>${esc(label)}</span>${hint ? `<small>${esc(hint)}</small>` : ''}${pct != null ? `<em class="st-bar"><i style="width:${Math.min(100, Math.round(pct))}%"></i></em>` : ''}</${act ? 'button' : 'div'}>`;
   const numBox = (n, l, tone) => `<span class="num-box ${tone || ''}"><b>${esc(n)}</b><i>${esc(l)}</i></span>`;
-  const itemCard = (o) => `<${o.act ? 'button' : 'div'} class="item-card ${o.tone || ''}"${o.act ? ` onclick="${o.act}"` : ''}><div class="ic-h">${o.code ? `<span class="ic-code" dir="ltr">${esc(o.code)}</span>` : ''}<b>${esc(o.title)}</b>${o.chips || ''}</div>${o.sub ? `<div class="small muted">${esc(o.sub)}</div>` : ''}<div class="ic-end">${o.nums ? `<div class="ic-nums">${o.nums}</div>` : ''}${o.bar ? `<div class="ic-bar"><small>${esc(o.bar.label)}</small><span class="tr"><i style="width:${o.bar.pct}%"></i></span></div>` : ''}${o.badges ? `<div class="ic-badges">${o.badges}</div>` : ''}</div></${o.act ? 'button' : 'div'}>`;
+  const itemCard = (o) => `<${o.act ? 'button' : 'div'} class="item-card ${o.tone || ''}"${o.color ? ` style="--tone:${attr(o.color)}"` : ''}${o.act ? ` onclick="${o.act}"` : ''}><div class="ic-h">${o.code ? `<span class="ic-code" dir="ltr">${esc(o.code)}</span>` : '<span></span>'}<span class="ic-chips">${o.chips || ''}</span></div><div class="ic-t">${esc(o.title)}</div>${o.sub ? `<div class="small muted">${esc(o.sub)}</div>` : ''}<div class="ic-end">${o.nums ? `<div class="ic-nums">${o.nums}</div>` : ''}${o.bar ? `<div class="ic-bar">${o.bar.label ? `<small>${esc(o.bar.label)}</small>` : ''}<span class="tr"><i style="width:${o.bar.pct}%"></i></span></div>` : ''}${o.badges ? `<div class="ic-badges">${o.badges}</div>` : ''}</div></${o.act ? 'button' : 'div'}>`;
+  /* لون الجهة (الملف 34): لونها، وإلا لون أقرب جهة أعلى منها */
+  const UC_PAL = ['#7B4FA0', '#2563EB', '#0D9488', '#DB2777', '#D97706', '#0891B2', '#4F46E5', '#65A30D'];
+  const unitColor = (id) => { let u = typeof id === 'string' ? unit(id) : id, n = 0; while (u && n++ < 40) { if (/^#[0-9a-f]{6}$/i.test(u.color || '')) return u.color; u = u.parent_id ? unit(u.parent_id) : null; } return '#7B4FA0'; };
+  const uTag = (id) => `<span class="u-tag" style="--tone:${unitColor(id)}">${esc(uName(id))}</span>`;
+  C.unitColor = (id) => { const u = unit(id); if (!u || !cap(id, 'manage')) return; let cur = u.color || unitColor(id);
+    modal('لون الجهة: ' + u.name, `<p class="small muted">يظهر بهذا اللون اسم الجهة وبطاقتها في كل الصفحات، وترثه الجهات التابعة لها إن لم يكن لها لون.</p><div class="uc-sw" id="ucSw">${UC_PAL.map((c) => `<button type="button" data-c="${c}" class="${c.toLowerCase() === cur.toLowerCase() ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div><label class="f" style="margin-top:12px">لون آخر<input type="color" id="ucC" value="${attr(cur)}"></label><div class="err"></div>`,
+      `<button class="btn pri" id="ucOk">حفظ</button><button class="btn" onclick="C.close()">إلغاء</button>`);
+    $('#ucSw').onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; $('#ucC').value = b.dataset.c; $$('#ucSw button').forEach((x) => x.classList.toggle('on', x === b)); };
+    $('#ucOk').onclick = (ev) => busy(ev.target, async () => { await D.update('org_units', { color: val('ucC') }, { eq: { id } }); S.units = await D.select('org_units'); C.close(); refresh(); toast('حُفظ لون الجهة.'); }); };
   const WELCOME = () => 'مرحبًا، ' + String((S.me || {}).name || '').trim();
   /* إحصاء عضو هيئة التدريس: مطلوبة، متأخرة، اختبارات قادمة، تنبيهات */
   function homeStats(sc, urg) { const now = today(); let ex = 0; (sc.my || []).forEach((c) => stOf(c, 'exam').forEach((x) => { ex += ((x.details || {}).items || []).filter((i) => i.date && String(i.date) >= now).length; }));
@@ -989,16 +1027,16 @@
     const TONE = { late: 'bad', ok: 'ok', wait: 'wait', none: 'none' }, TXT = { late: 'فيه نقص', ok: 'مكتمل', wait: 'قيد العمل', none: 'لم يبدأ' };
     const cards = sc.my.map((c) => { const r = c.role, secs = r.teacher ? c.sections.filter((x) => r.sections.includes(x.id)) : c.sections, st = cols.map((col) => ({ col, s: colState(c, col), a: colApp(col), now: reqNow(c, col) }));
       const ok = st.filter((x) => x.s.t === 'ok').length, state = courseState(st), n = secs.reduce((a, x) => a + (+stu[x.id] || 0), 0), pn = ((S.programs || []).find((p) => p.id === c.program_id) || {}).name, pct = st.length ? Math.round(ok / st.length * 100) : 0;
-      return { c, r, state, ok, n, now: st.filter((x) => x.now).length, secs: secs.length, total: st.length, html: itemCard({ code: c.code, title: c.name, tone: TONE[state], sub: pn || '',
-        chips: `<span class="st-tag ${TONE[state]}">${TXT[state]}</span>` + (r.coordinator ? chip('منسق') : '') + (r.teacher ? chip('أستاذ') : ''),
-        nums: numBox(secs.length, 'شعب') + (n ? numBox(n, 'طلاب') : ''), bar: { pct, label: `الإنجاز ${ok} من ${st.length} (${pct}%)`, tone: TONE[state] },
+      return { c, r, state, ok, n, now: st.filter((x) => x.now).length, lateR: st.filter((x) => x.now && x.s.t === 'late').length, secs: secs.length, total: st.length, html: itemCard({ code: c.code, title: c.name, tone: TONE[state],
+        chips: `<span class="st-tag ${TONE[state]}">${TXT[state]}</span>`, sub: [pn, r.teacher && r.coordinator ? 'أستاذ ومنسق' : r.coordinator ? 'منسق' : r.teacher ? 'أستاذ' : ''].filter(Boolean).join(' · '),
+        nums: numBox(secs.length, 'شعب') + (n ? numBox(n, 'طلاب') : '') + numBox(pct + '%', 'الإنجاز'), bar: { pct },
         badges: st.map((x) => `<button class="rq-b ${x.s.t}" ${x.a ? `onclick="C.appOpenCtx('${x.a.id}','${c.id}')" title="فتح ${attr(x.a.name)}"` : 'disabled title="لم يُربط برنامج بهذا العمود"'}><span aria-hidden="true">${SB[x.s.t]}</span>${esc(x.col.name)}: ${esc(x.s.text)}${x.s.test ? ' · تجريبية' : ''}</button>`).join('') }) }; });
     const N = cards.length, cnt = (s) => cards.filter((x) => x.state === s).length, stuAll = cards.reduce((a, x) => a + x.n, 0), secAll = cards.reduce((a, x) => a + x.secs, 0), lateN = cards.filter((x) => x.state === 'late').length, nowN = S.mineN || 0, pc = (a, b) => b ? a / b * 100 : 0;
     const list = cards.filter((x) => MF.f === 'now' ? x.now : MF.f === 'late' ? x.state === 'late' : MF.f === 'coord' ? x.r.coordinator : MF.f === 'teach' ? x.r.teacher : true);
     const fb = (k, t, n) => `<button class="btn sm ${MF.f === k ? 'pri' : ''}" onclick="C.mineF('${k}')">${t} (${n})</button>`;
     const follow = (viewRole() !== 'staff' ? await followBoard(sc) : '') + anMine();
-    return `<div class="stat-row">${statCard(nowN, 'مطلوب منك الآن', nowN ? 'المتأخر وما حان موعده من متطلباتك' : 'لا شيء مطلوب الآن', nowN ? 'pink' : 'green', "C.mineF('now')", null)}
-        ${statCard(N, 'مقرراتي', `${secAll} شعبة${stuAll ? ' · ' + stuAll + ' طالبًا' : ''}${cnt('none') ? ' · لم يبدأ ' + cnt('none') : ''}`, 'violet', "C.mineF('all')")}
+    return `<div class="stat-row">${(() => { const lr = cards.reduce((a, x) => a + x.lateR, 0), tot = cards.reduce((a, x) => a + x.total, 0); return statCard(nowN, 'مطلوب منك الآن', nowN ? lr + ' ناقصة · ' + (nowN - lr) + ' حان موعدها' : 'لا شيء مطلوب الآن', nowN ? 'red' : 'green', "C.mineF('now')", pc(nowN, tot)); })()}
+        ${statCard(N, 'مقرراتي', `${secAll} شعبة${stuAll ? ' · ' + stuAll + ' طالبًا' : ''}${cnt('none') ? ' · لم يبدأ ' + cnt('none') : ''}`, 'violet', "C.mineF('all')", 100)}
         ${statCard(cnt('ok'), 'مكتملة', `${cnt('ok')} من ${N}`, 'green', null, pc(cnt('ok'), N))}${statCard(cnt('wait'), 'قيد العمل', `${cnt('wait')} من ${N}`, 'orange', null, pc(cnt('wait'), N))}${statCard(lateN, 'فيها نقص', `${lateN} من ${N}`, lateN ? 'red' : 'green', "C.mineF('late')", pc(lateN, N))}</div>
       <div class="row noprint" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">${fb('all', 'الكل', N)}${fb('now', 'مطلوب الآن', cards.filter((x) => x.now).length)}${fb('late', 'المتأخر', lateN)}${fb('coord', 'بصفتي منسقًا', cards.filter((x) => x.r.coordinator).length)}${fb('teach', 'بصفتي أستاذًا', cards.filter((x) => x.r.teacher).length)}</div>
       ${!sc.my.length ? '<div class="empty">لا توجد مقررات مسندة إليك تدريسًا أو تنسيقًا في الجدول المعتمد لهذا الفصل.</div>' : list.length ? `<div class="item-grid">${list.map((x) => x.html).join('')}</div>` : '<div class="okmsg">لا توجد مقررات في هذا التصنيف ✓</div>'}${follow}`;
@@ -1019,10 +1057,9 @@
     const openN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status)).length;
     const entry = (u) => { const a = u.entry_app && S.apps.find((x) => x.id === u.entry_app && x.active !== false); return a && appLv(a) !== 'none' ? a : null; };
     const lateN = (uid) => reqs.filter((q) => q.unit_id === uid && q.kind !== 'inquiry' && !q.archived && !['done', 'rejected'].includes(q.status) && q.due_date && q.due_date < today()).length;
-    const RT = { head: 'pink', deputy: 'blue', secretary: 'green', member: 'violet', viewer: 'none' };
     const cards = mem.map((m) => { const u = unit(m.unit_id), a = entry(u), n = openN(u.id), l = lateN(u.id), r = ROLE_LBL[m.position] || [POS[m.position] || m.position, ''], w = m.position === 'head' ? waitN(u.id) : 0;
-      return itemCard({ title: u.name, tone: l ? 'bad' : n || w ? 'wait' : 'ok', sub: a ? 'يفتح: ' + a.name : 'مساحة عمل الجهة', act: a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`, chips: `<span class="src-b" style="background:${{ pink: '#C2387F', blue: '#2F6DB5', green: '#1E8A62', violet: '#7B529A', none: '#8072A0' }[RT[m.position] || 'none']}">${esc(r[0])}</span>`,
-        nums: numBox(S.members.filter((x) => x.unit_id === u.id && activeM(x)).length, 'الأعضاء') + numBox(n, 'مهام مفتوحة', n ? 'wait' : '') + (l ? numBox(l, 'متأخرة', 'bad') : '') + (m.position === 'head' ? numBox(w, 'بانتظار الاعتماد', w ? 'wait' : '') : '') }); }).join('');
+      return itemCard({ title: u.name, color: unitColor(u.id), sub: (u.parent_id ? uName(u.parent_id) + ' · ' : '') + (a ? 'يفتح: ' + a.name : 'مساحة عمل الجهة'), act: a ? `C.appOpen('${a.id}')` : `C.go('unit',{id:'${u.id}'})`, chips: `<span class="role-b">${esc(r[0])}</span>`,
+        nums: numBox(S.members.filter((x) => x.unit_id === u.id && activeM(x)).length, 'الأعضاء') + numBox(n, 'مهام مفتوحة') + (l ? numBox(l, 'متأخرة', 'bad') : '') + (m.position === 'head' ? numBox(w, 'بانتظار الاعتماد') : '') }); }).join('');
     const memStats = mem.length ? `<div class="stat-row">${statCard(mem.length, 'جهاتي', mem.filter((m) => m.position === 'head').length + ' برئاستي', 'violet')}${statCard(mem.reduce((t, m) => t + openN(m.unit_id), 0), 'مهام مفتوحة', 'في جهاتي', 'orange')}${(() => { const l = mem.reduce((t, m) => t + lateN(m.unit_id), 0); return statCard(l, 'متأخرة', l ? 'تجاوزت موعدها' : 'لا شيء متأخر', l ? 'red' : 'green'); })()}${mem.some((m) => m.position === 'head') ? statCard(mem.filter((m) => m.position === 'head').reduce((t, m) => t + waitN(m.unit_id), 0), 'بانتظار الاعتماد', 'في جهات برئاستي', 'pink') : ''}</div>` : '';
     /* صلاحيات خاصة: فردية (org_app_access / org_app_fac) أو دور عام (org_app_duties) على برنامج ليست لي عضوية في جهته ولا هو وجهة دخول لجهة من جهاتي */
     const mine = new Set(mem.map((m) => m.unit_id)), viaEntry = new Set(mem.map((m) => (unit(m.unit_id) || {}).entry_app).filter(Boolean));
@@ -1217,7 +1254,7 @@
     const owned = (v) => { const e = els.find((x) => x.code === v.element_code); return e ? anOwner(e, v.program_id, v.department_id) : null; };
     vals.filter((v) => v.status === 'returned' && anMem(owned(v))).forEach((v) => out.push({ k: 'comm', t: 'قيمة أُعيدت بملاحظات: ' + nm(v.element_code), sub: v.note || '', n: null, late: true, btn: 'فتح', act: `C.anOpen('data','${esc(v.year)}')` }));
     const wait = vals.filter((v) => v.status === 'draft' && anHead(owned(v)));
-    if (wait.length) out.push({ k: 'comm', cnt: wait.length, t: wait.length + ' قيمة بانتظار اعتمادك في التقرير السنوي', sub: uName(owned(wait[0])), n: null, late: false, btn: 'فتح', act: `C.anOpen('data','${esc(wait[0].year)}')` });
+    if (wait.length) out.push({ k: 'comm', uid: owned(wait[0]), cnt: wait.length, t: wait.length + ' قيمة بانتظار اعتمادك في التقرير السنوي', sub: uName(owned(wait[0])), n: null, late: false, btn: 'فتح', act: `C.anOpen('data','${esc(wait[0].year)}')` });
     return { items: out, open, nm };
   }
   C.anOpen = (tab, year) => { ANQ.tab = tab; ANQ.year = year; ANQ.mode = 'unit'; ANQ.unit = ''; C.go('annual'); };
@@ -1353,9 +1390,9 @@
     if (!urg.length) return '<div class="okmsg">لا توجد مطلوبات عاجلة ✓</div>';
     const grp = (x) => x.n == null ? (x.late ? 'يحتاج إجراءً الآن' : 'دون موعد') : x.n < 0 ? 'متأخر' : x.n === 0 ? 'اليوم' : x.n === 1 ? 'غدًا' : x.n <= 7 ? 'هذا الأسبوع' : 'لاحقًا';
     const order = ['يحتاج إجراءً الآن', 'متأخر', 'اليوم', 'غدًا', 'هذا الأسبوع', 'لاحقًا', 'دون موعد'];
-    const col = (x) => x.late || (x.n != null && x.n < 0) ? 'var(--late)' : x.n != null && x.n <= 1 ? 'var(--wait)' : 'var(--ledger)';
-    const SRC_C = { bb: '#D9822B', file: '#0F8B8D', exam: '#2F6DB5', comm: '#B7862A' }, cn = (f) => urg.filter(f).length, lt = cn((x) => x.late), soon = cn((x) => !x.late && x.n != null && x.n <= 1), wk = cn((x) => !x.late && x.n != null && x.n > 1 && x.n <= 7);
-    return `<div class="stat-row">${statCard(urg.length, 'كل التنبيهات', '', 'violet')}${statCard(lt, 'متأخرة أو عاجلة', '', lt ? 'red' : 'green', null, urg.length ? lt / urg.length * 100 : 0)}${statCard(soon, 'اليوم وغدًا', '', soon ? 'orange' : 'green', null, urg.length ? soon / urg.length * 100 : 0)}${statCard(wk, 'هذا الأسبوع', '', 'blue', null, urg.length ? wk / urg.length * 100 : 0)}</div>` + order.filter((g) => urg.some((x) => grp(x) === g)).map((g) => `<h3 class="al-day">${esc(g)} <small>${urg.filter((x) => grp(x) === g).length}</small></h3><div class="clist">${urg.filter((x) => grp(x) === g).map((x) => `<div class="aline" style="--c:${col(x)}"><div><b>${esc(x.t)}</b> <span class="src-b" style="background:${SRC_C[x.k] || '#8072A0'}">${esc(AL_SRC[x.k] || 'أخرى')}</span><div class="small muted">${esc(x.sub)}</div></div>
+    const col = (x) => x.late || (x.n != null && x.n < 0) ? 'var(--late)' : x.n != null && x.n <= 1 ? 'var(--run)' : 'var(--ok)';
+    const SRC_C = { bb: '#D97706', file: '#0D9488', exam: '#2563EB', comm: '#7B4FA0' }, cn = (f) => urg.filter(f).length, lt = cn((x) => x.late), soon = cn((x) => !x.late && x.n != null && x.n <= 1), wk = cn((x) => !x.late && x.n != null && x.n > 1 && x.n <= 7);
+    return `<div class="stat-row">${statCard(urg.length, 'كل التنبيهات', '', 'violet')}${statCard(lt, 'متأخرة أو عاجلة', '', lt ? 'red' : 'green', null, urg.length ? lt / urg.length * 100 : 0)}${statCard(soon, 'اليوم وغدًا', '', soon ? 'orange' : 'green', null, urg.length ? soon / urg.length * 100 : 0)}${statCard(wk, 'هذا الأسبوع', '', 'blue', null, urg.length ? wk / urg.length * 100 : 0)}</div>` + order.filter((g) => urg.some((x) => grp(x) === g)).map((g) => `<h3 class="al-day">${esc(g)} <small>${urg.filter((x) => grp(x) === g).length}</small></h3><div class="clist">${urg.filter((x) => grp(x) === g).map((x) => `<div class="aline" style="--c:${col(x)}"><div><b>${esc(x.t)}</b> <span class="src-b" style="--sc:${x.uid ? unitColor(x.uid) : SRC_C[x.k] || '#7C6E8F'}">${esc(AL_SRC[x.k] || 'أخرى')}</span><div class="small muted">${esc(x.sub)}</div></div>
         <span class="when ${x.w || (x.n != null && x.n < 0) ? 'late' : x.n != null && x.n <= 1 ? 'soon' : ''}">${esc(x.w || whenTxt(x.n))}</span><span class="act"><button class="btn sm pri" onclick="${x.act}">${esc(x.btn)}</button></span></div>`).join('')}</div>`).join('');
   }
   /* الرد على استفسار: نافذة صغيرة بالسؤال والرد، وتُسجَّل القراءة عند فتحها */
@@ -1386,8 +1423,8 @@
       : x[k].map((c) => `<tr><td><b>${esc(c.code)}</b> ${esc(c.name)}</td><td class="small">${esc(names(c.fac))}</td><td class="small">${esc(c.coord ? fName(c.coord) : '—')}</td></tr>`).join('');
     modal(T[k] + ' — ' + uName(dep), `<div class="tw"><table>${k === 'inq' ? '<tr><th>المقرر</th><th>العضو</th><th>الاستفسار</th></tr>' : '<tr><th>المقرر</th><th>الأساتذة</th><th>المنسق</th></tr>'}${body || '<tr><td colspan="3" class="muted">لا شيء.</td></tr>'}</table></div>`, `<button class="btn" onclick="C.close()">إغلاق</button>`, true); };
   /* عدد التنبيهات بجانب «تنبيهاتي» في القائمة الجانبية */
-  function navBadge() { [['mine', S.mineN, false], ['alerts', S.urgentN, true], ['approvals', apprN(), true]].forEach(([p, n, hot]) => { const b = $('#side .nav[data-p="' + p + '"]'); if (!b) return; let s = b.querySelector('.nav-badge'); if (!n) { if (s) s.remove(); return; }
-    if (!s) { s = document.createElement('span'); s.className = 'nav-badge' + (hot ? ' hot' : ''); b.appendChild(s); } s.textContent = n; }); }
+  function navBadge() { [['mine', S.mineN, 'hot'], ['alerts', S.urgentN, 'hot'], ['approvals', apprN(), 'hot'], ['memberships', S.memN, 'okb']].forEach(([p, n, cl]) => { const b = $('#side .nav[data-p="' + p + '"]'); if (!b) return; let s = b.querySelector('.nav-badge'); if (!n) { if (s) s.remove(); return; }
+    if (!s) { s = document.createElement('span'); s.className = 'nav-badge ' + cl; b.appendChild(s); } s.textContent = n; }); }
   C.facView = async (id) => {
     const f = fac(id);
     const ass = S.members.filter((m) => m.faculty_id === id).sort((a, b) => activeM(b) - activeM(a) || b.start_date.localeCompare(a.start_date));
@@ -2255,6 +2292,7 @@
       head = ['الجهة', 'النوع', 'تتبع إلى', 'المسؤول', 'عدد الأعضاء', 'الحالة', 'البرامج'];
       rows = flatUnits().filter((x) => inU(x.u.id)).map((x) => { const h = headOf(x.u.id); return ['  '.repeat(x.d) + x.u.name, KIND[x.u.kind], uName(x.u.parent_id), h ? fName(h.faculty_id) : '', S.members.filter((m) => m.unit_id === x.u.id && activeM(m)).length, USTATUS[x.u.status], S.apps.filter((a) => a.unit_id === x.u.id).map((a) => a.name).join('، ')]; });
     }
+    if (!summary && rows.length) summary = `<div class="stats"><div><b>${rows.length}</b><span>${esc(REPORTS[RQ.r])}</span></div></div>`;
     REP = { head, rows, title: REPORTS[RQ.r] };
     return ctrl + summary + (rows.length ? `<div class="tw"><table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : '<div class="empty">لا توجد بيانات لهذا التقرير بالتصفية الحالية.</div>');
   }
@@ -2383,17 +2421,19 @@
       ${appsHere.length ? `<h2 style="margin:22px 0 10px">برامج العمادة والوكالات</h2><div class="wsgrid">${appsHere.map(appCard).join('')}</div>` : ''}`;
   }
   async function pgList(kinds, notRoot) {
-    const reqs = await D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,status' }).catch(() => []);
-    const open = {}; reqs.forEach((r) => { if (!['done', 'rejected'].includes(r.status)) open[r.unit_id] = (open[r.unit_id] || 0) + 1; });
+    const reqs = await D.select('org_requests', { eq: { archived: false }, cols: 'id,unit_id,status,due_date' }).catch(() => []);
+    const open = {}, late = {}; reqs.forEach((r) => { if (!['done', 'rejected'].includes(r.status)) { open[r.unit_id] = (open[r.unit_id] || 0) + 1; if (r.due_date && r.due_date < today()) late[r.unit_id] = (late[r.unit_id] || 0) + 1; } });
     const scoped = !fullRead() && !VIEW.all;
     const list = S.units.filter((u) => kinds.includes(u.kind) && u.status !== 'archived' && !(notRoot && u.id === rootId()) && (!scoped || cap(u.id, 'read'))).sort(sortU);
-    const card = (u) => { const h = headOf(u.id), can = cap(u.id, 'read'), na = S.apps.filter((a) => a.unit_id === u.id && a.active).length;
-      return `<button class="ws ${can ? '' : 'locked'}" onclick="C.go('unit',{id:'${u.id}'})" style="border-inline-start-color:var(--k-${u.kind})">
-        <h3>${esc(u.name)}</h3><span class="meta">تتبع: ${esc(uName(u.parent_id))}</span><span class="meta">${h ? 'المسؤول: ' + esc(fName(h.faculty_id)) : 'لم يُعيَّن مسؤول'}</span>
-        <span class="row">${u.status !== 'active' ? chip(USTATUS[u.status], 'wait') : ''}${open[u.id] ? chip(open[u.id] + ' مهام مفتوحة', 'brass') : ''}${na ? chip(na + ' برنامج') : ''}${!can ? chip('للاطلاع بإذن') : ''}</span></button>`; };
+    const card = (u) => { const h = headOf(u.id), can = cap(u.id, 'read'), na = S.apps.filter((a) => a.unit_id === u.id && a.active).length, l = late[u.id] || 0;
+      return itemCard({ title: u.name, color: unitColor(u.id), act: `C.go('unit',{id:'${u.id}'})`, sub: (u.parent_id ? 'تتبع: ' + uName(u.parent_id) + ' · ' : '') + (h ? fName(h.faculty_id) : 'لم يُعيَّن مسؤول'),
+        chips: (u.status !== 'active' ? chip(USTATUS[u.status], 'wait') : '') + (!can ? chip('للاطلاع بإذن') : `<span class="role-b">${esc(KIND[u.kind] || '')}</span>`),
+        nums: numBox(S.members.filter((m) => m.unit_id === u.id && activeM(m)).length, 'الأعضاء') + numBox(open[u.id] || 0, 'مهام مفتوحة') + (l ? numBox(l, 'متأخرة', 'bad') : '') + numBox(na, 'برامج') }); };
+    const sumOf = (m) => list.reduce((t, u) => t + (m[u.id] || 0), 0), vac = list.filter((u) => !headOf(u.id)).length, lt = sumOf(late);
+    const listStats = list.length ? `<div class="stat-row">${statCard(list.length, 'الجهات', '', 'violet', null, 100)}${statCard(sumOf(open), 'مهام مفتوحة', '', 'orange')}${statCard(lt, 'متأخرة', lt ? 'تجاوزت موعدها' : 'لا شيء متأخر', lt ? 'red' : 'green')}${statCard(vac, 'بلا مسؤول', `من ${list.length}`, vac ? 'blue' : 'green', null, vac / list.length * 100)}</div>` : '';
     return `<div class="row noprint" style="margin-bottom:14px"><span class="grow small muted">${scoped ? 'الجهات التي تخصك (' + list.length + ').' : list.length + ' جهة. التبعية والأسماء تُعدَّل من «الإعدادات ← الهيكل التنظيمي».'}</span>
       ${!fullRead() ? `<button class="btn sm" onclick="C.listAll(${scoped})">${scoped ? 'عرض كل جهات الكلية' : 'جهاتي فقط'}</button>` : ''}${isAdmin() ? `<button class="btn sm" onclick="C.go('org')">${icon('sitemap')}الهيكل التنظيمي</button>` : ''}</div>
-      ${list.length ? `<div class="wsgrid">${list.map(card).join('')}</div>` : '<div class="empty">لا توجد جهات من هذا النوع.</div>'}`;
+      ${listStats}${list.length ? `<div class="item-grid">${list.map(card).join('')}</div>` : '<div class="empty">لا توجد جهات من هذا النوع.</div>'}`;
   }
 
   /* =====================================================================
@@ -2405,16 +2445,15 @@
     let body = '';
     if (TQ.tab === 'tasks') {
       let rows = await D.select('org_requests', { eq: { archived: false } });
-      const mf = myFac();
+      const mf = myFac(), all0 = rows.filter((r) => r.kind !== 'inquiry'), op0 = all0.filter((r) => !['done', 'rejected'].includes(r.status)), lt0 = op0.filter((r) => r.due_date && r.due_date < today()).length, mn0 = op0.filter((r) => mf && r.assignee_faculty === mf).length, dn0 = all0.length - op0.length;
       rows = rows.filter((r) => (TQ.st === 'all' || (TQ.st === 'open' ? !['done', 'rejected'].includes(r.status) : r.status === TQ.st)) && (!TQ.unit || r.unit_id === TQ.unit) && (!TQ.mine || (mf && r.assignee_faculty === mf)))
         .sort((a, b) => String(a.due_date || '9999').localeCompare(String(b.due_date || '9999')));
       const units = [...new Set(S.units.filter((u) => cap(u.id, 'read')).map((u) => u.id))];
-      body = `<div class="row noprint" style="margin-bottom:12px"><select class="inp" onchange="C.tq('st',this.value)">${opt('open', 'المفتوحة', TQ.st)}${opt('all', 'كل الحالات', TQ.st)}${Object.keys(RSTAT).map((k) => opt(k, RSTAT[k][0], TQ.st)).join('')}</select>
+      body = `<div class="stat-row">${statCard(op0.length, 'مفتوحة', `من ${all0.length}`, 'violet', null, all0.length ? op0.length / all0.length * 100 : 0)}${statCard(lt0, 'متأخرة', lt0 ? 'تجاوزت موعدها' : 'لا شيء متأخر', lt0 ? 'red' : 'green')}${mf ? statCard(mn0, 'مسندة إليّ', '', 'blue') : ''}${statCard(dn0, 'منجزة', `من ${all0.length}`, 'green', null, all0.length ? dn0 / all0.length * 100 : 0)}</div><div class="row noprint" style="margin-bottom:12px"><select class="inp" onchange="C.tq('st',this.value)">${opt('open', 'المفتوحة', TQ.st)}${opt('all', 'كل الحالات', TQ.st)}${Object.keys(RSTAT).map((k) => opt(k, RSTAT[k][0], TQ.st)).join('')}</select>
         <select class="inp" onchange="C.tq('unit',this.value)"><option value="">كل الجهات</option>${units.map((u) => opt(u, uName(u), TQ.unit)).join('')}</select>
         ${mf ? `<label class="small row" style="gap:4px"><input type="checkbox" ${TQ.mine ? 'checked' : ''} onchange="C.tq('mine',this.checked)">المسندة إليّ فقط</label>` : ''}<span class="grow"></span>
         ${TQ.unit && cap(TQ.unit, 'write') ? `<button class="btn sm pri" onclick="C.reqNew('${TQ.unit}')">مهمة جديدة</button>` : '<span class="small muted">لإضافة مهمة اختر الجهة أولًا</span>'}</div>
-        ${rows.length ? `<div class="tw"><table><tr><th>العنوان</th><th>الجهة</th><th>الحالة</th><th>المكلف</th><th>الاستحقاق</th></tr>${rows.map((r) => { const late = r.due_date && r.due_date < today() && !['done', 'rejected'].includes(r.status);
-          return `<tr class="click" onclick="C.openReq('${r.id}')"><td>${esc(r.title)}</td><td>${esc(uName(r.unit_id))}</td><td>${chip(RSTAT[r.status][0], RSTAT[r.status][1])}</td><td>${esc(r.assignee_faculty ? fName(r.assignee_faculty) : '—')}</td><td class="num ${late ? 'bad' : ''}">${fmtD(r.due_date)}${late ? ' (متأخرة)' : ''}</td></tr>`; }).join('')}</table></div>` : '<div class="empty">لا توجد مهام مطابقة.</div>'}`;
+        ${rows.length ? `<div class="item-grid">${rows.map((r) => { const late = r.due_date && r.due_date < today() && !['done', 'rejected'].includes(r.status); return itemCard({ title: r.title, color: unitColor(r.unit_id), act: `C.openReq('${r.id}')`, sub: uName(r.unit_id) + (r.assignee_faculty ? ' · ' + fName(r.assignee_faculty) : ''), chips: chip(RSTAT[r.status][0], RSTAT[r.status][1]), badges: r.due_date ? chip((late ? 'متأخرة: ' : 'الاستحقاق: ') + fmtD(r.due_date), late ? 'bad' : '') : '' }); }).join('')}</div>` : '<div class="empty">لا توجد مهام مطابقة.</div>'}`;
     } else {
       const mf = myFac();
       const ass = mf ? S.members.filter((m) => m.faculty_id === mf).sort((a, b) => activeM(b) - activeM(a)) : [];
@@ -2765,7 +2804,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const roleKey = (r) => r.teacher && r.coordinator ? 'teacher+coordinator' : r.coordinator ? 'coordinator' : r.teacher ? 'teacher' : r.programCoordinator ? 'program' : 'view';
   const ROLE_TXT = { 'teacher+coordinator': 'أستاذ ومنسق', coordinator: 'منسق المقرر', teacher: 'أستاذ شعبة', program: 'منسق البرنامج', view: 'اطلاع' };
   async function loadSched() {
-    const t = curTerm(); S.sched = null; if (!t) return;
+    const t = curTerm(); if (!t) { S.sched = null; return; }
     const [mine, ctx] = await Promise.all([myFac() ? D.rpc('faculty_courses', { p_faculty: myFac(), p_term: t.id }).catch(() => []) : [], D.rpc('sched_context', { p_term: t.id }).catch(() => null)]);
     if (ctx && ctx.programs) S.programs = ctx.programs.map((p) => Object.assign({}, (S.programs || []).find((x) => x.id === p.id) || {}, p));
     const courses = (ctx && ctx.courses) || [], me = myFac();
@@ -3631,8 +3670,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const toApprove = S._appr || [];
     const units = sc.units.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0)), lateUnits = units.filter((u) => open.some((q) => q.unit_id === u.id && lateOf(q))).length;
     const unitCards = units.map((u) => { const q = open.filter((x) => x.unit_id === u.id), h = headOf(u.id), l = q.filter(lateOf).length, p = pend(u.id);
-      return itemCard({ title: u.name, tone: l ? 'bad' : q.length || p ? 'wait' : 'ok', sub: h ? fName(h.faculty_id) : 'شاغر', act: `C.go('unit',{id:'${u.id}'})`, chips: chip(KIND[u.kind] || ''),
-        nums: numBox(S.members.filter((m) => m.unit_id === u.id && activeM(m)).length, 'الأعضاء') + numBox(q.length, 'مفتوحة') + numBox(l, 'متأخرة', l ? 'bad' : '') + numBox(p, 'نماذج', p ? 'wait' : '') }); }).join('');
+      return itemCard({ title: u.name, color: unitColor(u.id), sub: h ? fName(h.faculty_id) : 'شاغر', act: `C.go('unit',{id:'${u.id}'})`, chips: chip(KIND[u.kind] || ''),
+        nums: numBox(S.members.filter((m) => m.unit_id === u.id && activeM(m)).length, 'الأعضاء') + numBox(q.length, 'مفتوحة') + numBox(l, 'متأخرة', l ? 'bad' : '') + numBox(p, 'نماذج') }); }).join('');
     /* التقارير: حالة المقررات بحسب النوع */
     const st = stAll.filter((x) => sc.course(x) && LEAD_KIND[x.kind]), bySt = {};
     st.forEach((x) => { const s = x.kind === 'exam' ? (((x.details || {}).questions === 'pending') ? 'الأسئلة لم تُسلَّم' : 'الأسئلة سُلِّمت') : (LEAD_ST[x.status] || x.status || '—'); ((bySt[x.kind] = bySt[x.kind] || {})[s] = (bySt[x.kind][s] || 0) + 1); });

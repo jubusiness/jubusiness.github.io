@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>نظام إدارة كلية الأعمال — جامعة الجوف</title>
-<script src="config.js?v=20261101a"></script>
+<script src="config.js?v=20261101b"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -418,25 +418,47 @@ button.item-card{cursor:pointer}button.item-card:hover{background:var(--ledger-s
 #qsR{max-height:56vh;overflow:auto;padding:6px}.qs-g{font-size:12px;color:var(--mute);font-weight:800;padding:8px 10px 3px}.qs-i{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;width:100%;cursor:pointer;padding:7px 10px;border-radius:8px}.qs-i small{margin-inline-start:auto;color:var(--mute);font-size:12px}.qs-i:hover,.qs-i.on{background:var(--ledger-soft)}
 @media (max-width:600px){#topbar .ttl{display:none}.stat-row{grid-template-columns:1fr 1fr;gap:8px}.stat-card b{font-size:22px}.item-grid{grid-template-columns:1fr}.page-hero{padding:14px}.page-hero.big{padding:18px 16px}.page-hero.big h1{font-size:20px}.side-q kbd{display:none}}
 @media print{.page-hero{background:none!important;color:#000;padding:0}.page-hero h1,.page-hero p{color:#000}.ph-chips,.stat-row .btn,#qsOv{display:none!important}.stat-card{break-inside:avoid}}
-/* الأسلوب الملون (مرجعه بطاقات المؤشرات في لوحة أعضاء هيئة التدريس) */
-.stat-row{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}
-.stat-card{position:relative;border:1px solid color-mix(in srgb,var(--tone) 28%,var(--line));border-top:1px solid color-mix(in srgb,var(--tone) 28%,var(--line));border-inline-start:5px solid var(--tone);background:linear-gradient(160deg,color-mix(in srgb,var(--tone) 13%,var(--card)),var(--card) 75%);padding:10px 14px;gap:0}
-.stat-card span{order:-1;font-size:13px;color:color-mix(in srgb,var(--tone) 70%,var(--ink))}.stat-card b{font-size:31px;line-height:1.15}.stat-card small{font-size:12px;color:var(--ink2)}
-.stat-card.pink{--tone:#C2387F}.stat-card.blue{--tone:#2F6DB5}
-.st-bar{display:block;height:6px;background:color-mix(in srgb,var(--tone) 16%,var(--line2));border-radius:4px;margin-top:6px;overflow:hidden}.st-bar i{display:block;height:100%;background:var(--tone);border-radius:4px}
-.item-card{border:1px solid color-mix(in srgb,var(--tone) 26%,var(--line));border-inline-start:1px solid color-mix(in srgb,var(--tone) 26%,var(--line));border-top:5px solid var(--tone);background:linear-gradient(180deg,color-mix(in srgb,var(--tone) 7%,var(--card)),var(--card) 60%);height:100%}
-.item-card.bad{--tone:#C0392B}.item-card.wait{--tone:#C27C0E}.item-card.ok{--tone:#1E8A62}.item-card.none{--tone:#8072A0}
-.item-card .ic-end{margin-top:auto;display:flex;flex-direction:column;gap:8px}
-.ic-bar small{display:block;font-size:12px;color:var(--ink2);margin-bottom:3px}.ic-bar .tr{display:block;height:7px;background:var(--line2);border-radius:4px;overflow:hidden}.ic-bar i{display:block;height:100%;background:var(--tone);border-radius:4px}
-.num-box{background:color-mix(in srgb,var(--tone,var(--ledger)) 11%,var(--card))}.num-box b{color:color-mix(in srgb,var(--tone,var(--ledger)) 85%,var(--ink))}
-.st-tag{color:#fff;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;line-height:21px;white-space:nowrap}
-.st-tag.bad,.rq-b.late{background:#C0392B}.st-tag.wait,.rq-b.wait{background:#C27C0E}.st-tag.ok,.rq-b.ok{background:#1E8A62}.st-tag.none,.rq-b.none{background:#8072A0}
-.rq-b{border:0;color:#fff;border-radius:999px;padding:2px 10px;font:inherit;font-size:12.5px;font-weight:700;display:inline-flex;gap:4px;align-items:center;cursor:pointer}.rq-b:hover:not(:disabled){filter:brightness(.92)}.rq-b:disabled{cursor:default;opacity:.92}.rq-b:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
-.src-b{color:#fff;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;line-height:20px;display:inline-block}
-.aline{background:linear-gradient(270deg,color-mix(in srgb,var(--c) 9%,var(--card)),var(--card) 70%);border-color:color-mix(in srgb,var(--c) 25%,var(--line))}
-.ts-item{background:linear-gradient(180deg,var(--ledger-soft),var(--card) 75%)}
-.al-day{display:flex;align-items:center;gap:6px}
-@media (max-width:600px){.stat-row>*:last-child:nth-child(odd){grid-column:1/-1}.stat-card b{font-size:25px}}
+/* الأسلوب الملون: القيم والمكونات من plans/design/ui-colors.html */
+:root{--brand:#7B4FA0;--brand-d:#4B2A6B;--brand-l:#F3ECF8;--ok:#16A34A;--ok-l:#E8F7EE;--run:#D97706;--run-l:#FEF3E2;--late:#DC2626;--late-l:#FDECEC;--idle:#7C6E8F;--idle-l:#F1EEF5;
+  --c1:#7B4FA0;--c2:#2563EB;--c3:#0D9488;--c4:#DB2777;--c5:#D97706;--c6:#0891B2;--c7:#4F46E5;--c8:#65A30D}
+.page-hero{border-radius:18px;padding:20px 22px;background:linear-gradient(120deg,#4B2A6B,#7B4FA0 55%,#A178C4);overflow:hidden}
+.page-hero:after{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:linear-gradient(90deg,#2563EB,#0D9488,#16A34A,#D97706,#DB2777,#7B4FA0)}
+.page-hero.big{background:linear-gradient(120deg,rgba(75,42,107,.96),rgba(123,79,160,.9) 55%,rgba(161,120,196,.82)),url(img/login-bg.jpg) center/cover}
+.stat-row{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px}
+.stat-card{--tone:var(--brand);position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--tone) 10%,var(--card)),var(--card) 70%);border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:16px;padding:12px 16px;gap:0;box-shadow:0 4px 14px rgba(75,42,107,.06)}
+.stat-card span{order:-1;font-size:13px;font-weight:700;color:var(--tone)}.stat-card b{font-size:32px;font-weight:800;line-height:1.2;margin:2px 0;color:var(--tone)}.stat-card small{font-size:12px;color:var(--mute)}
+.stat-card.violet{--tone:var(--brand)}.stat-card.green{--tone:var(--ok)}.stat-card.orange{--tone:var(--run)}.stat-card.red{--tone:var(--late)}.stat-card.pink{--tone:var(--c4)}.stat-card.blue{--tone:var(--c2)}
+.st-bar{display:block;height:7px;border-radius:9px;background:var(--card);border:1px solid var(--line);margin-top:8px;overflow:hidden}.st-bar i{display:block;height:100%;background:var(--tone);border-radius:9px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;border:0;background:none}
+.stats div{--tone:var(--brand);background:linear-gradient(180deg,color-mix(in srgb,var(--tone) 10%,var(--card)),var(--card) 70%);border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column}
+.stats div:first-child{border:1px solid var(--line);border-top:5px solid var(--tone)}.stats div:nth-child(4n+2){--tone:var(--ok)}.stats div:nth-child(4n+3){--tone:var(--run)}.stats div:nth-child(4n+4){--tone:var(--c2)}
+.stats b{order:1;color:var(--tone);font-size:28px}.stats span{color:var(--tone);font-weight:700}.stats b.bad{color:var(--late)}
+.item-grid{gap:14px}
+.item-card{--tone:var(--brand);background:var(--card);border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:16px;padding:14px 16px;gap:8px;height:100%;box-shadow:0 4px 14px rgba(75,42,107,.06)}
+.item-card.bad{--tone:var(--late)}.item-card.wait{--tone:var(--run)}.item-card.ok{--tone:var(--ok)}.item-card.none{--tone:var(--idle)}
+button.item-card:hover{background:color-mix(in srgb,var(--tone) 6%,var(--card))}button.item-card:focus-visible{outline:2px solid var(--tone)}
+.ic-h{justify-content:space-between}.ic-code{background:color-mix(in srgb,var(--tone) 12%,var(--card));color:var(--tone);border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800}.ic-chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.ic-t{font-weight:800;font-size:16px;color:var(--ink);line-height:1.4}.item-card .ic-end{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.ic-nums{display:flex;gap:8px}.num-box{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;background:color-mix(in srgb,var(--tone,var(--brand)) 10%,var(--card));border-radius:10px;padding:6px 2px;text-align:center}
+.num-box b{color:var(--tone,var(--brand));font-size:17px;font-weight:800}.num-box i{font-style:normal;font-size:11px;color:var(--mute)}.num-box.bad b{color:var(--late)}.num-box.ok b{color:var(--ok)}.num-box.wait b{color:var(--run)}
+.ic-bar small{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}.ic-bar .tr{display:block;height:7px;border-radius:9px;background:var(--card);border:1px solid var(--line);overflow:hidden}.ic-bar i{display:block;height:100%;background:var(--tone);border-radius:9px}
+.st-tag,.role-b{align-self:flex-start;color:#fff;background:var(--tone,var(--brand));border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+.st-tag.bad{background:var(--late)}.st-tag.wait{background:var(--run)}.st-tag.ok{background:var(--ok)}.st-tag.none{background:var(--idle)}
+.rq-b{border:0;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-weight:700;color:#fff;display:inline-flex;gap:4px;align-items:center;cursor:pointer}.rq-b:hover:not(:disabled){filter:brightness(.92)}.rq-b:disabled{cursor:default}.rq-b:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.rq-b.ok{background:var(--ok)}.rq-b.wait{background:var(--run)}.rq-b.late{background:var(--late)}.rq-b.none{background:var(--idle-l);color:var(--idle);border:1px solid #DDD5E8}
+.chip.ok{background:var(--ok);color:#fff;border-color:transparent;font-weight:700}.chip.wait{background:var(--run);color:#fff;border-color:transparent;font-weight:700}.chip.bad{background:var(--late);color:#fff;border-color:transparent;font-weight:700}
+.src-b{background:color-mix(in srgb,var(--sc,var(--brand)) 12%,var(--card));color:var(--sc,var(--brand));border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;display:inline-block}
+.aline{background:var(--card);border:1px solid var(--line);border-inline-start:6px solid var(--c);border-radius:12px}
+.u-tag{display:inline-block;background:color-mix(in srgb,var(--tone) 12%,var(--card));color:var(--tone);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
+.nav-badge{background:#fff;color:var(--late);border-radius:999px;font-size:12px;padding:1px 8px;font-weight:800;line-height:18px}.nav-badge.hot{background:#fff;color:var(--late)}.nav-badge.okb{color:var(--ok)}
+#side{background:linear-gradient(180deg,#5B3A7A,#7B4FA0)}
+.ts-item{background:var(--card);border-top:4px solid var(--brand);border-radius:12px}
+th{background:var(--brand-l);color:var(--brand-d)}.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.uc-sw{display:flex;gap:8px;flex-wrap:wrap}.uc-sw button{width:36px;height:36px;border-radius:10px;border:2px solid transparent;cursor:pointer}.uc-sw button.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+:root[data-theme="dark"] th{background:var(--line2);color:var(--ink2)}:root[data-theme="dark"] #side{background:var(--bar2)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) th{background:var(--line2);color:var(--ink2)}:root:not([data-theme="light"]) #side{background:var(--bar2)}}
+@media (max-width:600px){#topbar .ttl{display:none}.stat-row{grid-template-columns:1fr 1fr;gap:8px}.stat-row>*:last-child:nth-child(odd){grid-column:1/-1}.stat-card b{font-size:25px}.item-grid{grid-template-columns:1fr}.page-hero{padding:14px 14px 18px}.stats{grid-template-columns:1fr 1fr}.num-box i{font-size:10.5px}}
+@media print{.page-hero:after,.st-bar{display:none}}
 </style>
 </head>
 <body>
@@ -457,10 +479,9 @@ button.item-card{cursor:pointer}button.item-card:hover{background:var(--ledger-s
 <div id="toast" class="hidden" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js"></script>
-<script src="js/college-demo.js?v=20261101a"></script>
-<script src="js/college-app.js?v=20261101a"></script>
+<script>/* مكتبات Excel وWord تُحمَّل بعد ظهور الصفحة، والوضع التجريبي لا يُحمَّل إلا عند طلبه */
+if(/[?&#]demo\b/.test(location.href)||window.COLLEGE_FORCE_DEMO)document.write('<script src="js/college-demo.js?v=20261101b"><\/script>');
+window.addEventListener("load",function(){setTimeout(function(){["https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js","https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"].forEach(function(u){var s=document.createElement("script");s.src=u;s.async=false;document.head.appendChild(s);});},800);});</script>
+<script src="js/college-app.js?v=20261101b"></script>
 </body>
 </html>
