@@ -2731,7 +2731,7 @@ function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,
 window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
 var P={app:B.app,ctx:B.ctx,ro:B.ro,owner:B.owner,level:B.level,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
 var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})},publishData:function(i){return call('publishData',i)},faculty:function(){return call('faculty',{})},loads:function(){return call('loads',{})},dataElements:function(){return call('dataElements',{})}},
-C:{go:function(p,o){post('go',{p:p,o:o})}},postMessage:function(){}};
+C:{go:function(p,o){post('go',{p:p,o:o})},host:function(a){post('host',{a:a})}},postMessage:function(){}};
 try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
 var PH=new WeakMap(),IP=HTMLIFrameElement.prototype,sd=Object.getOwnPropertyDescriptor(IP,'srcdoc'),cw=Object.getOwnPropertyDescriptor(IP,'contentWindow');
 try{Object.defineProperty(IP,'srcdoc',{configurable:true,get:function(){return sd.get.call(this)},set:function(v){PH.set(this,String(v));sd.set.call(this,v)}});
@@ -2776,6 +2776,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     try {
       if (m.t === 'put') { if (typeof a.k === 'string' && a.k.length <= 300) R.put(a.k, String(a.v)); return; }
       if (m.t === 'del') { if (typeof a.k === 'string') R.del(a.k); return; }
+      /* أزرار قائمة «⋯» داخل البرنامج: رفع التحديث والتنزيل يفحصان المالك في دالتيهما */
+      if (m.t === 'host') { const id = window.__CAPP && window.__CAPP.app; if (a.a === 'reload') C.refresh(); else if (a.a === 'full') { const h = $('#apphost'); if (h) h.classList.toggle('full'); } else if (a.a === 'upload' && id) C.appUpload(id); else if (a.a === 'dl' && id) C.appDl(id); return; }
       if (m.t === 'go' && a.p === 'facEdit') { if (window.__CAPP && window.__CAPP.app === S.settings.facultyDashApp && a.o && a.o.id) { const f = fac(a.o.id); if (f && canEditFac(f)) C.facEdit(a.o.id); else toast('تعديل هذا العضو لمدير النظام ورئيس قسمه.', true); } return; }
       if (m.t === 'go') { if (APP_GO.includes(a.p)) go(a.p, a.o && typeof a.o === 'object' ? { id: a.o.id, tab: a.o.tab } : {}); return; }
       /* الطباعة: صفحة البرنامج تُطبع هنا في إطار بلا سكربتات (allow-same-origin دون allow-scripts)، فلا يُنفَّذ منها شيء بأصل الموقع */
@@ -2889,7 +2891,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const boot = { tok: R.tok, app: a.id, ctx: R.ctx, ro, owner: isAdmin(), level: appLv(a), cs: appCS(a.id) };
     VIEW.after = () => { const f = $('#appFrame'); f.setAttribute('sandbox', APP_SANDBOX); f.onload = () => { const w = document.querySelector('.app-wait'); if (w) w.remove(); f.style.background = '#fff'; }; f.srcdoc = injectShim(html, data, boot); setSync(ro ? 'ro' : 'ok'); };
     await loadTpl(); const tl = TPLS.filter((t) => t.app_id === a.id && t.active);
-    return `<div id="apphost"><div class="bar">${viewRole() !== 'staff' && isMgmt() ? `<button class="btn sm" onclick="C.go('home')">${icon('back')}الرئيسية</button>` : `<button class="btn sm" onclick="C.go('unit',{id:'${a.unit_id}',tab:'apps'})">${icon('back')}${esc(uName(a.unit_id))}</button>`}
+    return `<div id="apphost" class="${(VIEW.ctx || {}).embed ? 'embed' : ''}"><div class="bar">${viewRole() !== 'staff' && isMgmt() ? `<button class="btn sm" onclick="C.go('home')">${icon('back')}الرئيسية</button>` : `<button class="btn sm" onclick="C.go('unit',{id:'${a.unit_id}',tab:'apps'})">${icon('back')}${esc(uName(a.unit_id))}</button>`}
       <b>${esc(a.name)}</b><span class="small muted">الإصدار ${esc(v.version || '—')}</span><span id="appSync" class="small muted"></span><span class="grow"></span>
       <button class="btn sm" onclick="C.refresh()">إعادة تحميل</button><button class="btn sm" onclick="document.getElementById('apphost').classList.toggle('full')">ملء الشاشة</button>
       ${tl.length ? `<button class="btn sm pri" onclick="C.appForms('${a.id}')">${icon('form')}النماذج (${tl.length})</button>` : ''}${isAdmin() ? `<button class="btn sm" onclick="C.appDl('${a.id}')">تنزيل النسخة</button><button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</div>
@@ -3829,7 +3831,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const isMgmt = () => isAdmin() || myHeads().some((m) => { const u = unit(m.unit_id); return u && (!u.parent_id || u.kind === 'leadership' || u.kind === 'department'); });
   const mgWide = () => isAdmin() || opsWide();
   const MG_TOOL = { fac: ['facultyDashApp', 'home', 'لوحة الأعضاء'], res: ['facultyDashApp', 'research', 'لوحة الأعضاء'], sch: ['schedulesApp', 'dash', 'أداة الجداول'], load: ['schedulesApp', 'load', 'أداة الجداول'], room: ['schedulesApp', 'rooms', 'أداة الجداول'] };
-  const MG_NAV = [['fac', 'مؤشرات أعضاء هيئة التدريس', 'users'], ['sch', 'مؤشرات الجداول', 'file'], ['load', 'مؤشرات الأنصبة', 'clipboard'], ['room', 'مؤشرات القاعات', 'cubes'], ['res', 'مؤشرات البحث العلمي', 'chart']];
+  const MG_NAV = [['fac', 'مؤشرات أعضاء هيئة التدريس', 'users'], ['sch', 'مؤشرات الجداول والأنصبة والقاعات', 'file'], ['res', 'مؤشرات البحث العلمي', 'chart']];
   const mgmtNav = (foot) => { const a = (p, ic, t, fn) => `<button class="nav" data-p="${p}" onclick="${fn}">${icon(ic)}${esc(t)}</button>`;
     return a('home', 'home', 'الرئيسية', "C.go('home')") + MG_NAV.map(([k, t, ic]) => a('m' + k, ic, t, `C.mOpen('${k}')`)).join('') + a('annual', 'chart', 'مؤشرات الجودة', "C.go('annual')") + a('honor', 'user', 'قائمة العميد الشرفية', "C.go('honor')") + a('collegeprogs', 'book', 'برامج الكلية', "C.go('collegeprogs')") + '<div id="navTeach"></div>' + foot; };
   /* رابط واحد لمن يدرّس مقررات هذا الفصل */
@@ -3841,10 +3843,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     if (!a.current_version) return { why: `لم يُرفع ملف ${name} بعد`, btn: isAdmin() ? 'ارفع الملف' : '', act: `C.go('unit',{id:'${a.unit_id}',tab:'apps'})` };
     if (appLv(a) === 'none') return { why: `لا تملك صلاحية فتح ${name}`, btn: '', act: '' };
     return { ok: true, app: a }; };
-  C.mOpen = (k) => { const [key, tab, name] = MG_TOOL[k], s = mgTool(key, name); if (s.ok) return go('app', { id: s.app.id, ctx: { tab, dept: mgDept() }, nav: 'm' + k }); go('mpage', { k, nav: 'm' + k }); };
+  C.mOpen = (k) => { const [key, tab, name] = MG_TOOL[k], s = mgTool(key, name); if (s.ok) return go('app', { id: s.app.id, ctx: { tab, dept: mgDept(), embed: true }, nav: 'm' + k }); go('mpage', { k, nav: 'm' + k }); };
   const mgFoot = (src, when, who) => `<div class="mg-foot">${esc(src)}${when ? ' — آخر تحديث ' + esc(new Date(when).toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'long' })) : ''}${who ? ' — ' + esc(who) : ''}</div>`;
   const mgEmpty = (why, btn, act) => `<div class="mg-empty"><p>${esc(why)}</p>${btn ? `<button class="btn sm pri" onclick="event.stopPropagation();${attr(act)}">${esc(btn)}</button>` : ''}</div>`;
-  const mgCard = (o) => `<section class="mg-card" style="--c:${o.c}"${o.act ? ` role="button" tabindex="0" onclick="${attr(o.act)}" onkeydown="if(event.key==='Enter')this.click()"` : ''}><h3>${icon(o.ic)}${esc(o.t)}</h3>${o.body}${o.foot || ''}</section>`;
+  const mgCard = (o) => `<section class="mg-card ${o.cls || ''}" style="--c:${o.c}"${o.act ? ` role="button" tabindex="0" onclick="${attr(o.act)}" onkeydown="if(event.key==='Enter')this.click()"` : ''}><h3>${icon(o.ic)}${esc(o.t)}</h3>${o.body}${o.foot || ''}</section>`;
   const mgNums = (l) => `<div class="mg-nums">${l.map(([n, t, bad]) => `<div class="${bad ? 'bad' : ''}"><b>${esc(n)}</b><span>${esc(t)}</span></div>`).join('')}</div>`;
   async function pgMgmt() { mineCss(); const t = curTerm(), year = String((t || {}).year || '');
     const [stAll, reports, results, links, vals, els, honor, plans, programs] = await Promise.all([t ? D.select('course_status', { eq: { term_id: t.id } }).catch(() => []) : [], D.select('annual_reports').catch(() => []), D.select('kpi_results').catch(() => []), D.select('program_kpis').catch(() => []), D.select('data_values').catch(() => []), D.select('data_elements').catch(() => []), D.select('honor_list').catch(() => []), D.select('study_plans').catch(() => []), D.select('programs', { order: ['sort'] }).catch(() => S.programs || [])]);
@@ -3853,12 +3855,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const st = stAll.filter((x) => (wide || sc.course(x)) && LEAD_KIND[x.kind]);
     const card = (o) => { const name = MG_TOOL[o.k][2], k0 = MG_TOOL[o.k][0], tool = mgTool(k0, name), who = tool.app ? uName(tool.app.unit_id) : o.who, rows = o.els.map((code) => ({ code, e: els.find((x) => x.code === code), r: opsRow(vals, code, t) })), any = rows.some((x) => x.r && x.r.value_num != null), when = rows.map((x) => x.r && x.r.updated_at).filter(Boolean).sort().pop();
       if (!any) { const why = !tool.ok ? tool.why : o.none; return mgCard({ t: o.t, ic: o.ic, c: o.c, body: mgEmpty(why + (tool.ok || tool.btn ? ' —' : '.'), tool.ok ? 'افتح ' + name : tool.btn, tool.ok ? `C.mOpen('${o.k}')` : tool.act), foot: mgFoot(o.src, '', o.who) }); }
-      return mgCard({ t: o.t, ic: o.ic, c: o.c, act: `C.mOpen('${o.k}')`, body: mgNums(rows.map((x) => { const n = opsNum(x.r, x.e, wide, depts); return [opsFmt(n, x.e), x.e ? x.e.name_ar : x.code, (o.bad || []).includes(x.code) && n > 0]; })), foot: mgFoot(o.src, when, o.who) }); };
+      return mgCard({ t: o.t, ic: o.ic, c: o.c, act: `C.mOpen('${o.k}')`, cls: o.wide3 ? 'mg-3' : '', body: mgNums(rows.map((x) => { const n = opsNum(x.r, x.e, wide, depts); return [opsFmt(n, x.e), x.e ? x.e.name_ar : x.code, (o.bad || []).includes(x.code) && n > 0]; })), foot: mgFoot(o.src, when, o.who) }); };
     const OP = (k) => OPS.find((o) => o.k === k);
     const fac = card({ k: 'fac', t: 'مؤشرات أعضاء هيئة التدريس', ic: 'users', c: '#7B4FA0', els: OP('fac').els, none: 'لم تُنشر مؤشرات الأعضاء بعد', src: 'من لوحة الأعضاء', who: 'إدارة الأعضاء' });
-    const sch = card({ k: 'sch', t: 'مؤشرات الجداول', ic: 'file', c: '#2563EB', els: OP('sch').els, bad: OP('sch').bad, none: 'لم تُستورد بيانات الجداول بعد', src: 'من أداة الجداول', who: 'لجنة الجداول' });
-    const load = card({ k: 'load', t: 'مؤشرات الأنصبة', ic: 'clipboard', c: '#D97706', els: OP('load').els, bad: OP('load').bad, none: 'لم تُستورد بيانات الجداول بعد', src: 'من أداة الجداول', who: 'لجنة الجداول' });
-    const room = card({ k: 'room', t: 'مؤشرات القاعات', ic: 'cubes', c: '#0D9488', els: OP('room').els, bad: OP('room').bad, none: 'لم تُستورد بيانات الجداول بعد', src: 'من أداة الجداول', who: 'لجنة الجداول' });
+    const sch = card({ k: 'sch', t: 'مؤشرات الجداول والأنصبة والقاعات', ic: 'file', c: '#2563EB', wide3: true, els: ['OPS-SCH-COURSES', 'OPS-SCH-SECTIONS', 'OPS-SCH-NOLECT', 'OPS-LOAD-OVER', 'OPS-ROOM-UTIL', 'OPS-ROOM-CONF'], bad: ['OPS-SCH-NOLECT', 'OPS-LOAD-OVER', 'OPS-ROOM-CONF'], none: 'لم تُستورد بيانات الجداول بعد', src: 'من أداة الجداول', who: 'لجنة الجداول' });
     const res = card({ k: 'res', t: 'مؤشرات البحث العلمي', ic: 'chart', c: '#DB2777', els: OP('res').els, none: 'لم تُنشر مؤشرات البحث بعد', src: 'من لوحة الأعضاء (الحسابات البحثية وOpenAlex)', who: 'إدارة الأعضاء' });
     /* الجودة: من قياس المخرجات والاستطلاعات وسجل البيانات */
     const f = st.filter((x) => x.kind === 'file'), fDone = f.filter((x) => x.status === 'complete').length, fl = st.filter((x) => x.kind === 'flow'), flOk = fl.filter((x) => x.status === 'approved').length;
@@ -3874,9 +3874,9 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const n = apprN();
     return `<div class="homebody">${DEMO ? '<div class="banner">نسخة تجريبية ببيانات وهمية.</div>' : ''}${pageHero(WELCOME(), isAdmin() && !isLeader() ? 'مدير النظام · الكلية' : leadTitle() + (wide ? ' · الكلية' : ''), true)}
       ${n ? `<button class="mg-appr" onclick="C.go('approvals')">${icon('clipboard')}بانتظار اعتمادك: ${n}</button>` : ''}
-      <div class="mg-grid">${fac}${sch}${load}${room}${res}${qa}${hon}${pr}</div></div>`; }
+      <div class="mg-grid">${fac}${sch}${res}${qa}${hon}${pr}</div></div>`; }
   /* صفحة المؤشر عندما لا يمكن فتح البرنامج: السبب، وأرقام السجل */
-  async function pgMPage() { const k = VIEW.k, [key, , name] = MG_TOOL[k] || []; if (!key) return ''; const s = mgTool(key, name), o = OPS.find((x) => x.k === k), t = curTerm(), [vals, els] = await Promise.all([D.select('data_values').catch(() => []), D.select('data_elements').catch(() => [])]), wide = mgWide(), depts = wide ? [] : opsDepts(leadScope());
+  async function pgMPage() { const k = VIEW.k, [key, , name] = MG_TOOL[k] || []; if (!key) return ''; const s = mgTool(key, name), o0 = OPS.find((x) => x.k === k), o = k === 'sch' ? Object.assign({}, o0, { els: ['sch', 'load', 'room'].flatMap((q) => OPS.find((x) => x.k === q).els) }) : o0, t = curTerm(), [vals, els] = await Promise.all([D.select('data_values').catch(() => []), D.select('data_elements').catch(() => [])]), wide = mgWide(), depts = wide ? [] : opsDepts(leadScope());
     const rows = o.els.map((code) => ({ e: els.find((x) => x.code === code), r: opsRow(vals, code, t) })), names = [...new Set(rows.flatMap((x) => Object.keys(((x.r || {}).details || {}).by || {})))].filter((d) => wide || opsIn(d, depts)).sort((a, b) => a.localeCompare(b, 'ar'));
     return `${s.ok ? '' : mgEmpty(s.why + (s.btn ? ' —' : '.'), s.btn, s.act)}<div class="stat-row" style="margin:12px 0">${rows.map((x) => statCard(opsFmt(opsNum(x.r, x.e, wide, depts), x.e), x.e ? x.e.name_ar : '', '', o.tone)).join('')}</div>
       ${names.length ? `<div class="panel tw"><table><tr><th>القسم</th>${rows.map((x) => `<th>${esc(x.e ? x.e.name_ar : '')}</th>`).join('')}</tr>${names.map((d) => `<tr><td><b>${esc(d)}</b></td>${rows.map((x) => { const v = (((x.r || {}).details || {}).by || {})[d]; return `<td>${esc(opsFmt(v == null ? null : v, x.e))}</td>`; }).join('')}</tr>`).join('')}</table></div>` : ''}`; }
