@@ -4385,7 +4385,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   /* البحث السريع (Ctrl K): المقررات، والأعضاء، والجهات، والصفحات المتاحة للمستخدم */
   const QS = { i: 0, res: [] };
   const qsPages = () => { const staff = viewRole() === 'staff'; const base = staff ? ['home', 'mine', 'memberships', 'alerts', 'apps'] : ['home', 'college', 'vices', 'depts', 'units', 'committees', 'tasks', 'mine', 'memberships', 'alerts', 'apps', 'annual', 'reports'].concat(isLeader() ? ['approvals'] : []);
-    return base.concat(canSettings() ? SET_PAGES : []).filter((p) => TITLES[p]).filter((p) => p !== 'annual' || annualSeen()).filter((p) => p !== 'reports' || gcap('reports')); };
+    return base.concat(canSettings() ? SET_PAGES : []).filter((p) => TITLES[p]).filter((p) => p !== 'annual' || annualSeen()).filter((p) => p !== 'reports' || gcap('reports')).filter((p) => p !== 'committees' || !isMgmt()); };
   C.qs = async () => { if ($('#qsOv')) return; const o = document.createElement('div'); o.id = 'qsOv'; o.onclick = (e) => { if (e.target === o) o.remove(); };
     o.innerHTML = `<div class="qs-box" role="dialog" aria-label="بحث سريع"><input id="qsI" placeholder="ابحث عن مقرر أو عضو أو جهة أو صفحة…" autocomplete="off"><div id="qsR"></div><div class="tiny muted" style="padding:6px 12px">↑↓ للتنقل · Enter للفتح · Esc للإغلاق</div></div>`; document.body.appendChild(o);
     const i = $('#qsI'); i.focus(); i.oninput = qsRun; i.onkeydown = (e) => { if (e.key === 'Escape') o.remove(); else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); QS.i = Math.max(0, Math.min(QS.res.length - 1, QS.i + (e.key === 'ArrowDown' ? 1 : -1))); qsDraw(); } else if (e.key === 'Enter' && QS.res[QS.i]) { e.preventDefault(); C.qsGo(QS.i); } };
