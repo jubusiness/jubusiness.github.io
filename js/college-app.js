@@ -2742,7 +2742,7 @@ var RP=window.parent,seq=0,W={};function post(t,a){RP.postMessage({__capp:B.tok,
 function call(t,a){return new Promise(function(res,rej){var id=++seq;W[id]=[res,rej];RP.postMessage({__capp:B.tok,id:id,t:t,a:a},'*')})}
 window.addEventListener('message',function(e){var r=e.data;if(e.source!==RP||!r||r.__capp_r!==B.tok||!W[r.id])return;var w=W[r.id];delete W[r.id];r.ok?w[0](r.v):w[1](new Error(r.err||'تعذر الطلب'))});
 var P={app:B.app,ctx:B.ctx,ro:B.ro,owner:B.owner,level:B.level,put:function(k,v){post('put',{k:k,v:v})},del:function(k){post('del',{k:k})}};
-var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})},publishData:function(i){return call('publishData',i)},faculty:function(){return call('faculty',{})},loads:function(){return call('loads',{})},dataElements:function(){return call('dataElements',{})},grad:function(m,a){return call('grad',{m:m,a:a||{}})}},
+var FP={CS:B.cs,__CAPP:P,COLLEGE:{publish:function(i){return call('publish',i)},inquire:function(q){return call('inquire',q)},inquiries:function(t){return call('inquiries',t)},qa:function(q,a){return call('qa',{m:q,a:a||{}})},memberUpdate:function(q){return call('memberUpdate',q)},publishData:function(i){return call('publishData',i)},faculty:function(){return call('faculty',{})},loads:function(){return call('loads',{})},dataElements:function(){return call('dataElements',{})},grad:function(m,a){return call('grad',{m:m,a:a||{}})}},
 C:{go:function(p,o){post('go',{p:p,o:o})},host:function(a){post('host',{a:a})}},postMessage:function(){}};
 try{Object.defineProperty(window,'parent',{value:FP,configurable:true})}catch(e){console.warn(e)}
 var PH=new WeakMap(),IP=HTMLIFrameElement.prototype,sd=Object.getOwnPropertyDescriptor(IP,'srcdoc'),cw=Object.getOwnPropertyDescriptor(IP,'contentWindow');
@@ -2802,6 +2802,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       if (m.t === 'inquiries') return reply(true, await window.COLLEGE.inquiries(m.a));
       if (m.t === 'qa') return reply(true, await window.COLLEGE.qa(a.m, a.a));
       if (m.t === 'publishData') return reply(true, await window.COLLEGE.publishData(a));
+      if (m.t === 'memberUpdate') return reply(true, await window.COLLEGE.memberUpdate(a));
       if (m.t === 'dataElements') return reply(true, await window.COLLEGE.dataElements());
       if (m.t === 'faculty') return reply(true, await window.COLLEGE.faculty());
       if (m.t === 'loads') return reply(true, await window.COLLEGE.loads());
@@ -2850,6 +2851,8 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       return id; },
     inquiries: async (term) => { const R = appCtx(); return D.rpc('course_inquiries', { p_app: R.app, p_term: term || null }); },
     /* النشر إلى سجل البيانات (الملف 29): [{element, program?, department?, year, term?, value, text?, details?}]؛ يُقبل من البرنامج المسجَّل مصدرًا للعنصر، وتصل القيمة مسودة */
+    /* اقتراحات بيانات العضو من نظام الاختبارات، باختيار المستخدم؛ وصلاحيات القاعدة هي الحكم */
+    memberUpdate: async (a) => { const R = appCtx(), st = S.settings || {}; if (R.app !== st.wfExamsApp && R.app !== (st.courseButtons || {}).exam) throw new Error('هذه الواجهة لنظام الاختبارات فقط.'); if (!a || !a.id) throw new Error('العضو مطلوب.'); if (a.email != null) await D.update('faculty', { email: String(a.email).trim().toLowerCase() }, { eq: { id: a.id } }); if (a.mobile != null) await D.upsert('faculty_private', { faculty_id: a.id, mobile: String(a.mobile).trim() }); return { ok: true }; },
     publishData: async (items) => { const R = appCtx(); return D.rpc('data_publish', { p_app: R.app, p_items: Array.isArray(items) ? items : [] }); },
     /* عناصر هذا البرنامج المصدر، وبرامج الكلية، ليختار الناشر */
     /* لوحة أعضاء هيئة التدريس (الملف 33): للقراءة فقط، وللبرنامج المحدد في الإعدادات فقط؛ والنطاق تفرضه faculty_dash في القاعدة */
