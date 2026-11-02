@@ -2789,7 +2789,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       if (m.t === 'put') { if (typeof a.k === 'string' && a.k.length <= 300) R.put(a.k, String(a.v)); return; }
       if (m.t === 'del') { if (typeof a.k === 'string') R.del(a.k); return; }
       /* أزرار قائمة «⋯» داخل البرنامج: رفع التحديث والتنزيل يفحصان المالك في دالتيهما */
-      if (m.t === 'host') { const id = window.__CAPP && window.__CAPP.app; if (a.a === 'reload') C.refresh(); else if (a.a === 'full') { const h = $('#apphost'); if (h) h.classList.toggle('full'); } else if (a.a === 'upload' && id) C.appUpload(id); else if (a.a === 'dl' && id) C.appDl(id); else if (/^x(Exp|Imp|Log):/.test(a.a)) { const [fn, key] = a.a.split(':'); if (XIO[key]) C[fn](key); } else if (a.a === 'fdsched') C.mOpen('fsch'); else if (a.a === 'schedtool') C.mOpen('sch'); return; }
+      if (m.t === 'host') { const id = window.__CAPP && window.__CAPP.app; if (a.a === 'reload') { const Q = window.__CAPP; (async () => { for (let i = 0; Q && (Q.pending.size || Q.flushing) && i < 200; i++) { clearTimeout(Q.timer); if (!Q.flushing) await Q.flush(); else await new Promise((r) => setTimeout(r, 300)); if (Q.pending.size) await new Promise((r) => setTimeout(r, 300)); } if (Q && Q.pending.size) return toast('لم يكتمل الحفظ. لا تغلق الصفحة، وأعد المحاولة.', true); C.refresh(); })(); } else if (a.a === 'full') { const h = $('#apphost'); if (h) h.classList.toggle('full'); } else if (a.a === 'upload' && id) C.appUpload(id); else if (a.a === 'dl' && id) C.appDl(id); else if (/^x(Exp|Imp|Log):/.test(a.a)) { const [fn, key] = a.a.split(':'); if (XIO[key]) C[fn](key); } else if (a.a === 'fdsched') C.mOpen('fsch'); else if (a.a === 'schedtool') C.mOpen('sch'); return; }
       if (m.t === 'go' && a.p === 'facEdit') { if (window.__CAPP && window.__CAPP.app === S.settings.facultyDashApp && a.o && a.o.id) { const f = fac(a.o.id); if (f && canEditFac(f)) C.facEdit(a.o.id); else toast('تعديل هذا العضو لمدير النظام ورئيس قسمه.', true); } return; }
       if (m.t === 'go') { if (APP_GO.includes(a.p)) go(a.p, a.o && typeof a.o === 'object' ? { id: a.o.id, tab: a.o.tab } : {}); return; }
       /* الطباعة: صفحة البرنامج تُطبع هنا في إطار بلا سكربتات (allow-same-origin دون allow-scripts)، فلا يُنفَّذ منها شيء بأصل الموقع */
@@ -4412,7 +4412,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const FD_ROWS = [
     { id: 'saqr', t: 'مؤشرات صقر', who: 'وحدة الجودة', pre: 'SQ-', note: 'النموذج في المرحلة 4' },
     { id: 'progs', t: 'برامج الكلية', who: 'إدارة النظام', settings: 1 },
-    { id: 'sch', t: 'الجداول الدراسية', who: 'لجنة الجداول', codes: ['OPS-SCH-COURSES', 'OPS-SCH-SECTIONS', 'OPS-LOAD-OVER', 'OPS-ROOM-UTIL'], note: 'استيراد ملف الجداول في المرحلة 3', open: "C.mOpen('sch')" },
+    { id: 'sch', t: 'الجداول الدراسية', who: 'لجنة الجداول', codes: ['OPS-SCH-COURSES', 'OPS-SCH-SECTIONS', 'OPS-LOAD-OVER', 'OPS-ROOM-UTIL'], note: 'الاستيراد من «⋯» داخل الأداة', open: "C.mOpen('sch')" },
     { id: 'res', t: 'البحث العلمي', who: 'وحدة الدراسات العليا والبحث العلمي', grad: 'البحث', codes: ['E-RES-PUBS', 'E-RES-CITES', 'E-RES-TOP'], tpl: 'res' },
     { id: 'fac', t: 'أعضاء هيئة التدريس', who: 'إدارة الأعضاء', codes: ['OPS-FAC-TOTAL', 'OPS-FAC-PHD', 'OPS-FAC-SAUDI', 'OPS-FAC-FEMALE'], xio: 'fac' },
     { id: 'ug', t: 'طلاب البكالوريوس', who: 'الشؤون الأكاديمية', codes: ['E-STUDENTS', 'E-NEW-STUDENTS', 'E-GRADS'], tpl: 'ug' },
