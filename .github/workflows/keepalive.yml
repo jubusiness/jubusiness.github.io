@@ -1,0 +1,36 @@
+name: keep-database-awake
+
+# يمنع توقف مشروع Supabase المجاني بعد أسبوع دون استخدام: طلب بسيط (public_ping) كل 3 أيام.
+# العنوان والمفتاح العام يُقرآن من config.js نفسه، فلا شيء مكرر هنا ولا مفتاح سري.
+# وأول كل شهر يحدّث ملفًا صغيرًا حتى لا يعطّل GitHub المهام المجدولة في مستودع بلا نشاط 60 يومًا.
+# خاص بفترة التجربة: يُعطَّل بعد النقل إلى خادم الجامعة (Actions ← keep-database-awake ← Disable workflow).
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: تنبيه قاعدة البيانات
+        run: |
+          URL=$(sed -n "s/.*supabaseUrl: *'\([^']*\)'.*/\1/p" config.js)
+          KEY=$(sed -n "s/.*supabaseAnonKey: *'\([^']*\)'.*/\1/p" config.js)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "تعذرت قراءة config.js"; exit 1; fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL/rest/v1/rpc/public_ping" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
+          echo "HTTP $code"
+          test "$code" = "200"
+      - name: إبقاء المستودع نشطًا (أول كل شهر)
+        if: ${{ success() }}
+        run: |
+          if [ "$(date -u +%d)" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            date -u > .github/last-ping.txt
+            git config user.name "keepalive"; git config user.email "keepalive@users.noreply.github.com"
+            git add .github/last-ping.txt && git commit -m "keepalive" && git push || true
+          fi
