@@ -887,6 +887,12 @@
     p_rows.forEach((r) => { const f = T.faculty.find((y) => y.id === r.faculty_id); if (!f) throw new Error('عضو غير موجود.'); let x = T.faculty_extra.find((e) => e.faculty_id === f.id); tables.push({ t: 'faculty', k: { id: f.id }, old: clone(f) }, { t: 'faculty_extra', k: { faculty_id: f.id }, old: x ? clone(x) : null }); Object.assign(f, r.f || {});
       if (r.x && Object.keys(r.x).length) { if (!x) { x = { faculty_id: f.id, nationality: '', work_status: '', specialty_fine: '', scopus: '', orcid: '', wos: '', scholar: '', shatr: '' }; T.faculty_extra.push(x); } Object.assign(x, r.x); } });
     const id = uuid(); T.data_imports.push({ id, section: 'faculty', by_name: p_by_name, by_app: ME, file: p_file, changed: p_rows.length, rejected: p_rejected || 0, at: nowISO(), undo: { rows: [], tables } }); facKpi(); return { changed: p_rows.length, id }; };
+  /* الملف 73: البريد للفارغ فقط، والجوال تعبئة أو استبدال */
+  R.faculty_contact_import = ({ p_file, p_by_name, p_rows, p_rejected }) => { if (!(prof(ME) || {}).is_admin) throw new Error('الاستيراد لمدير النظام.'); const tables = []; let ne = 0, nm = 0;
+    p_rows.forEach((r) => { const f = T.faculty.find((y) => y.id === r.faculty_id); if (!f) throw new Error('عضو غير موجود.'); if (r.email && f.email) throw new Error('البريد موجود للعضو ' + f.name_ar + ' ولا يُستبدل.'); if (r.email && T.faculty.some((y) => y.id !== f.id && String(y.email || '').toLowerCase() === r.email)) throw new Error('البريد مستعمل لعضو آخر.');
+      const p = T.faculty_private.find((x) => x.faculty_id === f.id); tables.push({ t: 'faculty', k: { id: f.id }, old: clone(f) }, { t: 'faculty_private', k: { faculty_id: f.id }, old: p ? clone(p) : null });
+      if (r.email) { f.email = r.email; ne++; } if (r.mobile) { if (p) p.mobile = r.mobile; else T.faculty_private.push({ faculty_id: f.id, mobile: r.mobile }); nm++; } });
+    const id = uuid(); T.data_imports.push({ id, section: 'contact', by_name: p_by_name, by_app: ME, file: p_file, changed: p_rows.length, rejected: p_rejected || 0, at: nowISO(), undo: { rows: [], tables } }); facKpi(); return { changed: p_rows.length, emails: ne, mobiles: nm, id }; };
   /* الملف 68: مستوى الاستثناء، ومؤشرات البحث دون المستثنين */
   const sxHide = (id) => sxOn(id) && (T.stats_exclusions || []).some((x) => x.faculty_id === id && x.level === 'all');
   R.stats_hidden_ids = () => T.faculty.filter((f) => sxHide(f.id)).map((f) => f.id);
