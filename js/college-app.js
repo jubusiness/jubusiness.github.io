@@ -4008,7 +4008,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     { id: 'res', t: 'البحث العلمي', c: 'c4', ic: 'chart', top: 1, vis: 'grad', kids: [hlLeaf('r_pubs', 'الأبحاث المنشورة'), hlLeaf('r_cites', 'الاستشهادات'), hlLeaf('r_top', 'التميز البحثي'), hlLeaf('r_cov', 'ذوو حساب في Scopus')] },
     { id: 'fac', t: 'أعضاء هيئة التدريس', c: 'c5', ic: 'users', top: 1, vis: 'fac', kids: [hlLeaf('OPS-FAC-TOTAL', 'أعضاء هيئة التدريس'), hlLeaf('OPS-FAC-PHD', 'حملة الدكتوراه'), hlLeaf('OPS-FAC-SAUDI', 'نسبة السعوديين'), hlLeaf('OPS-FAC-FEMALE', 'نسبة الإناث')] },
     { id: 'stu', t: 'الطلاب', c: 'c6', ic: 'users', top: 1, kids: [
-      { id: 'st_stats', t: 'إحصائيات الطلاب', sub: 1, always: 1, go: "C.hmGo('stu','st_stats')", kids: [hlLeaf('u_rs', 'منتظمو البكالوريوس'), hlLeaf('u_rn', 'المستجدون'), hlLeaf('g_rs', 'منتظمو الدراسات العليا'), hlLeaf('g_rn', 'مستجدو الدراسات العليا'), hlLeaf('u_pf', 'طلاب الكلية لكل عضو هيئة تدريس'), hlLeaf('u_grad', 'خريجو البكالوريوس'), hlLeaf('g_grad', 'خريجو الدراسات العليا'), hlLeaf('honor', 'قائمة العميد الشرفية')] },
+      { id: 'st_stats', t: 'إحصائيات الطلاب', sub: 1, always: 1, go: "C.stGo('home')", kids: [hlLeaf('u_rs', 'منتظمو البكالوريوس'), hlLeaf('u_rn', 'المستجدون'), hlLeaf('g_rs', 'منتظمو الدراسات العليا'), hlLeaf('g_rn', 'مستجدو الدراسات العليا'), hlLeaf('u_pf', 'طلاب الكلية لكل عضو هيئة تدريس'), hlLeaf('u_grad', 'خريجو البكالوريوس'), hlLeaf('g_grad', 'خريجو الدراسات العليا'), hlLeaf('honor', 'قائمة العميد الشرفية')] },
       { id: 'st_train', t: 'التدريب والتأهيل لسوق العمل', sub: 1, always: 1, go: "C.hmGo('stu','st_train')", kids: [] },
       { id: 'st_adv', t: 'الإرشاد الأكاديمي', sub: 1, always: 1, go: "C.hmGo('stu','st_adv')", kids: [] },
       { id: 'st_cert', t: 'الشهادات الاحترافية', sub: 1, always: 1, go: "C.hmGo('stu','st_cert')", kids: [] }] },
@@ -4131,7 +4131,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     return stSoon(sb.t, 'تُعرض هنا أعداد الطلاب الحاصلين على الشهادات الاحترافية.', ['الشهادات المهنية', 'الشهادات التقنية']); }
   /* قسم «الطلاب» في حساب الإدارة (الملف 75): أربعة عناصر بلا فروع — إحصائيات الطلاب (سبعة تبويبات)، والتدريب والتأهيل، والإرشاد الأكاديمي، والشهادات الاحترافية.
      أعداد إجمالية فقط في كل الصفحات؛ وأسماء قائمة العميد لمدير النظام فقط من صفحتها. الملاحظات لمدير النظام. */
-  const STV = { t: 'reg_ug', pg: '', ps: '' };
+  const STV = { t: 'home', pg: '', ps: '', sub: 'ms', term: '' };
   const ST_TABS = [['المنتظمون', [['reg_ug', 'طلاب البكالوريوس'], ['reg_ms', 'طلاب الماجستير'], ['reg_hd', 'طلاب الدبلوم العالي']]], ['الخريجون', [['gr_ug', 'خريجو البكالوريوس'], ['gr_ms', 'خريجو الماجستير'], ['gr_hd', 'خريجو الدبلوم العالي']]], ['', [['honor', 'قائمة العميد الشرفية']]]];
   const stSub = (sub) => (p) => !sub || (sub === 'ms' ? /ماجستير/.test(p) : /دبلوم/.test(p));
   C.stGo = (t) => { STV.t = t; C.hmGo('stu', 'st_stats'); };
@@ -4143,11 +4143,33 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const stNotes = (L) => isAdmin() && L.length ? `<div class="panel noprint" style="margin-top:14px"><b>ملاحظات على البيانات</b> <span class="small muted">تظهر لمدير النظام فقط</span><ul class="small">${L.map((x) => `<li>${x}</li>`).join('')}</ul></div>` : '';
   const stXlBtn = '<button class="sq-btn" onclick="C.stXl()">تصدير Excel</button><button class="sq-btn" onclick="window.print()">طباعة</button>';
   C.stXl = () => { const E = S._stTab; if (!E) return toast('لا يوجد جدول للتصدير.', true); xlsxOut(E.file + '.xlsx', [{ name: E.name.slice(0, 30), head: E.head, rows: E.rows }]); };
+  /* إحصائيات الطلاب — المقترح ج (2026-11-05): جدول 2×2 (البكالوريوس والدراسات العليا × المنتظمون والخريجون) وشريط قائمة العميد؛ والضغط يفتح التفاصيل في الشاشة نفسها بمسار وزر رجوع.
+     الأرقام من البيانات المستوردة فقط. نسبة الطالبات من الشطور ذات الجنس الواحد (المقر المشترك لا يدخل) */
+  const ST_OLD = { reg_ms: ['reg_pg', 'ms'], reg_hd: ['reg_pg', 'hd'], gr_ms: ['gr_pg', 'ms'], gr_hd: ['gr_pg', 'hd'] };
+  const ST_LBL = { reg_ug: 'منتظمو البكالوريوس', reg_pg: 'منتظمو الدراسات العليا', gr_ug: 'خريجو البكالوريوس', gr_pg: 'خريجو الدراسات العليا', honor: 'قائمة العميد الشرفية' };
+  C.stSub = (s) => { STV.sub = s; refresh(); };
+  C.stTerm = (v) => { STV.term = v; refresh(); };
   async function stStats(X) {
-    if (!ST_TABS.some(([, l]) => l.some(([k]) => k === STV.t))) STV.t = 'reg_ug';
-    const bar = `<div class="st-tabs noprint">${ST_TABS.map(([g, l]) => `<div class="st-tg">${g ? `<span class="st-gl">${g}</span>` : ''}<div class="pt-tabs" role="tablist">${l.map(([k, t]) => `<button role="tab" aria-selected="${k === STV.t}" class="${k === STV.t ? 'on' : ''}" onclick="C.stTab('${k}')">${t}</button>`).join('')}</div></div>`).join('')}</div>`;
-    const t = STV.t, body = t === 'reg_ug' ? await rsPage('ug', X) : t === 'reg_ms' ? await rsPage('pg', X, 'ms') : t === 'reg_hd' ? await rsPage('pg', X, 'hd') : t === 'gr_ug' ? await pgGrads() : t === 'gr_ms' || t === 'gr_hd' ? await pgsPage(t === 'gr_ms' ? 'ms' : 'hd') : await hnCounts();
-    return `<div>${bar}<div style="margin-top:12px">${body}</div></div>`;
+    if (ST_OLD[STV.t]) { STV.sub = ST_OLD[STV.t][1]; STV.t = ST_OLD[STV.t][0]; }
+    if (!ST_LBL[STV.t]) STV.t = 'home';
+    if (STV.t !== 'home') { const t = STV.t, sub = STV.sub === 'hd' ? 'hd' : 'ms', inner = (t === 'reg_pg' || t === 'gr_pg') ? `<div class="st-sub noprint" role="tablist">${[['ms', 'الماجستير'], ['hd', 'الدبلوم العالي']].map(([k, l]) => `<button role="tab" aria-selected="${sub === k}" class="${sub === k ? 'on' : ''}" onclick="C.stSub('${k}')">${l}</button>`).join('')}</div>` : '';
+      if (t.startsWith('reg_')) { const key = (t === 'reg_ug' ? 'ug' : 'pg' + sub); if (RSV.k !== key) Object.assign(RSV, { k: key, p: '', s: '', t: STV.term || '' }); }
+      const body = t === 'reg_ug' ? await rsPage('ug', X) : t === 'reg_pg' ? await rsPage('pg', X, sub) : t === 'gr_ug' ? await pgGrads() : t === 'gr_pg' ? await pgsPage(sub) : await hnCounts();
+      return `<div class="st-back noprint"><button class="btn sm" onclick="C.stTab('home')">→ رجوع</button><span><a href="#" onclick="event.preventDefault();C.stTab('home')">إحصائيات الطلاب</a> ← ${ST_LBL[t]}</span></div>${inner}<div style="margin-top:10px">${body}</div>`; }
+    const [rsA, gs, pgs, hon] = await Promise.all([D.select('reg_students').catch(() => null), D.select('grad_stats').catch(() => []), D.select('pg_grad_stats').catch(() => []), D.select('honor_list').catch(() => [])]);
+    const progs = X && X.programs ? X.programs : (S.programs || []), scopeOK = (r) => mgWide('progs') || (r.program_id && (() => { const g = progs.find((p) => p.id === r.program_id); return g && leadScope().units.some((x) => x.id === g.department_id); })());
+    const R = (rsA || []).filter(scopeOK), terms = [...new Set(R.filter((r) => r.regular != null).map((r) => r.term_key))].sort((a, b) => b - a), tk = terms.includes(Number(STV.term)) ? Number(STV.term) : terms[0];
+    const at = (st) => R.filter((r) => r.stage === st && r.term_key === tk), U = at('ug'), G = at('pg'), uN = rsSum(U, 'regular'), gN = rsSum(G, 'regular'), fem = rsSum(U.filter((r) => rsFem(r.shatr)), 'regular') || 0, male = rsSum(U.filter((r) => rsMale(r.shatr)), 'regular') || 0;
+    const uP = new Set(U.filter((r) => r.regular != null).map((r) => r.program)).size, gMs = rsSum(G.filter((r) => stSub('ms')(r.program)), 'regular'), gHd = rsSum(G.filter((r) => stSub('hd')(r.program)), 'regular');
+    const yrs = [...new Set(gs.map((r) => String(r.year)))].sort(), gY = yrs[yrs.length - 1], gT = gsum(gs, 'n'), pT = gsum(pgs, 'n'), pMs = gsum(pgs.filter((r) => stSub('ms')(r.program)), 'n'), pHd = gsum(pgs.filter((r) => stSub('hd')(r.program)), 'n');
+    const hT = [...new Set(hon.map((h) => h.term_label))].sort((a, b) => String(a).localeCompare(String(b), 'ar')), hL = hT[hT.length - 1], hC = hon.filter((h) => h.term_label === hL), hs = (s) => hC.filter((h) => hnSecOf(h) === s).length;
+    const cell = (k, cls, n, sub) => `<button class="st-cell ${cls}" onclick="C.stTab('${k}')"${n == null ? ' disabled' : ''}><b>${n == null ? '—' : gf(n)}</b><small>${n == null ? 'لا توجد بيانات بعد' : sub}</small><em>التفاصيل ←</em></button>`;
+    const termSel = terms.length ? `<label class="st-term noprint">فصل المنتظمين <select class="inp" onchange="C.stTerm(this.value)">${terms.map((k) => `<option value="${k}"${k === tk ? ' selected' : ''}>${esc(rsLabel(k))}${k === terms[0] ? ' (الحالي)' : ''}</option>`).join('')}</select></label>` : '';
+    return `<div class="st-home">${termSel}<div class="st-grid"><span></span><div class="st-col ug">البكالوريوس</div><div class="st-col pg">الدراسات العليا</div>
+      <div class="st-row">المنتظمون</div>${cell('reg_ug', 'ug', uN, [tk ? esc(rsLabel(tk)) : '', uP ? gf(uP) + ' برامج' : '', fem + male ? 'طالبات ' + Math.round(fem / (fem + male) * 100) + '%' : ''].filter(Boolean).join(' · '))}${cell('reg_pg', 'pg', gN, [gMs != null ? 'ماجستير ' + gf(gMs) : '', gHd != null ? 'دبلوم عالٍ ' + gf(gHd) : ''].filter(Boolean).join(' · '))}
+      <div class="st-row">الخريجون</div>${cell('gr_ug', 'ug', gs.length ? gT : null, yrs.length ? `${yrs[0]}–${gY} · آخر سنة ${gf(gsum(gs.filter((r) => String(r.year) === gY), 'n'))}` : '')}${cell('gr_pg', 'pg', pgs.length ? pT : null, [pMs ? 'ماجستير ' + gf(pMs) : '', pHd ? 'دبلوم عالٍ ' + gf(pHd) : ''].filter(Boolean).join(' · '))}</div>
+      <button class="st-honor" onclick="C.stTab('honor')"><span class="i">★</span><b>قائمة العميد الشرفية</b><span class="small">${hC.length ? `${gf(hC.length)} متفوقًا · ${gf(hs('طلاب'))} طلاب · ${gf(hs('طالبات'))} طالبة${hs('غير محدد') ? ' · ' + gf(hs('غير محدد')) + ' غير محدد' : ''} · ${esc(hL)}` : 'لا توجد قائمة بعد'}</span><em>التفاصيل ←</em></button>
+      <p class="sq-foot">أعداد إجمالية من النماذج المستوردة. نسبة الطالبات لا تشمل المقر المشترك.</p></div>`;
   }
 
   /* خريجو الدراسات العليا (pg_grad_stats): من ورقة «دراسات عليا - خريجون» في النموذج الموحد STU-1 */

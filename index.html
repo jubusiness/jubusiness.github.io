@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>نظام إدارة كلية الأعمال — جامعة الجوف</title>
-<script src="config.js?v=20261105b"></script>
+<script src="config.js?v=20261105c"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -505,6 +505,16 @@ table.sq-dt{width:100%;border-collapse:collapse;font-size:13px}table.sq-dt td,ta
 .fd-impact{margin-top:12px;padding:12px 14px;border:1px solid #F3D49B;border-radius:12px;background:#FFF8E6;font-size:14px}
 .bt-tl{position:relative;height:14px;background:#F1ECF6;border-radius:6px}.bt-tl i{position:absolute;top:0;bottom:0;border-radius:6px;background:#D97706}.bt-tl i.over{background:#DC2626}.bt-tl i.soon,.bt-tl i.year{background:#16A34A}.bt-tl em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#4B2A6B}
 @media(max-width:700px){.fd-tabs{gap:8px}.fd-tabs button{padding:7px 12px 7px 10px;font-size:13.5px}.fd-tabs button .i{width:26px;height:26px;font-size:14px}}
+/* إحصائيات الطلاب — المقترح ج (2026-11-05) */
+.st-home{display:block}.st-term{display:inline-flex;gap:8px;align-items:center;font-size:13px;color:#6B5E7B;margin-bottom:12px}.st-term .inp{width:auto}
+.st-grid{display:grid;grid-template-columns:150px 1fr 1fr;gap:12px}.st-col{border-radius:12px;padding:10px;text-align:center;color:#fff;font-weight:800;font-size:16px}.st-col.ug{background:#2563EB}.st-col.pg{background:#0D9488}
+.st-row{display:grid;place-items:center;border-radius:14px;background:#F3ECF8;color:#4B2A6B;font-weight:800;font-size:16px}
+.st-cell{--c:#2563EB;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:start;padding:16px 18px;border:2px solid var(--c);border-radius:16px;background:color-mix(in srgb,var(--c) 7%,#fff);font-family:inherit;cursor:pointer;color:#2B2135;min-width:0}.st-cell.pg{--c:#0D9488}.st-cell:hover{box-shadow:0 10px 22px -16px var(--c)}.st-cell[disabled]{cursor:default;opacity:.7}
+.st-cell b{font-size:34px;line-height:1.1;color:var(--c)}.st-cell small{color:#6B5E7B;font-size:13px}.st-cell em{font-style:normal;color:var(--c);font-weight:800;font-size:13px;align-self:flex-end}
+.st-honor{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 18px;border:2px solid #D97706;border-radius:16px;background:#FFF4E6;font-family:inherit;cursor:pointer;color:#2B2135;text-align:start}.st-honor .i{color:#D97706;font-size:22px}.st-honor b{font-size:16px}.st-honor .small{color:#6B5E7B;flex:1}.st-honor em{font-style:normal;color:#D97706;font-weight:800;font-size:13px}
+.st-back{display:flex;align-items:center;gap:10px;font-size:13.5px;color:#6B5E7B}.st-back a{color:#7B4FA0;font-weight:700}
+.st-sub{display:flex;gap:4px;border-bottom:2px solid #ECE6F2;margin-top:10px}.st-sub button{border:0;background:none;padding:8px 16px;font:500 14px/1.3 inherit;font-family:inherit;color:#6B5E7B;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}.st-sub button.on{color:#4B2A6B;font-weight:800;border-bottom-color:#7B4FA0}
+@media(max-width:700px){.st-grid{grid-template-columns:80px 1fr 1fr;gap:8px}.st-row{font-size:13px;writing-mode:horizontal-tb}.st-cell{padding:10px}.st-cell b{font-size:24px}.st-cell small{font-size:11.5px}.st-col{font-size:13.5px;padding:8px 4px}.st-honor{flex-wrap:wrap}.st-honor .small{flex:1 1 100%;order:3}}
 .fd-stack{display:flex;height:16px;border-radius:6px;overflow:hidden;background:#F1ECF6}.fd-stack i{display:block;height:100%}
 .fd-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:13px}.fd-row>span{flex:none;width:130px;color:#6B5E7B}.fd-row>div{flex:1 1 auto;min-width:0}.fd-row>b{flex:none;width:44px;text-align:left}
 .fd-tg{position:relative;height:14px;background:#F1ECF6;border-radius:6px}.fd-tg i{display:block;height:100%;border-radius:6px}.fd-tg em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#4B2A6B}
@@ -530,8 +540,8 @@ table.sq-dt{width:100%;border-collapse:collapse;font-size:13px}table.sq-dt td,ta
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script>/* مكتبات Excel وWord تُحمَّل بعد ظهور الصفحة، والوضع التجريبي لا يُحمَّل إلا عند طلبه */
-if(/[?&#]demo\b/.test(location.href)||window.COLLEGE_FORCE_DEMO)document.write('<script src="js/college-demo.js?v=20261105b"><\/script>');
+if(/[?&#]demo\b/.test(location.href)||window.COLLEGE_FORCE_DEMO)document.write('<script src="js/college-demo.js?v=20261105c"><\/script>');
 window.addEventListener("load",function(){setTimeout(function(){["https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js","https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"].forEach(function(u){var s=document.createElement("script");s.src=u;s.async=false;document.head.appendChild(s);});},800);});</script>
-<script src="js/college-app.js?v=20261105b"></script>
+<script src="js/college-app.js?v=20261105c"></script>
 </body>
 </html>
