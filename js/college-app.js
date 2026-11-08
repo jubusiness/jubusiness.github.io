@@ -281,7 +281,7 @@
     audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
     mpage: 'المؤشرات', mnode: 'المؤشرات', facdash: 'أعضاء هيئة التدريس', facreg: 'سجل الأعضاء', engines: 'المحركات البحثية', grads: 'خريجو البكالوريوس', statsex: 'المستثنون من الإحصاءات', feed: 'حالة التغذية', saqr: 'التصنيف السعودي (صقر)', advunit: 'وحدة الإرشاد', workflow: 'تقارير سير العمل في الكلية', mgvis: 'ظهور حساب الإدارة', progcat: 'إعدادات برامج الكلية', collegeprogs: 'برامج الكلية', sources: 'مصادر البيانات', honor: 'قائمة العميد الشرفية', portal: 'إدارة بوابة الطالب', advising: 'الإرشاد الأكاديمي', files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'الجودة والمؤشرات' };
   const NAV_OF = { statsex: 'settings', advunit: 'settings', mgvis: 'settings', progcat: 'settings', sources: 'settings', positions: 'settings', myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
-  const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'committees' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
+  const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'memberships' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
     const st = S.settings; applyTheme(st.theme);
     $('#brand').innerHTML = `<img src="${attr(st.logo || LOGO_IMG)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="emb" style="display:none">${emblem()}</span><div><b>${esc(st.university || 'جامعة الجوف')}</b><span dir="ltr">${esc(st.universityEn || 'Jouf University')}</span></div>`;
@@ -313,6 +313,7 @@
   }
   const go = (C.go = (page, opts) => {
     if (S.me && SET_PAGES.includes(page) && !canSettings()) { toast('الإعدادات لمدير النظام ومن يحدده.', true); page = 'home'; opts = {}; }
+    if (page === 'committees') { page = isAdmin() ? 'org' : 'memberships'; opts = {}; }   /* صفحة «اللجان» أُلغيت بطلب المالك (2026-11-08): المدير إلى الهيكل التنظيمي، وغيره إلى العضوية في الوحدات واللجان */
     if (S.me && STRUCT_PAGES.includes(page) && !isAdmin()) { page = 'home'; opts = {}; }   /* صفحات الهيكل التنظيمي لمدير النظام فقط (2026-11-05) */
     if (page === 'org' && ORG.dirty && VIEW.page === 'org' && !(opts && opts.force)) { if (!window.confirm('في الجهة المحددة تغييرات لم تُحفظ. هل تريد تجاهلها؟')) return; ORG.dirty = false; }
     if (VIEW.page === 'app' && page !== 'app' && window.__CAPP && window.__CAPP.busy()) { if (!window.confirm('لم يكتمل حفظ بيانات البرنامج بعد. هل تغادر؟')) return; }
@@ -3656,7 +3657,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const tile = (p, ic, num, t) => `<button onclick="C.go('${p}')">${icon(ic)}<b>${num}</b><span>${esc(t)}</span></button>`;
     return `<div class="homebody">${banner}${adminTop}${mineHtml(reqs)}
       <div class="hstrip">${tile('depts', 'sitemap', n('department'), full ? 'الأقسام العلمية' : 'أقسامي')}${tile('units', 'cubes', n('unit'), full ? 'الوحدات' : 'وحداتي')}
-        ${tile('committees', 'users', n('committee'), full ? 'اللجان' : 'لجاني')}${vices ? tile('vices', 'bank', vices, 'الوكالات') : ''}
+        ${tile('memberships', 'users', n('committee'), full ? 'اللجان' : 'لجاني')}${vices ? tile('vices', 'bank', vices, 'الوكالات') : ''}
         ${tile('courses', 'book', courses.length, 'المقررات')}${tile('faculty', 'user', S.faculty.filter((f) => f.status === 'نشط').length, 'أعضاء هيئة التدريس')}</div>
       <div class="home2">${annBox}<div class="box"><h2>${icon('bolt')}الوصول السريع</h2><div class="quick">
         ${q("C.go('tasks')", 'clipboard', 'المهام والتكليفات')}${q("C.go('courses',{tab:'current'})", 'calendar', 'جدول الدراسة')}
@@ -5280,7 +5281,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     $('#saOk').onclick = (ev) => busy(ev.target, async () => { const d = Object.assign({}, S.settings, { settingsAccess: $$('.saC').filter((c) => c.checked).map((c) => c.value) }); await D.update('org_settings', { data: d }, { eq: { id: 1 } }); S.settings = d; C.close(); toast('حُفظ.'); }); };
   /* البحث السريع (Ctrl K): المقررات، والأعضاء، والجهات، والصفحات المتاحة للمستخدم */
   const QS = { i: 0, res: [] };
-  const qsPages = () => { const staff = viewRole() === 'staff'; const base = staff ? ['home', 'mine', 'memberships', 'alerts', 'apps'] : ['home', 'college', 'vices', 'depts', 'units', 'committees', 'tasks', 'mine', 'memberships', 'alerts', 'apps', 'annual', 'reports'].concat(isLeader() ? ['approvals'] : []);
+  const qsPages = () => { const staff = viewRole() === 'staff'; const base = staff ? ['home', 'mine', 'memberships', 'alerts', 'apps'] : ['home', 'college', 'vices', 'depts', 'units', 'tasks', 'mine', 'memberships', 'alerts', 'apps', 'annual', 'reports'].concat(isLeader() ? ['approvals'] : []);
     return base.concat(canSettings() ? SET_PAGES : []).filter((p) => TITLES[p]).filter((p) => p !== 'annual' || annualSeen()).filter((p) => p !== 'reports' || gcap('reports')).filter((p) => p !== 'committees' || !isMgmt()); };
   C.qs = async () => { if ($('#qsOv')) return; const o = document.createElement('div'); o.id = 'qsOv'; o.onclick = (e) => { if (e.target === o) o.remove(); };
     o.innerHTML = `<div class="qs-box" role="dialog" aria-label="بحث سريع"><input id="qsI" placeholder="ابحث عن مقرر أو عضو أو جهة أو صفحة…" autocomplete="off"><div id="qsR"></div><div class="tiny muted" style="padding:6px 12px">↑↓ للتنقل · Enter للفتح · Esc للإغلاق</div></div>`; document.body.appendChild(o);
