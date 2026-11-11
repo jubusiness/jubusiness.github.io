@@ -5,13 +5,16 @@
 (function (G) {
   'use strict';
   const AR = '\\u0600-\\u06FF';
-  const MOB = /(?<![0-9])(?:\+?966|00966)?0?5[0-9]{8}(?![0-9])/g;
+  const MOB = /(?<![0-9A-Za-z])(?:\+?966|00966)?0?5[0-9]{8}(?![0-9A-Za-z])/g;
+  const UUIDISH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const RES = /https?:\/\/[^\s"'<>]*(?:scopus\.com\/authid|orcid\.org\/[0-9]|scholar\.google\.[a-z.]+\/citations|webofscience|researcherid|publons)[^\s"'<>]*/gi;
   const TITLE = /^\s*(?:أ\.\s*د\.|أ\.د\.|د\.|أ\.|م\.)\s*/;
   const LINK_COLS = ['scopus', 'orcid', 'wos', 'scholar'];
   const MOB_KEYS = /^(mobile|phone|jawal|tel|mob|whatsapp)$/i;
   /* جداول لا تُرمَّز: حسابات الإرشاد التجريبية بأسماء وهمية (يتعطل دخول الطلاب التجريبيين لو تغيّرت أرقامهم) */
-  const SKIP_T = new Set(['advising_assignments', 'student_accounts', 'advising_threads', 'office_hours', 'bookings', 'advising_stats']);
+  const SKIP_T = new Set(['advising_assignments', 'student_accounts', 'advising_threads', 'office_hours', 'bookings', 'advising_stats',
+    /* جداول الجدول الدراسي: لا بيانات شخصية فيها (الأستاذ بمعرّف سجله)، وقيمها الرقمية قد تشبه الجوال */
+    'sections', 'offerings', 'teaching', 'courses', 'terms']);
 
   const norm = (s) => String(s == null ? '' : s).replace(TITLE, '').replace(/\s+/g, ' ').trim();
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -103,6 +106,7 @@
   function codeDeep(v, subs, M, k) {
     if (v == null) return v;
     if (typeof v === 'string') {
+      if (UUIDISH.test(v) || (k && (k === 'id' || /_id$/.test(k)))) return v;
       if (k && MOB_KEYS.test(k)) return '';
       if (k && LINK_COLS.includes(k)) return '';
       if (k === 'employee_no' && M.emp.has(v)) return M.emp.get(v);
@@ -155,6 +159,7 @@
 
   /* قيمة الخلية المرمَّزة */
   function codeCell(t, row, col, v, subs, M, key) {
+    if (col === 'id' || /_id$/.test(col) || (typeof v === 'string' && UUIDISH.test(v))) return v;   // المعرّفات لا تُمس أبدًا
     if (t === 'faculty') {
       const f = M.byId.get(row.id);
       if (f) { if (col === 'name_ar') return f.code; if (col === 'name_en') return v ? f.code : v; if (col === 'employee_no') return v ? f.emp : v; if (col === 'email') return v; }

@@ -3028,7 +3028,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   /* الترميز المؤقت للبيانات الشخصية (تعميم مكتب إدارة البيانات 1448/05/23هـ؛ database/79_pseudonymize_support.sql)
      المفتاح وسجل الإرجاع يُقرآن من جهاز المدير ولا يُرفعان. يُرسل للقاعدة فقط ما تغيّر من خلايا (القيم المرمَّزة عند الترميز، والأصلية عند الإرجاع). */
   const PS = { key: null, plan: null, log: null };
-  const psLib = () => window.PSEUDO ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/college-pseudo.js?v=20261111a'; s.onload = res; s.onerror = () => rej(new Error('تعذر تحميل أداة الترميز.')); document.head.appendChild(s); });
+  const psLib = () => window.PSEUDO ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/college-pseudo.js?v=20261111b'; s.onload = res; s.onerror = () => rej(new Error('تعذر تحميل أداة الترميز.')); document.head.appendChild(s); });
   const psPks = () => Object.fromEntries(BK);
   function pgPseudo() {
     if (!isAdmin()) return '<div class="panel">هذه الصفحة لمدير النظام.</div>';
@@ -3042,7 +3042,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
         <div class="row"><button class="btn" onclick="C.psPrep('code', this)">تحضير الترميز</button><button class="btn" id="psLogBtn" disabled onclick="C.psSaveLog()">تنزيل سجل الإرجاع</button><button class="btn pri" id="psGoC" disabled onclick="C.psApply(this)">تطبيق الترميز</button></div></div>
       <div class="panel"><h2>2. الإرجاع</h2>
         <p class="small">يعيد كل خلية لم تتغير منذ الترميز كما كانت حرفيًا من سجل الإرجاع، وما أُضيف أو عُدّل بعده يُرجَع بالمفتاح.</p>
-        <label class="f">سجل الإرجاع (JSON)<input type="file" id="psL" accept=".json"></label>
+        <label class="f">سجل الإرجاع (JSON؛ إن كان الترميز على دفعتين فاختر الملفين معًا)<input type="file" id="psL" accept=".json" multiple></label>
         <div class="row" style="margin-top:8px"><button class="btn" onclick="C.psPrep('back', this)">تحضير الإرجاع</button><button class="btn pri" id="psGoB" disabled onclick="C.psApply(this)">تطبيق الإرجاع</button></div></div></div>
       <div class="panel"><div id="psOut" class="small">اختر ملف المفتاح ثم «تحضير».</div></div>`;
   }
@@ -3077,8 +3077,12 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       out.innerHTML = `<p>سيُرمَّز ${E.n.cells} خلية في ${E.n.rows} صفًا. الخطوة التالية: <b>تنزيل سجل الإرجاع</b> ووضعه في الملف المشفّر؛ ثم يُفتح زر التطبيق.</p>` + psSummary(ops);
       $('#psLogBtn').disabled = false;
     } else {
-      const f = $('#psL').files[0]; if (!f) throw new Error('اختر سجل الإرجاع.');
-      const log = JSON.parse(await f.text()); if (log.format !== 'jouf-pseudo-log') throw new Error('الملف ليس سجل إرجاع.');
+      const fs = [...$('#psL').files]; if (!fs.length) throw new Error('اختر سجل الإرجاع.');
+      /* أكثر من سجل (ترميز على دفعتين): يُدمج بترتيب التاريخ، والأحدث يغلب للخلية نفسها */
+      const logs = []; for (const f of fs) { const l = JSON.parse(await f.text()); if (l.format !== 'jouf-pseudo-log') throw new Error('«' + f.name + '» ليس سجل إرجاع.'); logs.push(l); }
+      logs.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+      const cells = new Map(); logs.forEach((l) => l.cells.forEach((c) => cells.set(c.t + '\u0001' + c.pk + '\u0001' + c.col, c)));
+      const log = { format: 'jouf-pseudo-log', cells: [...cells.values()], deleted: logs.flatMap((l) => l.deleted || []) };
       const R = PSEUDO.decode(cur, PS.key, log, psPks()); const ops = psDiffOps(cur, R.restored);
       PS.plan = { mode, ops };
       out.innerHTML = `<p>يعود ${R.n.exact} خلية كما كانت حرفيًا، و${R.n.rowsBack} صفًا محذوفًا. خلايا تغيّرت بعد الترميز (تُرجَع بالمفتاح): ${R.n.changedSince}؛ وبيانات جديدة فيها رموز: ${R.n.newData}.</p>` + psSummary(ops);
@@ -3093,10 +3097,10 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     const send = async (t, mode, keys, rows) => { let batch = [], size = 0; const go = async () => { if (!batch.length) return; try { n += await D.rpc('pseudo_apply', { p_table: t, p_mode: mode, p_pk: keys, p_rows: batch }); } catch (e) { errs++; out.insertAdjacentHTML('beforeend', `<div class="bad">${esc(t)}: ${esc(pgErr(e))}</div>`); } batch = []; size = 0; };
       for (const r of rows) { const s = JSON.stringify(r).length; if (size + s > 400000) await go(); batch.push(r); size += s; } await go(); };
     for (const o of P.ops) { out.insertAdjacentHTML('beforeend', `<div>${esc(o.t)}…</div>`); await send(o.t, 'delete', o.keys, o.del); await send(o.t, 'update', o.keys, o.upd); await send(o.t, 'insert', o.keys, o.ins); }
-    try { await D.rpc('pseudo_finish'); } catch (e) { errs++; }
-    await D.rpc('pseudo_mark', { p_on: P.mode === 'code', p_note: P.mode === 'code' ? 'ترميز' : 'إرجاع' });
+    try { await D.rpc('pseudo_finish'); } catch (e) { errs++; out.insertAdjacentHTML('beforeend', `<div class="bad">المؤشرات: ${esc(pgErr(e))}</div>`); }
+    try { await D.rpc('pseudo_mark', { p_on: P.mode === 'code', p_note: P.mode === 'code' ? 'ترميز' : 'إرجاع' }); } catch (e) { errs++; out.insertAdjacentHTML('beforeend', `<div class="bad">علامة الترميز: ${esc(pgErr(e))} (نفّذ database/80_pseudo_mark_fix.sql)</div>`); }
     PS.plan = null; PS.log = null; out.insertAdjacentHTML('beforeend', `<p class="${errs ? 'bad' : ''}"><b>انتهى: ${n} صفًا${errs ? '، و' + errs + ' خطأ' : ''}.</b> نفّذ check_coding_counts.sql وقارن بأعداد ن0.</p>`);
-    await C.reload();
+    if (!errs) await C.reload(); else { qcClear(); toast("انتهى مع أخطاء؛ انظر الأسطر الحمراء.", true); }
   });
   C.bkJson = (btn) => busy(btn, async () => { const l = (m) => { $('#bkLog').textContent = m; }; const b = await collect(val('bkF'), l);
     save('نسخة-نظام-الكلية-' + stamp() + '.json', JSON.stringify(b), 'application/json');
