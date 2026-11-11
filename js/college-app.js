@@ -278,9 +278,9 @@
   const PAGE_DESC = { engines: 'روابط حسابات أعضاء هيئة التدريس في المحركات البحثية وتغطيتها', grads: 'أعداد إجمالية للخريجين حسب السنة والقسم والشطر', statsex: 'من لا يُحسب في الإحصاءات مع بقاء صلاحياته', advunit: 'توزيع الطلاب على المرشدين، وتجربة حساب الطالب', workflow: 'خلاصة للقيادة للعرض فقط', mgvis: 'لكل منصب ولكل عنصر: يظهر أو لا، والنطاق', progcat: 'كل البرامج المكتشفة وتصنيفها', collegeprogs: 'الخطة الدراسية والتوصيفات لكل برنامج', sources: 'مصدر كل قسم ومسؤوله وآخر تحديث واكتماله', honor: 'مرتبة حسب المجموع، مع الترتيب داخل القسم والشطر', portal: 'روابط البوابة ومرشدو البرامج', advising: 'طلابي المرشدون ورسائلهم', mine: 'مقرراتي ومتطلباتها هذا الفصل', myschedule: 'مقرراتي ومتطلباتها هذا الفصل', memberships: 'الجهات التي لي فيها دور', mycomms: 'الجهات التي لي فيها دور', alerts: 'ما يحتاج إجراءً مني', approvals: 'ما ينتظر اعتمادي' };
   const TITLES = { approvals: 'بانتظار اعتمادي', lead: 'واجهة القيادة', positions: 'المناصب', home: 'الرئيسية', college: 'كلية الأعمال', vices: 'الوكالات', depts: 'الأقسام العلمية', units: 'الوحدات', committees: 'اللجان', tasks: 'المهام والتكليفات',
     reports: 'التقارير', settings: 'الإعدادات', org: 'الهيكل التنظيمي', faculty: 'أعضاء هيئة التدريس', courses: 'المقررات والجداول', accounts: 'الحسابات والصلاحيات',
-    audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
+    audit: 'سجل التدقيق', apps: 'البرامج والتحديثات', ann: 'الإعلانات', backup: 'النسخ الاحتياطي والنقل', pseudo: 'الترميز المؤقت', identity: 'الهوية والواجهة', general: 'القوائم والإعدادات العامة',
     mpage: 'المؤشرات', mnode: 'المؤشرات', facdash: 'أعضاء هيئة التدريس', facreg: 'سجل الأعضاء', engines: 'المحركات البحثية', grads: 'خريجو البكالوريوس', statsex: 'المستثنون من الإحصاءات', feed: 'حالة التغذية', saqr: 'التصنيف السعودي (صقر)', advunit: 'وحدة الإرشاد', workflow: 'تقارير سير العمل في الكلية', mgvis: 'ظهور حساب الإدارة', progcat: 'إعدادات برامج الكلية', collegeprogs: 'برامج الكلية', sources: 'مصادر البيانات', honor: 'قائمة العميد الشرفية', portal: 'إدارة بوابة الطالب', advising: 'الإرشاد الأكاديمي', files: 'الملفات والمرفقات', notifs: 'الإشعارات', search: 'الاستعلامات', ws: 'الوحدات واللجان', assist: 'المرشد الأكاديمي والدعم الفني', forms: 'النماذج والتقارير', track: 'متابعة النماذج المطلوبة', perms: 'صلاحيات عضو هيئة التدريس', matrix: 'مصفوفة التكليفات والصلاحيات', myschedule: 'مهامي', mine: 'مهامي', memberships: 'العضوية في الوحدات واللجان', mycomms: 'العضوية في الوحدات واللجان', alerts: 'تنبيهاتي', annual: 'الجودة والمؤشرات' };
-  const NAV_OF = { statsex: 'settings', advunit: 'settings', mgvis: 'settings', progcat: 'settings', sources: 'settings', positions: 'settings', myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
+  const NAV_OF = { pseudo: 'settings', statsex: 'settings', advunit: 'settings', mgvis: 'settings', progcat: 'settings', sources: 'settings', positions: 'settings', myschedule: 'mine', mycomms: 'memberships', matrix: 'settings', org: 'settings', faculty: 'settings', courses: 'settings', accounts: 'settings', audit: 'settings', apps: 'settings', ann: 'settings', backup: 'settings', identity: 'settings', general: 'settings', assist: 'settings', forms: 'settings', track: 'settings', perms: 'settings', ws: 'units', files: 'tasks', notifs: 'home', search: 'home' };
   const navOfUnit = (u) => !u ? 'home' : u.kind === 'unit' ? 'units' : u.kind === 'committee' ? 'memberships' : u.kind === 'department' ? 'depts' : u.id === rootId() ? 'college' : u.kind === 'leadership' ? 'vices' : 'college';
   function renderShell() {
     const st = S.settings; applyTheme(st.theme);
@@ -332,7 +332,7 @@
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
       ws: pgWs, tasks: pgTasks, org: pgOrg, unit: pgUnit, faculty: pgFaculty, courses: pgCourses, reports: pgReports, accounts: pgAccounts, audit: pgAudit, settings: pgSettings,
-      general: pgGeneral, identity: pgIdentity, mnode: pgMNode, facdash: pgFacDash, facreg: pgFacReg, engines: pgEngines, grads: pgGrads, statsex: pgStatsEx, feed: pgFeed, saqr: pgSaqr, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, mpage: pgMPage, advunit: pgAdvUnit, workflow: pgWorkflow, mgvis: pgMgVis, progcat: pgProgCat, collegeprogs: pgProgs, sources: pgSources, honor: pgHonor, portal: pgPortal, advising: pgAdvising, approvals: pgApprovals, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
+      general: pgGeneral, identity: pgIdentity, mnode: pgMNode, facdash: pgFacDash, facreg: pgFacReg, engines: pgEngines, grads: pgGrads, statsex: pgStatsEx, feed: pgFeed, saqr: pgSaqr, apps: pgApps, app: pgApp, ann: pgAnn, backup: pgBackup, pseudo: pgPseudo, files: pgFiles, notifs: pgNotifs, search: pgSearch, assist: pgAssist, forms: pgForms, track: pgTrack, perms: pgPerms, matrix: pgMatrix, lead: pgLead, mpage: pgMPage, advunit: pgAdvUnit, workflow: pgWorkflow, mgvis: pgMgVis, progcat: pgProgCat, collegeprogs: pgProgs, sources: pgSources, honor: pgHonor, portal: pgPortal, advising: pgAdvising, approvals: pgApprovals, positions: pgPositions, myschedule: pgMine, mine: pgMine, memberships: pgComms, mycomms: pgComms, alerts: pgAlerts, annual: pgAnnual }[page] || pgHome;
     const pf0 = performance.now(), pfN = PERF.n;
     Promise.resolve(fn()).then((html) => { if (typeof html === 'string') $('#pg').innerHTML = html; if (VIEW.after) VIEW.after(); if (PERF.on) toast(page + ': ' + Math.round(performance.now() - pf0) + ' م.ث · ' + (PERF.n - pfN) + ' طلب'); }).catch((e) => { console.error(e); $('#pg').innerHTML = `<div class="panel bad">${esc(pgErr(e))}</div>`; });
     window.scrollTo(0, 0);
@@ -2510,6 +2510,7 @@
       ${H('identity', 'palette', 'الهوية والواجهة', 'الشعار وصورة الواجهة واسم الكلية والشعار النصي', isAdmin())}
       ${H('general', 'list', 'القوائم العامة', 'الرتب وحالات الأعضاء والبرامج الأكاديمية', isAdmin())}
       ${H('backup', 'db', 'النسخ الاحتياطي والنقل', 'نسخة شاملة، واستعادة، وملف النقل لقاعدة بيانات الجامعة', isAdmin())}
+      ${H('pseudo', 'key', 'الترميز المؤقت للبيانات الشخصية', 'استبدال الأسماء والأرقام بالرموز وإرجاعها بالمفتاح المحلي', isAdmin())}
       ${H('audit', 'history', 'سجل التدقيق', 'كل تعديل: من وماذا ومتى', gcap('audit'))}
     </div>${!DEMO ? `<div class="row" style="margin-top:16px"><button class="btn" onclick="C.changePass()">${icon('key')}تغيير كلمة المرور</button></div>` : ''}`;
   }
@@ -3023,6 +3024,80 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
     return out;
   }
   const stamp = () => new Date().toISOString().slice(0, 10);
+
+  /* الترميز المؤقت للبيانات الشخصية (تعميم مكتب إدارة البيانات 1448/05/23هـ؛ database/79_pseudonymize_support.sql)
+     المفتاح وسجل الإرجاع يُقرآن من جهاز المدير ولا يُرفعان. يُرسل للقاعدة فقط ما تغيّر من خلايا (القيم المرمَّزة عند الترميز، والأصلية عند الإرجاع). */
+  const PS = { key: null, plan: null, log: null };
+  const psLib = () => window.PSEUDO ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/college-pseudo.js?v=20261111a'; s.onload = res; s.onerror = () => rej(new Error('تعذر تحميل أداة الترميز.')); document.head.appendChild(s); });
+  const psPks = () => Object.fromEntries(BK);
+  function pgPseudo() {
+    if (!isAdmin()) return '<div class="panel">هذه الصفحة لمدير النظام.</div>';
+    const st = S.settings.pseudo || {};
+    return `<div class="panel"><h2>الترميز المؤقت للبيانات الشخصية</h2>
+      <p class="small">تُستبدل أسماء الأعضاء والطلاب وأرقامهم بالرموز (F0001، S00001، O0001)، وتُفرَّغ الجوالات وروابط المحركات البحثية، ويبقى البريد. الحسابات لا تُمس. المفتاح وسجل الإرجاع على جهازك فقط في ملف مشفّر، ولا يُرفعان.</p>
+      <p><b>الحالة:</b> ${st.on ? '<span class="tag bad">البيانات مرمَّزة</span>' : '<span class="tag">الأسماء الأصلية</span>'}${st.at ? ' <span class="small muted">منذ ' + esc(fmtDT(st.at)) + '</span>' : ''}</p>
+      <label class="f">ملف المفتاح (Excel، من الملف المشفّر)<input type="file" id="psK" accept=".xlsx"></label></div>
+      <div class="grid2"><div class="panel"><h2>1. الترميز</h2>
+        <p class="small">قبله: نسخة شاملة جديدة من «النسخ الاحتياطي». يُحضَّر الترميز في متصفحك، ثم تنزّل سجل الإرجاع وتضعه في الملف المشفّر، ثم يُطبَّق.</p>
+        <div class="row"><button class="btn" onclick="C.psPrep('code', this)">تحضير الترميز</button><button class="btn" id="psLogBtn" disabled onclick="C.psSaveLog()">تنزيل سجل الإرجاع</button><button class="btn pri" id="psGoC" disabled onclick="C.psApply(this)">تطبيق الترميز</button></div></div>
+      <div class="panel"><h2>2. الإرجاع</h2>
+        <p class="small">يعيد كل خلية لم تتغير منذ الترميز كما كانت حرفيًا من سجل الإرجاع، وما أُضيف أو عُدّل بعده يُرجَع بالمفتاح.</p>
+        <label class="f">سجل الإرجاع (JSON)<input type="file" id="psL" accept=".json"></label>
+        <div class="row" style="margin-top:8px"><button class="btn" onclick="C.psPrep('back', this)">تحضير الإرجاع</button><button class="btn pri" id="psGoB" disabled onclick="C.psApply(this)">تطبيق الإرجاع</button></div></div></div>
+      <div class="panel"><div id="psOut" class="small">اختر ملف المفتاح ثم «تحضير».</div></div>`;
+  }
+  const psReadKey = async () => {
+    const f = $('#psK').files[0]; if (!f) throw new Error('اختر ملف المفتاح.'); if (!window.XLSX) throw new Error('مكتبة Excel لم تُحمَّل.');
+    const wb = XLSX.read(await f.arrayBuffer()); const sh = {}; wb.SheetNames.forEach((n) => { sh[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: false }); });
+    const key = PSEUDO.buildKey(sh); if (!key.fac.length || !key.owner) throw new Error('الملف ليس مفتاح الترميز (لا ورقة «الأعضاء» أو لا F0001).'); return key;
+  };
+  /* الفروق بين الحالي والمطلوب: تحديث الأعمدة المختلفة فقط، وحذف وإضافة الصفوف */
+  const psDiffOps = (cur, want) => {
+    const ops = [];
+    for (const [t, pk] of BK) {
+      const keys = pk.split(','), id = (r) => keys.map((k) => String(r[k])).join('|');
+      const A = new Map((cur.tables[t] || []).map((r) => [id(r), r])), B = new Map((want.tables[t] || []).map((r) => [id(r), r]));
+      const upd = [], del = [], ins = [];
+      for (const [k, b] of B) { const a = A.get(k); if (!a) { ins.push(b); continue; } const ch = {}; let any = false; Object.keys(b).forEach((c) => { if (!keys.includes(c) && c !== 'version' && JSON.stringify(a[c]) !== JSON.stringify(b[c])) { ch[c] = b[c]; any = true; } }); if (any) { keys.forEach((x) => { ch[x] = b[x]; }); upd.push(ch); } }
+      for (const [k, a] of A) if (!B.has(k)) del.push(Object.fromEntries(keys.map((x) => [x, a[x]])));
+      if (upd.length || del.length || ins.length) ops.push({ t, keys, upd, del, ins });
+    }
+    return ops;
+  };
+  const psSummary = (ops) => '<table class="tbl"><tr><th>الجدول</th><th>تعديل</th><th>حذف</th><th>إضافة</th></tr>' + ops.map((o) => `<tr><td>${esc(o.t)}</td><td>${o.upd.length}</td><td>${o.del.length}</td><td>${o.ins.length}</td></tr>`).join('') + '</table>';
+  C.psPrep = (mode, btn) => busy(btn, async () => {
+    await psLib(); qcClear(); const out = $('#psOut'); out.textContent = 'جارٍ قراءة البيانات الحالية…';
+    PS.key = await psReadKey(); PS.plan = null; ['#psGoC', '#psGoB', '#psLogBtn'].forEach((s) => { const b = $(s); if (b) b.disabled = true; });
+    const cur = await collect(false, (m) => { out.textContent = m; });
+    if (Object.keys(cur.errors).length) throw new Error('تعذرت قراءة: ' + Object.keys(cur.errors).join('، '));
+    if (mode === 'code') {
+      if ((S.settings.pseudo || {}).on) throw new Error('البيانات مرمَّزة الآن. استعمل «الإرجاع» أولًا.');
+      const E = PSEUDO.encode(cur, PS.key, psPks()); PS.log = E.log; const ops = psDiffOps(cur, E.coded);
+      PS.plan = { mode, ops, saved: false };
+      out.innerHTML = `<p>سيُرمَّز ${E.n.cells} خلية في ${E.n.rows} صفًا. الخطوة التالية: <b>تنزيل سجل الإرجاع</b> ووضعه في الملف المشفّر؛ ثم يُفتح زر التطبيق.</p>` + psSummary(ops);
+      $('#psLogBtn').disabled = false;
+    } else {
+      const f = $('#psL').files[0]; if (!f) throw new Error('اختر سجل الإرجاع.');
+      const log = JSON.parse(await f.text()); if (log.format !== 'jouf-pseudo-log') throw new Error('الملف ليس سجل إرجاع.');
+      const R = PSEUDO.decode(cur, PS.key, log, psPks()); const ops = psDiffOps(cur, R.restored);
+      PS.plan = { mode, ops };
+      out.innerHTML = `<p>يعود ${R.n.exact} خلية كما كانت حرفيًا، و${R.n.rowsBack} صفًا محذوفًا. خلايا تغيّرت بعد الترميز (تُرجَع بالمفتاح): ${R.n.changedSince}؛ وبيانات جديدة فيها رموز: ${R.n.newData}.</p>` + psSummary(ops);
+      $('#psGoB').disabled = false;
+    }
+  });
+  C.psSaveLog = () => { if (!PS.log) return; save('سجل-الإرجاع-' + stamp() + '.json', JSON.stringify(PS.log), 'application/json'); PS.plan.saved = true; $('#psGoC').disabled = false; toast('ضع سجل الإرجاع في الملف المشفّر مع المفتاح، ثم احذف النسخة غير المشفّرة.'); };
+  C.psApply = (btn) => busy(btn, async () => {
+    const P = PS.plan; if (!P) return; if (P.mode === 'code' && !P.saved) return toast('نزّل سجل الإرجاع أولًا.', true);
+    const ok = await confirmBox(P.mode === 'code' ? 'تطبيق الترميز' : 'تطبيق الإرجاع', `<p>${P.mode === 'code' ? 'ستُستبدل الأسماء والأرقام بالرموز في قاعدة البيانات.' : 'ستعود الأسماء والأرقام الأصلية.'} هل أخذت نسخة شاملة اليوم؟</p>`, 'تطبيق');
+    if (!ok) return; const out = $('#psOut'); let n = 0, errs = 0;
+    const send = async (t, mode, keys, rows) => { let batch = [], size = 0; const go = async () => { if (!batch.length) return; try { n += await D.rpc('pseudo_apply', { p_table: t, p_mode: mode, p_pk: keys, p_rows: batch }); } catch (e) { errs++; out.insertAdjacentHTML('beforeend', `<div class="bad">${esc(t)}: ${esc(pgErr(e))}</div>`); } batch = []; size = 0; };
+      for (const r of rows) { const s = JSON.stringify(r).length; if (size + s > 400000) await go(); batch.push(r); size += s; } await go(); };
+    for (const o of P.ops) { out.insertAdjacentHTML('beforeend', `<div>${esc(o.t)}…</div>`); await send(o.t, 'delete', o.keys, o.del); await send(o.t, 'update', o.keys, o.upd); await send(o.t, 'insert', o.keys, o.ins); }
+    try { await D.rpc('pseudo_finish'); } catch (e) { errs++; }
+    await D.rpc('pseudo_mark', { p_on: P.mode === 'code', p_note: P.mode === 'code' ? 'ترميز' : 'إرجاع' });
+    PS.plan = null; PS.log = null; out.insertAdjacentHTML('beforeend', `<p class="${errs ? 'bad' : ''}"><b>انتهى: ${n} صفًا${errs ? '، و' + errs + ' خطأ' : ''}.</b> نفّذ check_coding_counts.sql وقارن بأعداد ن0.</p>`);
+    await C.reload();
+  });
   C.bkJson = (btn) => busy(btn, async () => { const l = (m) => { $('#bkLog').textContent = m; }; const b = await collect(val('bkF'), l);
     save('نسخة-نظام-الكلية-' + stamp() + '.json', JSON.stringify(b), 'application/json');
     const errs = Object.keys(b.errors); l('اكتملت: ' + Object.values(b.tables).reduce((a, x) => a + x.length, 0) + ' سجل من ' + BK.length + ' جدولًا و' + Object.keys(b.files).length + ' ملف.' +
@@ -5272,7 +5347,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
 
   /* الإعدادات لمدير النظام ومن يحدده في org_settings.data.settingsAccess (معرّفات سجلات الأعضاء، فتنتقل مع النقل). إخفاء ومنع في الواجهة؛ وحماية البيانات تبقى في سياسات القاعدة */
   const STRUCT_PAGES = ['org', 'college', 'vices', 'depts', 'units', 'committees', 'ws', 'positions'];
-  const SET_PAGES = ['settings', 'org', 'faculty', 'courses', 'accounts', 'audit', 'ann', 'backup', 'identity', 'general', 'assist', 'forms', 'track', 'perms', 'matrix', 'positions', 'sources', 'progcat', 'mgvis', 'statsex'];
+  const SET_PAGES = ['settings', 'org', 'faculty', 'courses', 'accounts', 'audit', 'ann', 'backup', 'pseudo', 'identity', 'general', 'assist', 'forms', 'track', 'perms', 'matrix', 'positions', 'sources', 'progcat', 'mgvis', 'statsex'];
   const canSettings = () => isAdmin() || (!!myFac() && ((S.settings || {}).settingsAccess || []).includes(myFac()));
   C.setAccess = () => { if (!isAdmin()) return; const cur = S.settings.settingsAccess || [], list = S.faculty.filter((f) => f.status === 'نشط' || cur.includes(f.id)).sort((x, y) => x.name_ar.localeCompare(y.name_ar, 'ar'));
     modal('من يرى الإعدادات', `<p class="small muted">مدير النظام يراها دائمًا. من تحدده هنا يدخل صفحات الإعدادات، وما يستطيع تغييره فيها يبقى بحسب صلاحياته.</p><input class="inp" placeholder="بحث بالاسم" oninput="document.querySelectorAll('#saList label').forEach((l)=>{l.style.display=l.textContent.includes(this.value.trim())?'':'none'})" style="width:100%;margin-bottom:8px">

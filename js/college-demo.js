@@ -980,6 +980,19 @@
     f.deact_request = { by: ME, by_name: p.name, at: nowISO(), reason: String(p_reason).slice(0, 500) }; audit('faculty', f.id, 'UPDATE', b, f);
     T.profiles.filter((x) => x.is_admin && x.active).forEach((x) => { const id = 'n' + uuid().replace(/-/g, ''); T.notifs.push({ id, to_user: x.app_id, created_by: ME, created_at: nowISO(), data: { id, to: x.app_id, ref: null, by: ME, at: nowISO(), read: false, text: 'طلب إيقاف العضو ' + f.name_ar + ' من ' + p.name + ': ' + String(p_reason).slice(0, 200) } }); });
     audit('faculty', f.id, 'DEACT_REQUEST', null, { reason: p_reason }); return null; };
+  /* الترميز المؤقت (database/79_pseudonymize_support.sql) */
+  R.pseudo_apply = ({ p_table, p_mode, p_pk, p_rows }) => {
+    adminOnly('الترميز المؤقت لمدير النظام فقط.'); const rows = T[p_table] || (T[p_table] = []); let n = 0;
+    const eq = (r, x) => p_pk.every((k) => String(r[k]) === String(x[k]));
+    for (const x of p_rows || []) {
+      if (p_mode === 'update') { const r = rows.find((y) => eq(y, x)); if (!r) continue; Object.keys(x).forEach((k) => { if (!p_pk.includes(k) && k !== 'version') r[k] = JSON.parse(JSON.stringify(x[k])); }); if ('version' in r) r.version = (+r.version || 0) + 1; n++; }
+      else if (p_mode === 'delete') { const i = rows.findIndex((y) => eq(y, x)); if (i >= 0) { rows.splice(i, 1); n++; } }
+      else if (!rows.some((y) => eq(y, x))) { rows.push(JSON.parse(JSON.stringify(x))); n++; }
+    }
+    return n;
+  };
+  R.pseudo_mark = ({ p_on, p_note }) => { adminOnly('لمدير النظام فقط.'); T.org_settings[0].data.pseudo = { on: !!p_on, at: nowISO(), by: ME, note: p_note || '' }; };
+  R.pseudo_finish = () => { adminOnly('لمدير النظام فقط.'); };
   R.faculty_merge = ({ p_from, p_to }) => { adminOnly('الدمج لمدير النظام فقط.'); if (p_from === p_to) throw new Error('اختر سجلين مختلفين.');
     const a = T.faculty.find((x) => x.id === p_from), b = T.faculty.find((x) => x.id === p_to); if (!a || !b) throw new Error('أحد السجلين غير موجود.');
     if (a.profile_app_id && b.profile_app_id) throw new Error('لكل من السجلين حساب دخول؛ عطّل أحد الحسابين وافصله أولًا.');
