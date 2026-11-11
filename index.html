@@ -344,6 +344,7 @@ td.row>.btn{margin:2px}
 .err{color:var(--late);font-size:13px;min-height:1.2em}
 #toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font-size:14px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .banner{background:var(--brass-soft);border:1px solid var(--brass);padding:8px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.banner.pii-note{background:#FEF3F2;border-color:#F04438;color:#912018;font-weight:600}
 .note{background:var(--paper);border:1px solid var(--line2);padding:10px 14px;border-radius:8px;font-size:13px;color:var(--ink2)}
 .warn{background:#FFF6E0;border:1px solid #EBCB85;border-inline-start:4px solid #C98A00;padding:10px 14px;border-radius:8px;font-size:13px;color:#5A3E00}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}
@@ -549,8 +550,8 @@ table.sq-dt{width:100%;border-collapse:collapse;font-size:13px}table.sq-dt td,ta
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script>/* مكتبات Excel وWord تُحمَّل بعد ظهور الصفحة، والوضع التجريبي لا يُحمَّل إلا عند طلبه */
-if(/[?&#]demo\b/.test(location.href)||window.COLLEGE_FORCE_DEMO)document.write('<script src="js/college-demo.js?v=20261111b"><\/script>');
+if(/[?&#]demo\b/.test(location.href)||window.COLLEGE_FORCE_DEMO)document.write('<script src="js/college-demo.js?v=20261111c"><\/script>');
 window.addEventListener("load",function(){setTimeout(function(){["https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js","https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.min.js","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"].forEach(function(u){var s=document.createElement("script");s.src=u;s.async=false;document.head.appendChild(s);});},800);});</script>
-<script src="js/college-app.js?v=20261111b"></script>
+<script src="js/college-app.js?v=20261111c"></script>
 </body>
 </html>

@@ -112,8 +112,8 @@
   const qcPrime = (key, v) => QC.set(key, { t: Date.now(), p: Promise.resolve(v) });
   const qcFresh = (key) => { const e = QC.get(key); return !!e && Date.now() - e.t < QC_TTL; };
   (() => { const sel = D.select; D.select = (t, o) => QC_SKIP.has(t) ? (PERF.n++, sel.call(D, t, o)) : qcGet(qcKey(t, o), () => sel.call(D, t, o));
-    ['insert', 'upsert', 'update', 'remove', 'upsertMany'].forEach((k) => { const f = D[k]; D[k] = async (t, ...r) => { const v = await f.call(D, t, ...r); qcDrop(t); if (t === 'faculty' || t === 'faculty_extra') qcDrop('data_values'); return v; }; });
-    const rp = D.rpc; D.rpc = async (n, a) => { if (QC_RPC.has(n)) return qcGet(qcKey('rpc:' + n, a), () => rp.call(D, n, a)); PERF.n++; const v = await rp.call(D, n, a); if (!QC_KEEP.has(n)) qcClear(); return v; };
+    ['insert', 'upsert', 'update', 'remove', 'upsertMany'].forEach((k) => { const f = D[k]; D[k] = async (t, ...r) => { piiBlock(t); const v = await f.call(D, t, ...r); qcDrop(t); if (t === 'faculty' || t === 'faculty_extra') qcDrop('data_values'); return v; }; });
+    const rp = D.rpc; D.rpc = async (n, a) => { if (QC_RPC.has(n)) return qcGet(qcKey('rpc:' + n, a), () => rp.call(D, n, a)); if (!PII_READ_RPC.has(n)) piiBlock(n); PERF.n++; const v = await rp.call(D, n, a); if (!QC_KEEP.has(n)) qcClear(); return v; };
     const fnc = D.fn; D.fn = async (b) => { const v = await fnc.call(D, b); qcClear(); return v; };
     /* ملف البرنامج لا يتغير لأن مساره يحوي رقم الإصدار: يُحفظ في المتصفح، ويُحذف إصداره السابق */
     const dl = D.downloadApp; D.downloadApp = async (p) => { let c = null; try { c = await caches.open('college-apps-v1'); const h = await c.match('/__app/' + p); if (h) return await h.blob(); } catch (e) { c = null; }
@@ -267,7 +267,7 @@
     Object.assign(S, { grants, apps, programs }); S.mgVis = await D.select('mgmt_visibility').catch(() => []);
     S.privates = Object.fromEntries(pv.map((p) => [p.faculty_id, p.mobile]));
   }
-  C.reload = async () => { qcClear(); await loadAll(); refresh(); toast('حُدّثت البيانات.'); };
+  C.reload = async () => { qcClear(); PS.view = false; await loadAll(); refresh(); toast('حُدّثت البيانات.'); };
 
   /* ---------------- الإطار والتنقل ---------------- */
   const NAV = [
@@ -328,6 +328,8 @@
     $('#main').classList.toggle('flush', flush);
     const v = $('#view');
     v.innerHTML = (DEMO && !flush ? '<div class="banner">نسخة تجريبية ببيانات وهمية: جرّب كل الشاشات، ولا يُحفظ شيء بعد إعادة تحميل الصفحة.</div>' : '') +
+      (PS.view ? '<div class="banner pii-note">وضع عرض الأسماء (المفتاح محمَّل في هذا المتصفح فقط): الحفظ معطّل. أوقفه من «الترميز المؤقت».</div>' : '') +
+      (PII_PAGES.includes(page) ? PII_NOTE : '') +
       (flush || ['saqr', 'engines', 'grads'].includes(page) ? '' : `<div class="pghead page-hero"><div class="ph-t"><h1>${esc(title)}</h1>${PAGE_DESC[page] ? `<p>${esc(PAGE_DESC[page])}</p>` : ''}<div class="ph-chips">${PAGE_DESC[page] ? heroChips() : ''}</div></div>${NAV_OF[page] === 'settings' && viewRole() !== 'staff' ? `<button class="btn sm noprint" onclick="C.go('settings')">${icon('back')}الإعدادات</button>` : ''}</div>`) +
       '<div id="printHead" class="printhead"></div><div id="pg"></div>';
     const fn = { home: pgHome, college: pgCollege, vices: () => pgList(['leadership', 'administration'], true), depts: () => pgList(['department']), units: () => pgList(['unit']), committees: () => pgList(['committee']),
@@ -1892,7 +1894,7 @@
   function parseBarsh(src) {
     const doc = src instanceof Document ? src : new DOMParser().parseFromString(new TextDecoder(/charset\s*=\s*["']?utf-?8/i.test(new TextDecoder('latin1').decode(src.slice(0, 3000))) ? 'utf-8' : 'windows-1256').decode(src), 'text/html');
     const isTime = (s) => /^\d{1,2}:\d{2}$/.test(s);
-    const isName = (s) => /^[؀-ۿ]+( [؀-ۿ]+){2,}$/.test(s) && !/قاعة|كلية|لم تحدد|مقرر|محاضرة/.test(s);
+    const isName = (s) => /^[FO][0-9]{4}$/.test(s) || /^[؀-ۿ]+( [؀-ۿ]+){2,}$/.test(s) && !/قاعة|كلية|لم تحدد|مقرر|محاضرة/.test(s);
     const secs = [], byKey = new Map(), warn = []; let ctx = { campus: '', degree: '' }, cur = null, pend = null;
     const meet = (sec, m) => { if (!sec || !/^[1-7]$/.test(m[0]) || sec.meet.some((x) => x.day === m[0] && x.from === m[1] && x.to === m[2])) return;
       sec.meet.push({ day: m[0], from: m[1], to: m[2], room: /لم تحدد/.test(m[3] || '') ? '' : (m[3] || '') }); sec.meet.sort((a, b) => a.day - b.day || String(a.from).localeCompare(String(b.from))); };
@@ -1985,9 +1987,9 @@
       const v = await approvedOf(CQ.term).catch(() => null), prev = v ? await versionRows(v.id).catch(() => []) : [];
       const known = new Set(crs.map((c) => norm(c.code)));
       const degree = new Map(); prev.forEach((p) => { if (p.program && !degree.has(p.code)) degree.set(p.code, p.program); });
-      const b = parseSisXml(buf, { known, degree }); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف XML.');
+      const b = parseSisXml(piiSchedBuf(buf, true), { known, degree }); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف XML.');
     }
-    else if (isOracle(buf)) { const b = parseBarsh(buf); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
+    else if (isOracle(buf)) { const b = parseBarsh(piiSchedBuf(buf, false)); rows = b.rows; warn = b.warn; if (!rows.length) throw new Error('لم يُعثر على شعب في ملف البرش.'); }
     else {
       if (!window.XLSX) throw new Error('مكتبة Excel لم تُحمَّل. تحقق من الاتصال بالإنترنت.');
       const wb = XLSX.read(buf, { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
@@ -2922,7 +2924,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
       <b>${esc(a.name)}</b><span class="small muted">الإصدار ${esc(v.version || '—')}</span><span id="appSync" class="small muted"></span><span class="grow"></span>
       <button class="btn sm" onclick="C.refresh()">إعادة تحميل</button><button class="btn sm" onclick="document.getElementById('apphost').classList.toggle('full')">ملء الشاشة</button>
       ${tl.length ? `<button class="btn sm pri" onclick="C.appForms('${a.id}')">${icon('form')}النماذج (${tl.length})</button>` : ''}${isAdmin() ? `<button class="btn sm" onclick="C.appDl('${a.id}')">تنزيل النسخة</button><button class="btn sm" onclick="C.appUpload('${a.id}')">رفع تحديث</button>` : ''}</div>
-      <div class="app-wait">جارٍ فتح البرنامج…</div><iframe id="appFrame" title="${attr(a.name)}" sandbox="${APP_SANDBOX}" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>`;
+      ${piiApp(a) ? PII_NOTE : ''}<div class="app-wait">جارٍ فتح البرنامج…</div><iframe id="appFrame" title="${attr(a.name)}" sandbox="${APP_SANDBOX}" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>`;
   }
 
   C.appForms = (id) => { const a = S.apps.find((x) => x.id === id); const u = unit(a.unit_id); const tl = TPLS.filter((t) => t.app_id === id && t.active);
@@ -3027,16 +3029,73 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
 
   /* الترميز المؤقت للبيانات الشخصية (تعميم مكتب إدارة البيانات 1448/05/23هـ؛ database/79_pseudonymize_support.sql)
      المفتاح وسجل الإرجاع يُقرآن من جهاز المدير ولا يُرفعان. يُرسل للقاعدة فقط ما تغيّر من خلايا (القيم المرمَّزة عند الترميز، والأصلية عند الإرجاع). */
-  const PS = { key: null, plan: null, log: null };
-  const psLib = () => window.PSEUDO ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/college-pseudo.js?v=20261111b'; s.onload = res; s.onerror = () => rej(new Error('تعذر تحميل أداة الترميز.')); document.head.appendChild(s); });
+  const PS = { key: null, plan: null, log: null, maps: null, view: false };
+  const psLib = () => window.PSEUDO ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/college-pseudo.js?v=20261111c'; s.onload = res; s.onerror = () => rej(new Error('تعذر تحميل أداة الترميز.')); document.head.appendChild(s); });
   const psPks = () => Object.fromEntries(BK);
+
+  /* المرحلة 5: حماية الاستيراد أثناء الترميز، وتنبيه التعميم، ووضع عرض الأسماء محليًا */
+  const PII_NOTE = '<div class="banner pii-note">يُمنع عرض هذه البيانات على الشاشات أو مشاركتها عبر منصات التواصل – تعميم مكتب إدارة البيانات 1448/05/23هـ</div>';
+  const PII_PAGES = ['honor', 'advising', 'advunit', 'pseudo'];
+  /* البرامج التي فيها بيانات طلاب: التدريب والجاهزية والاختبارات (من «المناصب»)، أو بالاسم */
+  const piiApp = (a) => { const st = S.settings || {}; return [st.wfTrainApp, st.wfReadyApp, st.wfExamsApp].includes(a.id) || /تدريب|جاهزية|اختبار|إرشاد/.test(a.name || ''); };
+  const pseudoOn = () => !!(S.settings && S.settings.pseudo && S.settings.pseudo.on);
+  const PII_CODE = /^\s*(?:(?:أ\.\s*د\.|د\.|أ\.|م\.)\s*)?[FSOR]\d{3,5}\s*$/;
+  const PII_H = [['mob', /جوال|هاتف|موبايل|mobile|phone|whats|واتس/i], ['id', /هوية|سجل مدني|السجل المدني|إقامة|national ?id|iqama/i], ['birth', /ميلاد|birth|\bdob\b/i],
+    ['emp', /الرقم الوظيفي|رقم وظيفي|employee/i], ['univ', /الرقم الجامعي|رقم جامعي|student ?(id|no)|university ?(id|no|number)/i],
+    ['name', /^(الاسم|الإسم|اسم|الاسم الكامل|الاسم بالعربي(ة)?|name|full ?name|student ?name|instructor|lecturer|المحاضر|الأستاذ|عضو هيئة التدريس|الطالب|الطالبة|المرشد|المشرف)$|^اسم (ال)?(عضو|طالب|طالبة|محاضر|أستاذ|موظف|مرشد|مشرف|باحث)/i]];
+  const piiKind = (h) => { h = String(h || '').replace(/\s+/g, ' ').trim(); if (!h || h.length > 40) return null; const k = PII_H.find(([, re]) => re.test(h)); return k ? k[0] : null; };
+  /* المفتاح المحمَّل: الصيغ والأرقام */
+  const piiMaps = () => { if (!PS.key) return null; if (!PS.maps) { const k = PS.key; PS.maps = { subs: PSEUDO.buildSubs(k), emp: new Map(k.fac.filter((f) => f.emp_real).map((f) => [f.emp_real, f.emp])), empCoded: new Set(k.fac.map((f) => f.emp)), univ: new Map(k.stu.filter((s) => s.univ).map((s) => [s.univ, s.code])) }; } return PS.maps; };
+  const PII_AR2 = /[؀-ۿ]{2,}\s+[؀-ۿ]{2,}/;
+  /* كل ورقة Excel تُقرأ في الموقع أثناء الترميز: الجوال والهوية والميلاد تُحذف، والاسم والرقم الوظيفي والجامعي تُحوَّل بالمفتاح أو يُرفض الملف */
+  function piiCheckWb(wb) {
+    if (!pseudoOn()) return; const M = piiMaps(); const st = { need: new Set(), unknown: 0, dropped: 0, coded: 0 };
+    for (const sn of wb.SheetNames) {
+      const ws = wb.Sheets[sn]; if (!ws || !ws['!ref']) continue;
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, blankrows: true });
+      let h = -1, cols = []; for (let r = 0; r < Math.min(10, aoa.length) && h < 0; r++) { const c = (aoa[r] || []).map((x, i) => [i, piiKind(x)]).filter(([, k]) => k); if (c.length) { h = r; cols = c; } }
+      if (h < 0) continue; const r0 = XLSX.utils.decode_range(ws['!ref']).s.r;
+      for (let r = h + 1; r < aoa.length; r++) for (const [c, k] of cols) {
+        const v = String((aoa[r] || [])[c] == null ? '' : aoa[r][c]).trim(); if (!v) continue; let nv = v;
+        if (k === 'mob' || k === 'id' || k === 'birth') { nv = ''; st.dropped++; }
+        else if (k === 'emp') { if (M && M.emp.has(v)) nv = M.emp.get(v); else if (M && M.empCoded.has(v)) nv = v; else if (M) { nv = ''; st.unknown++; } else st.need.add('الرقم الوظيفي'); }
+        else if (k === 'univ') { if (PII_CODE.test(v)) nv = v; else if (M && M.univ.has(v)) nv = M.univ.get(v); else st.need.add('الرقم الجامعي'); }
+        else if (k === 'name') { if (PII_CODE.test(v) || !/[؀-ۿ]/.test(v)) nv = v; else if (M) { nv = PSEUDO.codeText(v, M.subs); if (PII_AR2.test(nv)) { st.unknown++; nv = v; st.need.add('أسماء لا يعرفها المفتاح'); } } else st.need.add('الاسم'); }
+        if (nv !== v) { ws[XLSX.utils.encode_cell({ r: r + r0, c })] = { t: 's', v: nv }; if (nv) st.coded++; }
+      }
+    }
+    if (st.need.size) throw new Error('البيانات مرمَّزة الآن (تعميم مكتب إدارة البيانات 1448/05/23هـ)، وفي الملف: ' + [...st.need].join('، ') + '. استبدلها بالرموز (F0001، S00001)، أو يحمّل مدير النظام المفتاح محليًا من «الإعدادات ← الترميز المؤقت» ثم يعيد الاستيراد.');
+    if (st.dropped || st.coded || st.unknown) toast('حماية البيانات: حُوِّل ' + st.coded + ' قيمة إلى رموز' + (st.dropped ? '، وحُذف ' + st.dropped + ' جوال أو هوية أو تاريخ ميلاد' : '') + (st.unknown ? '، وتُرك ' + st.unknown + ' رقمًا وظيفيًا غير معروف فارغًا' : '') + '.');
+  }
+  /* تثبيت الفحص على قراءة Excel (المكتبة تُحمَّل بعد ظهور الصفحة) */
+  (function piiHook() { if (window.XLSX && XLSX.read && !XLSX.__pii) { const rd = XLSX.read; XLSX.read = function (d, o) { const wb = rd.call(this, d, o); if (!(o && o.piiRaw)) piiCheckWb(wb); return wb; }; XLSX.__pii = true; return; } setTimeout(piiHook, 700); })();
+  /* ملفات الجدول (البرش HTML وXML) أثناء الترميز: تُحوَّل بالمفتاح قبل القراءة، وإلا تُرفض */
+  const piiSchedBuf = (buf, xml) => {
+    if (!pseudoOn()) return buf; const M = piiMaps();
+    if (!M) throw new Error('البيانات مرمَّزة الآن: ملف الجدول فيه أسماء المحاضرين وأرقامهم. يحمّل مدير النظام المفتاح محليًا من «الإعدادات ← الترميز المؤقت» ثم يعيد الاستيراد.');
+    let t;
+    if (xml) { t = new TextDecoder('utf-8').decode(buf).replace(/<INSTRUCTOR_ID>\s*([^<]*?)\s*<\/INSTRUCTOR_ID>/g, (a, n) => '<INSTRUCTOR_ID>' + (M.emp.get(n) || (M.empCoded.has(n) ? n : '')) + '</INSTRUCTOR_ID>'); }
+    else { const u8 = new TextDecoder(/charset\s*=\s*["']?utf-?8/i.test(new TextDecoder('latin1').decode(buf.slice(0, 3000))) ? 'utf-8' : 'windows-1256').decode(buf); t = '<meta charset="utf-8">' + u8; }
+    return new TextEncoder().encode(PSEUDO.codeText(t, M.subs)).buffer;
+  };
+  /* وضع عرض الأسماء: الأسماء من المفتاح في ذاكرة هذا المتصفح فقط، وكل حفظ معطّل */
+  const PII_READ_RPC = new Set(['org_my_access', 'my_bundle', 'public_brand', 'public_portal', 'public_plan', 'public_course_spec', 'qa_roles', 'sched_linked', 'course_file_board', 'inquiry_read', 'advising_list', 'advising_read']);
+  const piiBlock = (what) => { if (PS.view) throw new Error('وضع عرض الأسماء: الحفظ معطّل (' + what + '). أوقف العرض من «الإعدادات ← الترميز المؤقت».'); };
+  const piiSwap = (on) => { const M = new Map((PS.key ? PS.key.fac : []).map((f) => [f.id, f])); (S.faculty || []).forEach((f) => { const k = M.get(f.id); if (!k) return; if (on) { f._code = f.name_ar; f._emp = f.employee_no; f.name_ar = k.name_ar; f.employee_no = k.emp_real; } else if (f._code) { f.name_ar = f._code; f.employee_no = f._emp; delete f._code; delete f._emp; } }); };
+  C.psLoadKey = (btn) => busy(btn, async () => { await psLib(); PS.key = await psReadKey(); PS.maps = null; toast('حُمِّل المفتاح في هذا المتصفح فقط (يزول بإغلاق الصفحة): الاستيراد يحوّل الأسماء إلى رموز.'); refresh(); });
+  C.psUnloadKey = () => { if (PS.view) piiSwap(false); PS.key = null; PS.maps = null; PS.view = false; toast('أُزيل المفتاح من هذا المتصفح.'); refresh(); };
+  C.psView = (on) => { if (on && !PS.key) return toast('حمّل المفتاح أولًا.', true); PS.view = !!on; piiSwap(PS.view); refresh(); };
   function pgPseudo() {
     if (!isAdmin()) return '<div class="panel">هذه الصفحة لمدير النظام.</div>';
     const st = S.settings.pseudo || {};
     return `<div class="panel"><h2>الترميز المؤقت للبيانات الشخصية</h2>
       <p class="small">تُستبدل أسماء الأعضاء والطلاب وأرقامهم بالرموز (F0001، S00001، O0001)، وتُفرَّغ الجوالات وروابط المحركات البحثية، ويبقى البريد. الحسابات لا تُمس. المفتاح وسجل الإرجاع على جهازك فقط في ملف مشفّر، ولا يُرفعان.</p>
       <p><b>الحالة:</b> ${st.on ? '<span class="tag bad">البيانات مرمَّزة</span>' : '<span class="tag">الأسماء الأصلية</span>'}${st.at ? ' <span class="small muted">منذ ' + esc(fmtDT(st.at)) + '</span>' : ''}</p>
-      <label class="f">ملف المفتاح (Excel، من الملف المشفّر)<input type="file" id="psK" accept=".xlsx"></label></div>
+      <label class="f">ملف المفتاح (Excel، من الملف المشفّر)<input type="file" id="psK" accept=".xlsx"></label>
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="C.psLoadKey(this)">${icon('key')}تحميل المفتاح محليًا</button>
+        ${PS.key ? (PS.view ? `<button class="btn pri" onclick="C.psView(false)">إيقاف عرض الأسماء</button>` : `<button class="btn" onclick="C.psView(true)">عرض الأسماء مؤقتًا (دون حفظ)</button>`) + `<button class="btn" onclick="C.psUnloadKey()">إزالة المفتاح من المتصفح</button>` : ''}
+        <span class="small ${PS.key ? 'ok' : 'muted'}">${PS.key ? 'المفتاح محمَّل في هذا المتصفح: الاستيراد يحوّل الأسماء والأرقام إلى رموز.' : 'المفتاح غير محمَّل: أثناء الترميز يُرفض أي ملف فيه أسماء أو أرقام حقيقية.'}</span></div>
+      <p class="small muted">يبقى المفتاح في ذاكرة الصفحة فقط ويزول بإغلاقها أو إعادة تحميلها؛ لا يُحفظ ولا يُرفع. وفي عرض الأسماء يُعطَّل كل حفظ في الموقع والبرامج.</p></div>
       <div class="grid2"><div class="panel"><h2>1. الترميز</h2>
         <p class="small">قبله: نسخة شاملة جديدة من «النسخ الاحتياطي». يُحضَّر الترميز في متصفحك، ثم تنزّل سجل الإرجاع وتضعه في الملف المشفّر، ثم يُطبَّق.</p>
         <div class="row"><button class="btn" onclick="C.psPrep('code', this)">تحضير الترميز</button><button class="btn" id="psLogBtn" disabled onclick="C.psSaveLog()">تنزيل سجل الإرجاع</button><button class="btn pri" id="psGoC" disabled onclick="C.psApply(this)">تطبيق الترميز</button></div></div>
@@ -3048,7 +3107,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   }
   const psReadKey = async () => {
     const f = $('#psK').files[0]; if (!f) throw new Error('اختر ملف المفتاح.'); if (!window.XLSX) throw new Error('مكتبة Excel لم تُحمَّل.');
-    const wb = XLSX.read(await f.arrayBuffer()); const sh = {}; wb.SheetNames.forEach((n) => { sh[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: false }); });
+    const wb = XLSX.read(await f.arrayBuffer(), { piiRaw: true }); const sh = {}; wb.SheetNames.forEach((n) => { sh[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: false }); });
     const key = PSEUDO.buildKey(sh); if (!key.fac.length || !key.owner) throw new Error('الملف ليس مفتاح الترميز (لا ورقة «الأعضاء» أو لا F0001).'); return key;
   };
   /* الفروق بين الحالي والمطلوب: تحديث الأعمدة المختلفة فقط، وحذف وإضافة الصفوف */
@@ -3067,7 +3126,7 @@ window.storage={get:function(k){return Promise.resolve(m.has(k)?{key:k,value:m.g
   const psSummary = (ops) => '<table class="tbl"><tr><th>الجدول</th><th>تعديل</th><th>حذف</th><th>إضافة</th></tr>' + ops.map((o) => `<tr><td>${esc(o.t)}</td><td>${o.upd.length}</td><td>${o.del.length}</td><td>${o.ins.length}</td></tr>`).join('') + '</table>';
   C.psPrep = (mode, btn) => busy(btn, async () => {
     await psLib(); qcClear(); const out = $('#psOut'); out.textContent = 'جارٍ قراءة البيانات الحالية…';
-    PS.key = await psReadKey(); PS.plan = null; ['#psGoC', '#psGoB', '#psLogBtn'].forEach((s) => { const b = $(s); if (b) b.disabled = true; });
+    PS.key = await psReadKey(); PS.maps = null; PS.plan = null; ['#psGoC', '#psGoB', '#psLogBtn'].forEach((s) => { const b = $(s); if (b) b.disabled = true; });
     const cur = await collect(false, (m) => { out.textContent = m; });
     if (Object.keys(cur.errors).length) throw new Error('تعذرت قراءة: ' + Object.keys(cur.errors).join('، '));
     if (mode === 'code') {
